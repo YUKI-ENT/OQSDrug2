@@ -135,7 +135,7 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="LLMserver" Type="System.String" Scope="User">
-      <Value Profile="(Default)">198.168.0.1</Value>
+      <Value Profile="(Default)">192.168.0.1</Value>
     </Setting>
     <Setting Name="LLMport" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">11434</Value>

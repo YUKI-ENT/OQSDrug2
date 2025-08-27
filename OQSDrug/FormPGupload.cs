@@ -62,6 +62,8 @@ namespace OQSDrug
 
                     buttonMigrate.Enabled = true;
                     buttonCreate.Enabled = true;
+                    buttonImportSGML.Enabled = true;    
+                    buttonDump.Enabled = true;
 
                     dbExists = true;
                 }
@@ -79,6 +81,9 @@ namespace OQSDrug
 
                     buttonMigrate.Enabled = true;
                     buttonCreate.Enabled = true;
+                    buttonImportSGML.Enabled = false;
+                    buttonDump.Enabled = false;
+
                     dbExists = false;
                 }
                 else
@@ -95,6 +100,9 @@ namespace OQSDrug
 
                     buttonMigrate.Enabled = false;
                     buttonCreate.Enabled = false;
+                    buttonImportSGML.Enabled = false;
+                    buttonDump.Enabled = false;
+
                     dbExists = false;
                 }
             }
@@ -435,12 +443,19 @@ namespace OQSDrug
                 try
                 {
                     await CreateOrRecreatePgDatabaseAndTablesAsync(_cts.Token);
+
+                    MessageBox.Show($"PostgreSQLにデータベース{PGdatabaseName}を作成しました");
+                }catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message );
                 }
                 finally
                 {
                     _isRunning = false;
                     buttonCreate.Text = "新規作成";
                 }
+
+                await CheckPostgreSQLConnectionAsync();
             }
             else
             {
@@ -474,8 +489,24 @@ namespace OQSDrug
 
         private void AddLog(string message)
         {
-            textBoxStatus.AppendText(message + "\r\n");
-            textBoxStatus.Refresh();
+            if (this.IsDisposed || textBoxStatus.IsDisposed) return;
+
+            if (textBoxStatus.InvokeRequired)
+            {
+                textBoxStatus.BeginInvoke((Action)(() =>
+                {
+                    textBoxStatus.AppendText(message + Environment.NewLine);
+                    // 必要なら最終行までスクロール
+                    textBoxStatus.SelectionStart = textBoxStatus.TextLength;
+                    textBoxStatus.ScrollToCaret();
+                }));
+            }
+            else
+            {
+                textBoxStatus.AppendText(message + Environment.NewLine);
+                textBoxStatus.SelectionStart = textBoxStatus.TextLength;
+                textBoxStatus.ScrollToCaret();
+            }
         }
 
         private async void buttonImportSGML_Click(object sender, EventArgs e)
@@ -486,7 +517,7 @@ namespace OQSDrug
         // ▼ メイン：ダイアログでファイル選択→pg_restore実行
         private async Task RestoreFromBackupAsync()
         {
-            AddLog("薬剤情報データのインポートを開始します");
+            AddLog("データのインポートを開始します");
 
             try
             {
@@ -515,12 +546,24 @@ namespace OQSDrug
                     // 実行（キャンセルしたい場合はフォームに CancellationTokenSource を持たせて渡す）
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10))) // 10分上限例
                     {
+                        string orgCaption = buttonImportSGML.Text;
+
+                        buttonImportSGML.Text = "インポート中";
+                        buttonImportSGML.Enabled = false;
+                        
                         bool ok = await RunPgRestoreAsync(
                             backupPath: backupPath,
                             host: host, port: port, user: user, database: db, password: password,
-                            cancel: cts.Token);
+                            cancel: cts.Token).ConfigureAwait(true); 
 
-                        AddLog(ok ? "[Restore] 完了" : "[Restore] 失敗");
+                        string result = ok ? "[Restore] 完了" : "[Restore] 失敗"; 
+                        AddLog(result);
+
+                        buttonImportSGML.Text = orgCaption;
+                        buttonImportSGML.Enabled = true;
+
+                        MessageBox.Show(result);    
+
                     }
                 }
             }
@@ -535,102 +578,61 @@ namespace OQSDrug
         private async Task<bool> RunPgRestoreAsync(
             string backupPath,
             string host, int port, string user, string database, string password,
-            CancellationToken cancel)
+            CancellationToken cancel,
+            IEnumerable<string> tables = null,   // null/空: 全復元, 指定あり: 部分復元
+            string schema = null,                // 例: "public"（任意）
+            bool clean = true,                   // 既存を落として作り直す
+            bool noOwner = true,                 // 所有者/権限は復元しない
+            int jobs = 2                         // 並列度
+)
         {
             try
             {
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string pgRestorePath = Path.Combine(exeDir, "pqsgl", "bin", "pg_restore.exe"); // ← 配置パスに合わせて修正
+                string pgRestorePath = Path.Combine(exeDir, "pgsql", "bin", "pg_restore.exe");
                 if (!File.Exists(pgRestorePath))
                 {
                     AddLog($"[Restore] pg_restore が見つかりません: {pgRestorePath}");
                     return false;
                 }
+                if (!File.Exists(backupPath))
+                {
+                    AddLog($"[Restore] バックアップが見つかりません: {backupPath}");
+                    return false;
+                }
 
-                // 対象テーブル（バックアップに既に絞ってあっても -t を付けると安全）
-                string[] tables = { "sgml_rawdata", "sgml_interaction", "ai_prompt_tpl" };
-
-                // できるだけ“今のDB/権限”に合わせる設定を推奨
-                // --clean --if-exists : 既存オブジェクトを落としてから作成
-                // --no-owner --no-privileges : 所有者/権限は復元しない（環境差異での失敗を避ける）
-                // --jobs=2 : 並列化（CPU/IOに合わせて調整）
                 var sb = new StringBuilder();
                 sb.AppendFormat("-h \"{0}\" -p {1} -U \"{2}\" -d \"{3}\" ", host, port, user, database);
-                sb.Append("--clean --if-exists --no-owner --no-privileges --verbose --jobs=2 ");
-                foreach (var t in tables)
+                if (clean) sb.Append("--clean --if-exists ");
+                if (noOwner) sb.Append("--no-owner --no-privileges ");
+                if (jobs > 1) sb.AppendFormat("--jobs={0} ", jobs);
+                sb.Append("--verbose ");
+
+                if (!string.IsNullOrWhiteSpace(schema))
+                    sb.AppendFormat("-n \"{0}\" ", schema);
+
+                if (tables != null)
                 {
-                    sb.AppendFormat("-t \"{0}\" ", t);
+                    foreach (var t in tables.Where(s => !string.IsNullOrWhiteSpace(s)))
+                        sb.AppendFormat("-t \"{0}\" ", t);   // 例: public.ai_prompt_tpl
                 }
-                sb.AppendFormat("\"{0}\"", backupPath); // 最後にバックアップファイル
+
+                sb.AppendFormat("\"{0}\"", backupPath);
 
                 var psi = new ProcessStartInfo
                 {
                     FileName = pgRestorePath,
                     Arguments = sb.ToString(),
-                    UseShellExecute = false,            // 必須：リダイレクトのため
+                    UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    WorkingDirectory = Path.GetDirectoryName(pgRestorePath) ?? exeDir
+                    CreateNoWindow = true
                 };
-
-                // パスワードの渡し方：PGPASSWORD が最も手軽
                 if (!string.IsNullOrEmpty(password))
-                {
-                    // .NET 4.8 では EnvironmentVariables コレクションを使用
                     psi.EnvironmentVariables["PGPASSWORD"] = password;
-                }
 
-                AddLog($"[Restore] 実行開始: {psi.FileName} {psi.Arguments}");
-
-                using (var proc = new Process { StartInfo = psi, EnableRaisingEvents = true })
-                {
-                    // 出力取り込み（デッドロック回避のためイベントで読む）
-                    var tcsExit = new TaskCompletionSource<int>();
-
-                    proc.OutputDataReceived += async (_, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                            AddLog($"[pg_restore][out] {e.Data}");
-                    };
-                    proc.ErrorDataReceived += async (_, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                            AddLog($"[pg_restore][err] {e.Data}");
-                    };
-                    proc.Exited += (_, __) =>
-                    {
-                        try { tcsExit.TrySetResult(proc.ExitCode); } catch { }
-                    };
-
-                    if (!proc.Start())
-                    {
-                        AddLog("[Restore] pg_restore 起動に失敗しました");
-                        return false;
-                    }
-
-                    proc.BeginOutputReadLine();
-                    proc.BeginErrorReadLine();
-
-                    // キャンセル監視
-                    using (cancel.Register(() =>
-                    {
-                        try
-                        {
-                            if (!proc.HasExited)
-                            {
-                                proc.Kill();
-                            }
-                        }
-                        catch { }
-                    }))
-                    {
-                        // WaitForExitAsync が .NET 4.8 にないため、Exited の TCS を await
-                        int exitCode = await tcsExit.Task;
-                        AddLog($"[Restore] pg_restore 終了コード: {exitCode}");
-                        return exitCode == 0;
-                    }
-                }
+                AddLog($"[Restore] 実行: {psi.FileName} {psi.Arguments}");
+                return await RunProcessWithLogsAsync(psi, cancel);
             }
             catch (OperationCanceledException)
             {
@@ -641,6 +643,29 @@ namespace OQSDrug
             {
                 AddLog($"[Restore] 例外: {ex.GetType().Name} / {ex.Message}");
                 return false;
+            }
+        }
+
+        // 共通のプロセス実行（ログ取りつつ終了コード判定）
+        private async Task<bool> RunProcessWithLogsAsync(ProcessStartInfo psi, CancellationToken cancel)
+        {
+            using (var proc = new Process { StartInfo = psi, EnableRaisingEvents = true })
+            {
+                var tcsExit = new TaskCompletionSource<int>();
+                proc.OutputDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) AddLog(e.Data); };
+                proc.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) AddLog(e.Data); };
+                proc.Exited += (_, __) => { try { tcsExit.TrySetResult(proc.ExitCode); } catch { } };
+
+                if (!proc.Start()) { AddLog("[Restore] プロセス起動に失敗"); return false; }
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+
+                using (cancel.Register(() => { try { if (!proc.HasExited) proc.Kill(); } catch { } }))
+                {
+                    int exit = await tcsExit.Task;
+                    AddLog($"[Restore] 終了コード: {exit}");
+                    return exit == 0;
+                }
             }
         }
 
@@ -679,14 +704,22 @@ namespace OQSDrug
 
                 using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10)))
                 {
+                    string orgCaption = buttonDump.Text;
+                    buttonDump.Text = "バックアップ中...";
+                    buttonDump.Enabled = false;
+
                     bool ok = await RunPgDumpAsync(
                         outFile: outFile,
                         host: host, port: port, user: user, database: db, password: password,
-                        cancel: cts.Token);
+                        cancel: cts.Token).ConfigureAwait(true);
 
-                    AddLog(ok
-                        ? $"[Backup] 完了: {outFile}"
-                        : $"[Backup] 失敗: {outFile}");
+                    string result = ok ? $"[Backup] 完了: {outFile}" : $"[Backup] 失敗: {outFile}";
+                    AddLog(result);
+
+                    buttonDump.Text = orgCaption;
+                    buttonDump.Enabled = true;
+
+                    MessageBox.Show(result);
                 }
             }
         }
@@ -700,7 +733,7 @@ namespace OQSDrug
             try
             {
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string pgDumpPath = Path.Combine(exeDir, "pqsgl", "bin", "pg_dump.exe"); // 同梱パスに合わせて調整
+                string pgDumpPath = Path.Combine(exeDir, "pgsql", "bin", "pg_dump.exe"); // 同梱パスに合わせて調整
                 if (!File.Exists(pgDumpPath))
                 {
                     AddLog($"[Backup] pg_dump が見つかりません: {pgDumpPath}");

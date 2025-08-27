@@ -191,7 +191,7 @@
             // buttonClose
             // 
             this.buttonClose.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.buttonClose.Location = new System.Drawing.Point(433, 505);
+            this.buttonClose.Location = new System.Drawing.Point(775, 505);
             this.buttonClose.Name = "buttonClose";
             this.buttonClose.Size = new System.Drawing.Size(129, 41);
             this.buttonClose.TabIndex = 11;
@@ -201,8 +201,9 @@
             // 
             // buttonDump
             // 
+            this.buttonDump.Enabled = false;
             this.buttonDump.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.buttonDump.Location = new System.Drawing.Point(18, 461);
+            this.buttonDump.Location = new System.Drawing.Point(18, 444);
             this.buttonDump.Name = "buttonDump";
             this.buttonDump.Size = new System.Drawing.Size(544, 38);
             this.buttonDump.TabIndex = 11;
@@ -213,12 +214,13 @@
             // 
             // buttonImportSGML
             // 
+            this.buttonImportSGML.Enabled = false;
             this.buttonImportSGML.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.buttonImportSGML.Location = new System.Drawing.Point(18, 366);
             this.buttonImportSGML.Name = "buttonImportSGML";
             this.buttonImportSGML.Size = new System.Drawing.Size(544, 38);
             this.buttonImportSGML.TabIndex = 12;
-            this.buttonImportSGML.Text = "薬剤情報データのインポート";
+            this.buttonImportSGML.Text = "Backupデータのインポート";
             this.buttonImportSGML.TextImageRelation = System.Windows.Forms.TextImageRelation.TextBeforeImage;
             this.buttonImportSGML.UseVisualStyleBackColor = true;
             this.buttonImportSGML.Click += new System.EventHandler(this.buttonImportSGML_Click);

@@ -553,7 +553,7 @@ namespace OQSDrug.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("198.168.0.1")]
+        [global::System.Configuration.DefaultSettingValueAttribute("192.168.0.1")]
         public string LLMserver {
             get {
                 return ((string)(this["LLMserver"]));

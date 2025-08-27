@@ -1070,7 +1070,7 @@ namespace OQSDrug
                 {
                     okSettings = await UpdateStatus().ConfigureAwait(false);
                     await setStatus().ConfigureAwait(false);
-                }, 8000, "UpdateStatus/setStatus");
+                }, 5000, "UpdateStatus/setStatus");
             }
             else
             {

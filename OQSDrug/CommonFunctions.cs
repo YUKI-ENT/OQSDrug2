@@ -467,32 +467,45 @@ namespace OQSDrug
             return Regex.Replace(sql, @"@([A-Za-z_][A-Za-z0-9_]*)", "?");
         }
 
-        public static async Task<string> CheckPGStatusAsync(string databaseName, string tableName = "")
+        public static async Task<string> CheckPGStatusAsync(
+             string databaseName,
+             string tableName = "",
+             int timeoutMs = 5000) // タイムアウト(ms)
         {
-            string baseConnStr = $"Host={Properties.Settings.Default.PGaddress};" +
-                                 $"Port={Properties.Settings.Default.PGport};" +
-                                 $"Username={Properties.Settings.Default.PGuser};" +
-                                 $"Password={decodePassword(Properties.Settings.Default.PGpass)};";
+            // Npgsqlの接続/コマンドタイムアウトは秒単位
+            int timeoutSec = Math.Max(1, timeoutMs / 1000);
 
-            string dbName = databaseName;
-            string fullConnStr = baseConnStr + $"Database={dbName};";
-            string result = "";
+            string baseConnStr =
+                $"Host={Properties.Settings.Default.PGaddress};" +
+                $"Port={Properties.Settings.Default.PGport};" +
+                $"Username={Properties.Settings.Default.PGuser};" +
+                $"Password={decodePassword(Properties.Settings.Default.PGpass)};" +
+                $"Timeout={timeoutSec};" +            // 接続タイムアウト(秒)
+                $"Command Timeout={timeoutSec};";     // コマンドタイムアウト(秒)
+
+            string fullConnStr = baseConnStr + $"Database={databaseName};";
 
             try
             {
-                using (var conn = new NpgsqlConnection(fullConnStr))
+                using (var cts = new CancellationTokenSource(timeoutMs))
+                using (var conn = new Npgsql.NpgsqlConnection(fullConnStr))
                 {
-                    await conn.OpenAsync();
+                    // --- 接続（タイムアウトあり） ---
+                    var openTask = conn.OpenAsync(cts.Token);
+                    if (await Task.WhenAny(openTask, Task.Delay(timeoutMs, cts.Token)) != openTask)
+                        return "No server"; // タイムアウト＝接続NG
 
-                    if (tableName != "")
+                    // 例外（認証失敗など）があればここで吐かせる
+                    await openTask;
+
+                    if (!string.IsNullOrEmpty(tableName))
                     {
-                        // テーブル存在確認
-                        string sql = @"
-                        SELECT 1
-                        FROM information_schema.tables
-                        WHERE table_schema = 'public'
-                          AND (table_name = @tname_lower OR table_name = @tname_exact)
-                        LIMIT 1;";
+                        const string sql = @"
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND (table_name = @tname_lower OR table_name = @tname_exact)
+                    LIMIT 1;";
 
                         using (var cmd = conn.CreateCommand())
                         {
@@ -500,37 +513,36 @@ namespace OQSDrug
                             CommonFunctions.AddDbParameter(cmd, "@tname_lower", tableName.ToLower());
                             CommonFunctions.AddDbParameter(cmd, "@tname_exact", tableName);
 
-                            var exists = await ((DbCommand)cmd).ExecuteScalarAsync();
-                            if (exists != null)
-                            {
-                                result = "OK";
-                            }
-                            else
-                            {
-                                result = $"エラー: テーブル '{tableName}' が存在しません。";
-                            }
+                            // --- クエリ（タイムアウトあり） ---
+                            var execTask = ((DbCommand)cmd).ExecuteScalarAsync(cts.Token);
+                            if (await Task.WhenAny(execTask, Task.Delay(timeoutMs, cts.Token)) != execTask)
+                                return "No server"; // タイムアウト＝接続NG
+
+                            var exists = await execTask;
+                            return (exists != null)
+                                ? "OK"
+                                : $"エラー: テーブル '{tableName}' が存在しません。";
                         }
                     }
-                    else
-                    {
-                        result = "OK";
-                    }
-                }
-                return result;
-            }
-            catch (PostgresException pgex) when (pgex.SqlState == "3D000")
-            {
-                using (var conn = new NpgsqlConnection(baseConnStr + "Database=postgres;"))
-                {
-                    await conn.OpenAsync();
-                    result = "No database";
-                    return result;
+
+                    return "OK";
                 }
             }
-            catch (Exception)
+            // 指定DBが存在しない（3D000）
+            catch (Npgsql.PostgresException pgex) when (pgex.SqlState == "3D000")
             {
-                result = "No server";
-                return result;
+                // 接続自体は生きているので "No database"
+                return "No database";
+            }
+            catch (TaskCanceledException)
+            {
+                // 任意の待機/実行タイムアウトをまとめて接続NG扱い
+                return "No server";
+            }
+            catch
+            {
+                // DNS失敗、ネットワーク不通、認証/SSL失敗 なども接続NG扱い
+                return "No server";
             }
         }
 
@@ -2245,7 +2257,7 @@ namespace OQSDrug
         }
 
         //コンボボックスにセットし、既定値を選択する
-        public static void SetModelsToComboBox(ComboBox cb, List<ModelInfo> modelList, string selectedModel = "")
+        public static async Task SetModelsToComboBox(ComboBox cb, List<ModelInfo> modelList, string selectedModel = "")
         {
             cb.DataSource = null;
             // バインド（表示＝Name、値＝Name でOK。Digestを使うなら ValueMember="Digest" に）
@@ -2254,10 +2266,17 @@ namespace OQSDrug
             cb.DataSource = modelList;
 
             // 既存設定があれば選択
-            if (!string.IsNullOrWhiteSpace(selectedModel))
+            try
             {
-                int idx = modelList.FindIndex(m => string.Equals(m.Name, selectedModel, StringComparison.OrdinalIgnoreCase));
-                if (idx >= 0) cb.SelectedIndex = idx;
+                if (!string.IsNullOrWhiteSpace(selectedModel))
+                {
+                    int idx = modelList.FindIndex(m => string.Equals(m.Name, selectedModel, StringComparison.OrdinalIgnoreCase));
+                    if (idx >= 0) cb.SelectedIndex = idx;
+                }
+            }
+            catch (Exception ex)
+            {
+                await AddLogAsync("ollamaリスト一覧の設定に失敗しました" + ex.Message);
             }
         }
 
