@@ -1,0 +1,150 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="OQSDrug.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="OQSDrugData" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="Datadyna" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="OQSFolder" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="RSBgazouFolder" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="RSBReload" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="RSBUrl" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="MCode" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="TimerInterval" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">30</Value>
+    </Setting>
+    <Setting Name="DrugFileCategory" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="KensinFileCategory" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="YZinterval" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">1</Value>
+    </Setting>
+    <Setting Name="YZspan" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">6</Value>
+    </Setting>
+    <Setting Name="KSinterval" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">6</Value>
+    </Setting>
+    <Setting Name="YZname" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="KSname" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="temprs" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\RSB_TEMP\temp_rs.txt</Value>
+    </Setting>
+    <Setting Name="autoRSB" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="ViewerBounds" Type="System.Drawing.Rectangle" Scope="User">
+      <Value Profile="(Default)">0, 0, 0, 0</Value>
+    </Setting>
+    <Setting Name="ViewerTopmost" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="Sum" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="IsUpgrade" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="MinimumStart" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="RSBID" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="KeepXml" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="DynaTable" Type="System.String" Scope="User">
+      <Value Profile="(Default)">T_資格確認結果表示</Value>
+    </Setting>
+    <Setting Name="ViewerSpan" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">6</Value>
+    </Setting>
+    <Setting Name="SearchBounds" Type="System.Drawing.Rectangle" Scope="User">
+      <Value Profile="(Default)">0, 0, 0, 0</Value>
+    </Setting>
+    <Setting Name="OmitMyOrg" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="AutoStart" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="TKKBounds" Type="System.Drawing.Rectangle" Scope="User">
+      <Value Profile="(Default)">0, 0, 0, 0</Value>
+    </Setting>
+    <Setting Name="autoTKK" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="DrugClass" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="SRBounds" Type="System.Drawing.Rectangle" Scope="User">
+      <Value Profile="(Default)">0, 0, 0, 0</Value>
+    </Setting>
+    <Setting Name="autoSR" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="RSBServerFolder" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="RSBXml" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="RSBXmlURL" Type="System.String" Scope="User">
+      <Value Profile="(Default)">http://localhost/~rsn/R_uketuke.cgi?xml_drug</Value>
+    </Setting>
+    <Setting Name="PGaddress" Type="System.String" Scope="User">
+      <Value Profile="(Default)">192.168.0.1</Value>
+    </Setting>
+    <Setting Name="PGport" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">5432</Value>
+    </Setting>
+    <Setting Name="PGuser" Type="System.String" Scope="User">
+      <Value Profile="(Default)">postgres</Value>
+    </Setting>
+    <Setting Name="PGpass" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="DBtype" Type="System.String" Scope="User">
+      <Value Profile="(Default)">mdb</Value>
+    </Setting>
+    <Setting Name="SummaryBounds" Type="System.Drawing.Rectangle" Scope="User">
+      <Value Profile="(Default)">0, 0, 0, 0</Value>
+    </Setting>
+    <Setting Name="AIauto" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="LLMserver" Type="System.String" Scope="User">
+      <Value Profile="(Default)">198.168.0.1</Value>
+    </Setting>
+    <Setting Name="LLMport" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">11434</Value>
+    </Setting>
+    <Setting Name="LLMmodel" Type="System.String" Scope="User">
+      <Value Profile="(Default)">gemma3:12b</Value>
+    </Setting>
+    <Setting Name="LLMtimeout" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">120</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

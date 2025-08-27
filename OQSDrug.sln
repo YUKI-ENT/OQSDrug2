@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35431.28
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OQSDrug", "OQSDrug\OQSDrug.csproj", "{B5685555-8F31-41F2-A1BE-30A6DE31F6B1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B5685555-8F31-41F2-A1BE-30A6DE31F6B1}.Debug|x86.ActiveCfg = Debug|x86
+		{B5685555-8F31-41F2-A1BE-30A6DE31F6B1}.Debug|x86.Build.0 = Debug|x86
+		{B5685555-8F31-41F2-A1BE-30A6DE31F6B1}.Release|x86.ActiveCfg = Release|x86
+		{B5685555-8F31-41F2-A1BE-30A6DE31F6B1}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {46673616-1539-43B6-BC84-43B10A5CEFC2}
+	EndGlobalSection
+EndGlobal
