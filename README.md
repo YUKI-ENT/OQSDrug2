@@ -77,6 +77,7 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
    - 左側のStatusインジケータ部分に現在の状態が表示されます。設定でデータベース形式を変更すると、mdb/PostgreSQLの表示が変わります。
      ![top2](https://github.com/user-attachments/assets/35b5e62e-cfa8-4851-8dac-891a1cff562c)
    - 右上の「`設定`」を開きます
+   - OQSDrug version1の設定ファイルも読み込めますので、まずversion1で設定の`エクスポート`をしてから、そのconfigファイルをインポートすると、医療機関コード等の設定がそのまま移行できます。
    - `①データベース形式`で、`PostgreSQL`を選択後、 `サーバーアドレス`、`Port`(デフォルト5432推奨)、`ユーザー名`(デフォルトpostgres推奨)、`パスワード`(インストール時に設定してください) を設定
    - 「象のマークのついた`設定`」ボタンを押す
           ![settings1](https://github.com/user-attachments/assets/20ab6cb1-b33e-4352-ad86-d43922e5699d)
