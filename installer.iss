@@ -9,7 +9,7 @@
 AppId={{8B6E2B54-9D83-4E07-9E1F-6D6B6C1B3C11}}
 AppName={#MyAppName}
 AppVersion={#AppVersion}
-DefaultDirName={pf32}\YUKI_ENT_CLINIC\{#MyAppName}
+DefaultDirName={commonpf32}\YUKI_ENT_CLINIC\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputBaseFilename={#MyAppName}_v{#AppVersion}
 Compression=lzma
@@ -19,6 +19,10 @@ ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 RestartApplications=no
 UninstallDisplayIcon={app}\OQSDrug.exe
+SignedUninstaller=yes
+SignToolRetryCount=3
+SignToolMinimumTimeBetween=1000
+SignTool=MSStore /sha1 89AA6D9BABBAAE6672A34DE9F07E47359389ACF2 /s My /fd SHA256 /tr http://timestamp.digicert.com /td SHA256
 
 [Languages]
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"

@@ -362,8 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# Custom project output / build dirs
-[Bb]uild/
-[Bb]uilds/
-[Oo]utput/
-[Oo]utputs/
+# Ignore generated installers
+/Output/*.exe

@@ -67,6 +67,20 @@ Info "ISCC: $ISCC"
 $releaseDir = Join-Path $ProjectDir "bin\x86\$Configuration"
 if (-not (Test-Path $releaseDir)) { Err "Release 出力が見つかりません: $releaseDir"; exit 1 }
 
+# ---- ここから追加：本体 exe に署名 ----
+$exePath = Join-Path $releaseDir "OQSDrug.exe"
+if (Test-Path $exePath) {
+  $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe"
+  Info "Sign exe: $exePath"
+  & $signtool sign `
+    /sha1 89AA6D9BABBAAE6672A34DE9F07E47359389ACF2 `
+    /s My `
+    /fd SHA256 `
+    /tr http://timestamp.digicert.com `
+    /td SHA256 `
+    "$exePath"
+}
+
 # Inno コンパイル
 Info "Compile Inno script"
 & "$ISCC" "/DAppVersion=$version" "$InnoScript" | Out-Host

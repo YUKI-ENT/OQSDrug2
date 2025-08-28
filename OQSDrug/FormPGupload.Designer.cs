@@ -240,7 +240,7 @@
             this.Controls.Add(this.labelServer);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "FormPGupload";
-            this.Text = "FormPGupload";
+            this.Text = "PostgreSQL設定";
             this.Load += new System.EventHandler(this.FormPGupload_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();

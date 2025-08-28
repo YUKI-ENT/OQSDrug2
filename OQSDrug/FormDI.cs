@@ -672,10 +672,15 @@ namespace OQSDrug
                 // Tagから動作を判別
                 string mode = menuItem.Tag as string;
 
-                if (dataGridViewFixed.SelectedCells.Count > 0)
+                // このメニューを開いたコントロール（=DataGridView）を取得
+                var cms = menuItem.Owner as ContextMenuStrip;
+                var dgv = cms?.SourceControl as DataGridView;
+                if (dgv == null) { MessageBox.Show("対象のDataGridViewが特定できません。"); return; }
+
+                if (dgv.SelectedCells.Count > 0)
                 {
                     // 選択されたセルを行・列のインデックスでソート
-                    var sortedCells = dataGridViewFixed.SelectedCells
+                    var sortedCells = dgv.SelectedCells
                         .Cast<DataGridViewCell>()
                         .OrderBy(cell => cell.RowIndex)
                         .ThenBy(cell => cell.ColumnIndex)
@@ -1457,6 +1462,7 @@ namespace OQSDrug
         private void InitializeInteractionContextMenu()
         {
             var cms = new ContextMenuStrip();
+            DataGridView dgv = dataGridViewInteraction;
 
             var copyFullMenuItem = new ToolStripMenuItem("表示のままコピー")
             {
@@ -1486,7 +1492,7 @@ namespace OQSDrug
                 cms.Items.Add(searchItem);
             }
 
-            dataGridViewInteraction.ContextMenuStrip = cms;
+            dgv.ContextMenuStrip = cms;
         }
 
         private void dataGridViewInteraction_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -1745,7 +1751,7 @@ namespace OQSDrug
                 {
                     // 取得できなかった場合はモデル一覧だけ既定値で表示 or クリア
                     var fallbackModel = Properties.Settings.Default.LLMmodel ?? string.Empty;
-                    SetModelsToComboBox(comboBoxModel, ollamaModelList ?? new List<ModelInfo>(), fallbackModel);
+                    await SetModelsToComboBox(comboBoxModel, ollamaModelList ?? new List<ModelInfo>(), fallbackModel);
                     return;
                 }
 
@@ -1765,7 +1771,7 @@ namespace OQSDrug
                     : (Properties.Settings.Default.LLMmodel ?? string.Empty);
 
                 // 5) モデル一覧をバインド（null安全）
-                SetModelsToComboBox(comboBoxModel, ollamaModelList ?? new List<ModelInfo>(), defaultModel);
+                await SetModelsToComboBox(comboBoxModel, ollamaModelList ?? new List<ModelInfo>(), defaultModel);
             }
             catch (Exception ex)
             {
