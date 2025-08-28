@@ -80,7 +80,8 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
    - OQSDrug version1の設定ファイルも読み込めますので、まずversion1で設定の`エクスポート`をしてから、そのconfigファイルをインポートすると、医療機関コード等の設定がそのまま移行できます。
    - `①データベース形式`で、`PostgreSQL`を選択後、 `サーバーアドレス`、`Port`(デフォルト5432推奨)、`ユーザー名`(デフォルトpostgres推奨)、`パスワード`(インストール時に設定してください) を設定
    - 「象のマークのついた`設定`」ボタンを押す
-          ![settings1](https://github.com/user-attachments/assets/20ab6cb1-b33e-4352-ad86-d43922e5699d)
+     
+     ![settings1](https://github.com/user-attachments/assets/20ab6cb1-b33e-4352-ad86-d43922e5699d)
    - PostgreSQLの設定画面になります。左上の部分が接続状況を示します。初期状態では以下のようになるはずです。
      ![pg1](https://github.com/user-attachments/assets/3425e91b-7def-40a8-aa2d-a18da98cf0d1)
    - 「`データベース/テーブル新規作成`」ボタンを押します。
@@ -99,6 +100,7 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
   - PostgreSQLモードにすると、`薬歴表示`をしたときに以下のように`相互作用`、`(AI)病態背景 ` のタブが追加されます。
     ![DI5](https://github.com/user-attachments/assets/a85bcf15-7cb8-4d36-9de8-25de023ac3f1)
   - `相互作用` タブを押すと、他院投薬中の薬剤に対する併用禁忌、注意の薬剤をリスト表示します。RSBaseがインストールされていれば、`相互作用相手`列の薬剤ダブルクリックで、その薬剤の添付文書をひらきますが、名前が一致しないと該当なしになることもあります。
+  
     ![DI6](https://github.com/user-attachments/assets/cc4cf392-81e4-4cb9-a6fd-712931a1aaec)
 - **AI推論表示**
   - `(AI)病態背景`は`Ollama`の設定がされている場合機能します。
