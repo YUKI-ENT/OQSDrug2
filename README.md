@@ -84,7 +84,7 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
    - PostgreSQLの設定画面になります。左上の部分が接続状況を示します。初期状態では以下のようになるはずです。
      ![pg1](https://github.com/user-attachments/assets/3425e91b-7def-40a8-aa2d-a18da98cf0d1)
    - 「`データベース/テーブル新規作成`」ボタンを押します。
-   - 成功すると以下のように、`OWSDrug_data:Ready`が点灯します。
+   - 成功すると以下のように、`OQSDrug_data:Ready`が点灯します。
      ![PG2](https://github.com/user-attachments/assets/23d78719-8be8-4cc7-ad2b-a9ef6a455547)
    - 従来の `OQSDrugdata.mdb` を引き継ぐ時は、`移行元mdb`を選択後、`データ移行開始` ボタンを押してください。数分かかることもありますが、成功すると以下のようになります。引き継がずに新規に使用する場合はこのステップは不要です。
      ![PG3](https://github.com/user-attachments/assets/f6968db9-4295-4dde-84af-8707bc13100b)
