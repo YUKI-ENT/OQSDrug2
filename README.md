@@ -77,13 +77,15 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
    - 左側のStatusインジケータ部分に現在の状態が表示されます。設定でデータベース形式を変更すると、mdb/PostgreSQLの表示が変わります。
      ![top2](https://github.com/user-attachments/assets/35b5e62e-cfa8-4851-8dac-891a1cff562c)
    - 右上の「`設定`」を開きます
+   - OQSDrug version1の設定ファイルも読み込めますので、まずversion1で設定の`エクスポート`をしてから、そのconfigファイルをインポートすると、医療機関コード等の設定がそのまま移行できます。
    - `①データベース形式`で、`PostgreSQL`を選択後、 `サーバーアドレス`、`Port`(デフォルト5432推奨)、`ユーザー名`(デフォルトpostgres推奨)、`パスワード`(インストール時に設定してください) を設定
    - 「象のマークのついた`設定`」ボタンを押す
-          ![settings1](https://github.com/user-attachments/assets/20ab6cb1-b33e-4352-ad86-d43922e5699d)
+     
+     ![settings1](https://github.com/user-attachments/assets/20ab6cb1-b33e-4352-ad86-d43922e5699d)
    - PostgreSQLの設定画面になります。左上の部分が接続状況を示します。初期状態では以下のようになるはずです。
      ![pg1](https://github.com/user-attachments/assets/3425e91b-7def-40a8-aa2d-a18da98cf0d1)
    - 「`データベース/テーブル新規作成`」ボタンを押します。
-   - 成功すると以下のように、`OWSDrug_data:Ready`が点灯します。
+   - 成功すると以下のように、`OQSDrug_data:Ready`が点灯します。
      ![PG2](https://github.com/user-attachments/assets/23d78719-8be8-4cc7-ad2b-a9ef6a455547)
    - 従来の `OQSDrugdata.mdb` を引き継ぐ時は、`移行元mdb`を選択後、`データ移行開始` ボタンを押してください。数分かかることもありますが、成功すると以下のようになります。引き継がずに新規に使用する場合はこのステップは不要です。
      ![PG3](https://github.com/user-attachments/assets/f6968db9-4295-4dde-84af-8707bc13100b)
@@ -98,13 +100,14 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
   - PostgreSQLモードにすると、`薬歴表示`をしたときに以下のように`相互作用`、`(AI)病態背景 ` のタブが追加されます。
     ![DI5](https://github.com/user-attachments/assets/a85bcf15-7cb8-4d36-9de8-25de023ac3f1)
   - `相互作用` タブを押すと、他院投薬中の薬剤に対する併用禁忌、注意の薬剤をリスト表示します。RSBaseがインストールされていれば、`相互作用相手`列の薬剤ダブルクリックで、その薬剤の添付文書をひらきますが、名前が一致しないと該当なしになることもあります。
+  
     ![DI6](https://github.com/user-attachments/assets/cc4cf392-81e4-4cb9-a6fd-712931a1aaec)
 - **AI推論表示**
   - `(AI)病態背景`は`Ollama`の設定がされている場合機能します。
   - もし、ローカルLLMをつかわず、ChatGPTなど外部汎用LLMを使う場合は、①のテンプレート選択後③のリサイクルマークのボタンを押すとプロンプトを⑥のテキストボックスに個人情報は削除した状態で生成しますので、これをコピーペーストして利用してもよいかと思いますが、汎用AI利用のプライバシーやガイドラインリスクには十分注意ください。
   - ローカルLLMの場合はプロンプト生成後⑤`送信`を押すとAI推論を開始します。数秒から数十秒後に返信が返ってくると⑦のテキストボックスに推論内容が表示されます。
     ![DI7](https://github.com/user-attachments/assets/81cf5ae5-8301-4fb0-be78-36e9a5bf1ac4)
-  - `設定`で`AI自動検索` を設定したうえで、以下のテンプレート設定で`自動取得` をチェックすると、xml取得後そのテンプレートでプロンプト作成からLLM問い合わせまで自動実行します。履歴はコンボボックスにリスト表示されます。
+  - **取り込み操作を行うPCの**`設定`で`AI自動検索` を設定したうえで、以下のテンプレート設定で`自動取得` をチェックすると、xml取得後そのテンプレートでプロンプト作成からLLM問い合わせまで自動実行します。履歴はコンボボックスにリスト表示されます。
 - **テンプレート編集**
   - ②の鉛筆マークのボタンを押すと、AI問い合わせ用のテンプレート編集画面が開きます。
     ![AI1](https://github.com/user-attachments/assets/5f2f7bdc-f006-4e82-90d9-36e0838c9d09)
