@@ -192,6 +192,18 @@ namespace OQSDrug
                 checkBoxAI.Enabled = true;
             }
 
+            //DIviewer
+            if(Properties.Settings.Default.DIviewer == "RSB")
+            {
+                radioButtonRSB.Checked = true;
+                radioButtonSGML.Checked = false;
+            }
+            else
+            {
+                radioButtonRSB.Checked = false;
+                radioButtonSGML.Checked = true;
+            }
+
         }
 
         private void SaveSettings()
@@ -245,6 +257,8 @@ namespace OQSDrug
             Properties.Settings.Default.LLMport = Convert.ToInt16(textBoxLLMport.Text);
             //Properties.Settings.Default.LLMmodel = textBoxLLMmodel.Text;
             Properties.Settings.Default.LLMtimeout = Convert.ToInt16(textBoxLLMtimeout.Text);
+
+            Properties.Settings.Default.DIviewer = (radioButtonRSB.Checked) ? "RSB" : "SGML"; 
 
             Properties.Settings.Default.Save();
 

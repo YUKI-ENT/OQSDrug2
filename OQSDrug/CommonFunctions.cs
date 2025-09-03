@@ -12,6 +12,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Security.Cryptography;
@@ -22,6 +23,7 @@ using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
+
 
 namespace OQSDrug
 {
@@ -53,8 +55,11 @@ namespace OQSDrug
         // 成分判定に使うプレフィックス長（必要なら設定化）
         private const int YJ_ING_PREFIX_LEN = 7;
 
-
+        public static bool _readySGML = false;
+        
         public static List<string[]> RSBDI = new List<string[]>();
+        public static List<string[]> SGMLDI = new List<string[]>();
+
         // Korodata Dictionary
         public static Dictionary<string, string> ReceptToMedisCodeMap = new Dictionary<string, string>();
 
@@ -127,51 +132,57 @@ namespace OQSDrug
         public static async Task<bool> RetryClipboardSetTextAsync(string text)
         {
             const int maxRetries = 10;
-            const int delayBetweenRetries = 50; // ミリ秒
+            const int baseDelayMs = 50;  // 50,100,150...
+            const int timeoutMs = 2000;  // 1試行あたりのタイムアウト
 
-            for (int attempts = 0; attempts < maxRetries; attempts++)
+            if (text == null) text = string.Empty;
+
+            for (int attempt = 0; attempt < maxRetries; attempt++)
             {
-                try
-                {
-                    // STA スレッドで Clipboard.SetText を実行
-                    await Task.Run(() =>
-                    {
-                        var thread = new Thread(() =>
-                        {
-                            try
-                            {
-                                //Clipboard.SetText(text);
-                                Clipboard.Clear(); // クリア
-                                Clipboard.SetDataObject(text, true); // SetText の代わりに SetDataObject を利用
-                            }
-                            catch (Exception)
-                            {
-                                // 他の予期しない例外をキャッチして再スロー
-                                throw;
-                            }
-                        });
-                        thread.SetApartmentState(ApartmentState.STA);
-                        thread.Start();
-                        thread.Join();
-                    });
+                var tcs = new TaskCompletionSource<bool>();
 
-                    return true; // 成功
-                }
-                catch (System.Runtime.InteropServices.ExternalException)
+                var th = new Thread(() =>
                 {
-                    // 他のプロセスがクリップボードを使用している場合
-                    await Task.Delay(delayBetweenRetries); // 少し待機してリトライ
-                }
-                catch (Exception ex)
+                    try
+                    {
+                        // 遅延レンダリング由来の固まりを避けるため、形式を明示＋copy=true
+                        var data = new DataObject();
+                        data.SetData(DataFormats.UnicodeText, true, text);
+                        Clipboard.SetDataObject(data, /*copy:*/ true);
+                        tcs.TrySetResult(true);
+                    }
+                    catch (System.Runtime.InteropServices.ExternalException)
+                    {
+                        // 「他プロセスが使用中」は false で返して上位でリトライ
+                        tcs.TrySetResult(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.TrySetException(ex);
+                    }
+                });
+
+                th.IsBackground = true;
+                th.SetApartmentState(ApartmentState.STA);
+                th.Start();
+
+                // タイムアウト監視
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
+                if (completed == tcs.Task)
                 {
-                    // 他の予期せぬ例外
-                    MessageBox.Show($"エラー: {ex.Message}", "クリップボードエラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return false;
+                    // 4.8 互換：成功判定
+                    if (tcs.Task.IsCompleted && !tcs.Task.IsFaulted && !tcs.Task.IsCanceled && tcs.Task.Result)
+                        return true; // 成功
+
+                    // Result==false（使用中）→下でリトライ
                 }
+                // タイムアウト or 使用中 → 少し待って再試行（指数バックオフ）
+                await Task.Delay(baseDelayMs * (attempt + 1));
             }
 
-            return false; // 最大リトライ回数を超えた場合は失敗
+            return false;
         }
+
 
         public static async Task<bool> WaitForDbUnlock(int maxWaitms)
         {
@@ -2464,6 +2475,311 @@ namespace OQSDrug
             catch
             {
                 return "";
+            }
+        }
+
+        public static void SetInteractionView(DataGridView dgv)
+        {
+            if (dgv == null || dgv.DataSource == null) return;
+
+            // 基本設定
+            dgv.AutoGenerateColumns = true;
+            dgv.ReadOnly = true;
+            dgv.AllowUserToAddRows = false;
+            dgv.AllowUserToDeleteRows = false;
+            dgv.AllowUserToResizeRows = false;
+            dgv.AllowUserToResizeColumns = true;
+            dgv.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dgv.MultiSelect = false;
+            dgv.RowHeadersVisible = false;
+
+            // 列検索ヘルパ
+            DataGridViewColumn FindCol(string key)
+                => dgv.Columns.Cast<DataGridViewColumn>()
+                    .FirstOrDefault(c =>
+                        string.Equals(c.Name, key, StringComparison.Ordinal) ||
+                        string.Equals(c.DataPropertyName, key, StringComparison.Ordinal) ||
+                        string.Equals(c.HeaderText, key, StringComparison.Ordinal));
+
+            // 表示名（必要な列だけ）
+            var headers = new Dictionary<string, string>
+                {
+                    { "didate", "処方日" },
+                    { "drugn",  "薬剤名" },
+                    { "drugc",  "院内コード" },
+                    { "yj7",    "成分7桁" },
+                    { "partner_name_ja",  "相互作用相手" },
+                    { "partner_group_ja", "カテゴリ" },
+                    { "section_type", "区分" },
+                    { "symptoms_measures_ja", "説明" },
+                    { "mechanism_ja", "機序" }
+                };
+            foreach (var kv in headers)
+            {
+                var col = FindCol(kv.Key);
+                if (col != null) col.HeaderText = kv.Value;
+            }
+
+            // 非表示列
+            string[] hiddenCols = { "ptidmain", "didate", "drugc", "yj7", "yj_code", "has_interaction" };
+            foreach (string name in hiddenCols)
+            {
+                var col = FindCol(name);
+                if (col != null) col.Visible = false;
+            }
+
+            // 幅指定（固定）
+            SetW("drugn", 150);
+            SetW("partner_name_ja", 150);
+            SetW("partner_group_ja", 150);
+            SetW("section_type", 80);
+
+            // 「説明」は残り幅
+            {
+                var c = FindCol("symptoms_measures_ja");
+                if (c != null)
+                {
+                    c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    //c.MinimumWidth = 200; // ここで c が null でも落ちない
+                }
+            }
+
+            // すべての列をソート可能に
+            foreach (DataGridViewColumn col in dgv.Columns)
+                col.SortMode = DataGridViewColumnSortMode.Automatic;
+
+            // 幅固定ヘルパ
+            void SetW(string key, int w)
+            {
+                var c = FindCol(key);
+                if (c == null) return;
+                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                c.Width = w;
+            }
+        }
+
+
+        public static void SetInteractionColors(DataGridView dgv)
+        {
+            foreach (DataGridViewRow row in dgv.Rows)
+            {
+                if (row.Cells["section_type"]?.Value == null) continue;
+
+                string type = row.Cells["section_type"].Value.ToString();
+
+                if (type.Contains("禁忌"))
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 238);
+                    row.DefaultCellStyle.ForeColor = Color.Maroon;
+                    //row.DefaultCellStyle.SelectionBackColor = row.DefaultCellStyle.BackColor;
+                    //row.DefaultCellStyle.SelectionForeColor = row.DefaultCellStyle.ForeColor;
+                }
+                else if (type.Contains("注意"))
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 224); // 淡い黄（light yellow）
+                    row.DefaultCellStyle.ForeColor = Color.Black;
+                    //row.DefaultCellStyle.SelectionBackColor = row.DefaultCellStyle.BackColor;
+                    //row.DefaultCellStyle.SelectionForeColor = row.DefaultCellStyle.ForeColor;
+                }
+            }
+        }
+
+        // リストRSBDIのカラム1,2を対象にあいまい検索を行い、上位10件を返すメソッド
+        public static async Task<List<Tuple<string[], double>>> FuzzySearchAsync(string drugName, string ingreN, string YJcode, List<string[]> DI, double cutoffThreshold = 0.4, double bonusForOriginator = 0.4, double penaltyForMissingIngreN = 0.5)
+        {
+            //double bonusForOriginator = 0.4;        // "先発" の場合のボーナス
+            //double penaltyForMissingIngreN = 0.5;   // 一般名が含まれない場合のペナルティ
+            double weightColumn1 = 0.3;             // 1列目のスコアに対する重み
+            double weightColumn2 = 0.5;             // 2列目のスコアに対する重み
+
+            // 正規表現で「」や【】に囲まれた部分を削除
+            string processedDrugName = RemoveCampany(drugName);
+
+            //数字アルファベットは除去しておく
+            //string drugNameNoDigit = RemoveDigits(drugName);
+
+            if (string.IsNullOrEmpty(ingreN)) ingreN = processedDrugName;
+
+            string yjPrefix = (!string.IsNullOrEmpty(YJcode) && YJcode.Length >= 9)
+                    ? YJcode.Substring(0, 9)
+                    : (YJcode ?? string.Empty);
+
+            var exactMatchList = new List<Tuple<string[], double>>();
+            var prefixMatchList = new List<Tuple<string[], double>>();
+            var fuzzyMatchTasks = new List<Task<Tuple<string[], double>>>();
+
+            foreach (var record in DI)
+            {
+                string column1 = record.Length > 0 ? (record[0] ?? "") : "";  // 1列目（薬品名）
+                string column2 = record.Length > 1 ? (record[1] ?? "") : "";  // 2列目（成分名）
+                string column3 = record.Length > 2 ? (record[2] ?? "") : "";  // 3列目（YJコード）
+                string column4 = record.Length > 3 ? (record[3] ?? "") : "";  // 4列目（"先発" の確認）
+                //string column5 = record[4];  // 5列目（薬価文字列）
+
+                if (!string.IsNullOrEmpty(YJcode))
+                {
+                    // YJコード完全一致
+                    if (column3 == YJcode)
+                    {
+                        exactMatchList.Add(new Tuple<string[], double>(record, 1.0));
+                        continue;
+                    }
+                    // YJコード上位9桁一致
+                    if (column3.Length >= 9 && column3.Substring(0, 9) == yjPrefix)
+                    {
+                        prefixMatchList.Add(new Tuple<string[], double>(record, 0.9));
+                        continue;
+                    }
+                }
+
+                // あいまい検索の処理を非同期タスクで並列実行
+                fuzzyMatchTasks.Add(Task.Run(() =>
+                {
+                    double similarityColumn1 = CalculateNGramSimilarity(processedDrugName, column1);
+                    double similarityColumn2 = CalculateNGramSimilarity(ingreN, column2);
+
+                    double editDistanceScore = 1.0 - (double)CalculateLevenshteinDistance(processedDrugName, column1)
+                                               / Math.Max(processedDrugName.Length, column1.Length);
+
+                    double similarity = weightColumn1 * Math.Max(similarityColumn1, editDistanceScore) +
+                                        weightColumn2 * similarityColumn2;
+
+                    bool exact = false;
+                    if (drugName == column1)
+                    {
+                        similarity = 1.0;
+                        exact = true;
+                    }
+                    else if (ingreN == column2)
+                    {
+                        similarity = 0.9;
+                        exact = true;
+                    }
+                    //部分一致
+                    else if (column1.Length > 0 && ( processedDrugName.Contains(column1) || column1.Contains(processedDrugName)))
+                    {
+                        similarity = 0.8;
+                    }
+                    else if (column2.Length > 0 && ( ingreN.Contains(column2) || column2.Contains(ingreN)))
+                    {
+                        similarity = 0.7;
+                    }
+
+                    if (similarity > cutoffThreshold && column4.Contains("先発"))
+                    {
+                        similarity += bonusForOriginator;
+                    }
+
+                    if (!exact && !column2.Contains(ingreN) && !ingreN.Contains(column2))
+                    {
+                        similarity -= penaltyForMissingIngreN;
+                    }
+
+                    similarity = Math.Max(0, similarity);
+
+                    return new Tuple<string[], double>(record, similarity);
+                }));
+            }
+
+            // あいまい検索のタスク完了を待つ
+            var fuzzyResults = await Task.WhenAll(fuzzyMatchTasks);
+
+            // 類似度でフィルタリング
+            var filteredFuzzyResults = fuzzyResults
+                .Where(r => r.Item2 >= cutoffThreshold)
+                .OrderByDescending(r => r.Item2)
+                .ToList();
+
+            // 結果を統合（完全一致 → 9桁一致 → あいまい検索）
+            var finalResults = exactMatchList.Concat(prefixMatchList).Concat(filteredFuzzyResults).Take(20).ToList();
+
+
+            return finalResults;
+        }
+
+        public static string RemoveCampany(string drugName)
+        {
+            if (string.IsNullOrWhiteSpace(drugName)) return drugName;
+
+            string processedDrugName = drugName.Trim();
+
+            // 全体が（）で囲まれている場合は中身だけ残す
+            if (Regex.IsMatch(processedDrugName, @"^（[^（）]+）$"))
+            {
+                processedDrugName = Regex.Replace(processedDrugName, @"^（(.+)）$", "$1");
+            }
+            else
+            {
+                // 部分的な「」「【】」「（）を削除」
+                string pattern = @"[「【（][^」】）]*[」】）]";
+                processedDrugName = Regex.Replace(processedDrugName, pattern, "");
+            }
+
+            // 末尾の「等」を削除
+            processedDrugName = Regex.Replace(processedDrugName, @"等$", "");
+
+            // 前後の空白をトリム
+            processedDrugName = processedDrugName.Trim();
+
+            return processedDrugName;
+        }
+
+        private static HashSet<string> GenerateNGrams(string input, int n)
+        {
+            var ngrams = new HashSet<string>();
+            if (input.Length < n) return ngrams;
+
+            for (int i = 0; i <= input.Length - n; i++)
+            {
+                ngrams.Add(input.Substring(i, n));
+            }
+
+            return ngrams;
+        }
+
+        private static double CalculateNGramSimilarity(string source, string target, int n = 2)
+        {
+            if(target.Length == 0) return 0;
+
+            var sourceNGrams = GenerateNGrams(source, n);
+            var targetNGrams = GenerateNGrams(target, n);
+
+            if (sourceNGrams.Count == 0 || targetNGrams.Count == 0) return 0.0;
+
+            int intersectionCount = sourceNGrams.Intersect(targetNGrams).Count();
+            int unionCount = sourceNGrams.Union(targetNGrams).Count();
+
+            return (double)intersectionCount / unionCount;
+        }
+
+        private static int CalculateLevenshteinDistance(string source, string target)
+        {
+            int[,] dp = new int[source.Length + 1, target.Length + 1];
+
+            for (int i = 0; i <= source.Length; i++) dp[i, 0] = i;
+            for (int j = 0; j <= target.Length; j++) dp[0, j] = j;
+
+            for (int i = 1; i <= source.Length; i++)
+            {
+                for (int j = 1; j <= target.Length; j++)
+                {
+                    int cost = source[i - 1] == target[j - 1] ? 0 : 1;
+                    dp[i, j] = Math.Min(Math.Min(dp[i - 1, j] + 1, dp[i, j - 1] + 1), dp[i - 1, j - 1] + cost);
+                }
+            }
+
+            return dp[source.Length, target.Length];
+        }
+
+        public static void SaveViewerSettings(Form form, string key)
+        {
+            if (form.WindowState != FormWindowState.Normal || form.WindowState == FormWindowState.Minimized) form.WindowState = FormWindowState.Normal;
+
+            // 現在の位置とサイズを保存
+            if (Properties.Settings.Default.Properties[key] != null) // キーが存在するか確認
+            {
+                Properties.Settings.Default[key] = form.Bounds;
+                Properties.Settings.Default.Save();
             }
         }
     }

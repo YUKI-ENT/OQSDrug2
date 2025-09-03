@@ -146,5 +146,11 @@
     <Setting Name="LLMtimeout" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">120</Value>
     </Setting>
+    <Setting Name="DIviewer" Type="System.String" Scope="User">
+      <Value Profile="(Default)">SGML</Value>
+    </Setting>
+    <Setting Name="PMDABounds" Type="System.Drawing.Rectangle" Scope="User">
+      <Value Profile="(Default)">0, 0, 0, 0</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

@@ -60,11 +60,12 @@
             this.toolStripButtonSettings = new System.Windows.Forms.ToolStripButton();
             this.toolStripButtonTKK = new System.Windows.Forms.ToolStripButton();
             this.toolStripButtonSinryo = new System.Windows.Forms.ToolStripButton();
+            this.toolStripSeparatorDebug2 = new System.Windows.Forms.ToolStripSeparator();
+            this.toolStripButtonPMDA = new System.Windows.Forms.ToolStripButton();
             this.toolStripButtonSummary = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparatorDebug1 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripComboBoxDBProviders = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripComboBoxConnectionMode = new System.Windows.Forms.ToolStripComboBox();
-            this.toolStripSeparatorDebug2 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripTextBoxDebug = new System.Windows.Forms.ToolStripTextBox();
             this.toolStripButtonDebug = new System.Windows.Forms.ToolStripButton();
             this.buttonMDB = new System.Windows.Forms.Button();
@@ -311,11 +312,12 @@
             this.toolStripButtonSettings,
             this.toolStripButtonTKK,
             this.toolStripButtonSinryo,
+            this.toolStripSeparatorDebug2,
+            this.toolStripButtonPMDA,
             this.toolStripButtonSummary,
             this.toolStripSeparatorDebug1,
             this.toolStripComboBoxDBProviders,
             this.toolStripComboBoxConnectionMode,
-            this.toolStripSeparatorDebug2,
             this.toolStripTextBoxDebug,
             this.toolStripButtonDebug});
             this.toolStripVersion.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.HorizontalStackWithOverflow;
@@ -336,7 +338,6 @@
             // 
             // toolStripTextBoxPtIDmain
             // 
-            this.toolStripTextBoxPtIDmain.Font = new System.Drawing.Font("Yu Gothic UI", 9F);
             this.toolStripTextBoxPtIDmain.Name = "toolStripTextBoxPtIDmain";
             this.toolStripTextBoxPtIDmain.Size = new System.Drawing.Size(70, 27);
             this.toolStripTextBoxPtIDmain.ToolTipText = "枝番なしIDを入力し右のいずれかのボタンを押すと\r\n薬歴、健診歴等のウインドウが開きます\r\n空欄だと患者選択無しでウインドウが開きます";
@@ -440,12 +441,26 @@
             this.toolStripButtonSinryo.ToolTipText = "診療手術情報を表示します";
             this.toolStripButtonSinryo.Click += new System.EventHandler(this.toolStripButtonSinryo_Click);
             // 
+            // toolStripSeparatorDebug2
+            // 
+            this.toolStripSeparatorDebug2.Name = "toolStripSeparatorDebug2";
+            this.toolStripSeparatorDebug2.Size = new System.Drawing.Size(6, 27);
+            // 
+            // toolStripButtonPMDA
+            // 
+            this.toolStripButtonPMDA.Image = global::OQSDrug.Properties.Resources.PMDA;
+            this.toolStripButtonPMDA.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButtonPMDA.Name = "toolStripButtonPMDA";
+            this.toolStripButtonPMDA.Size = new System.Drawing.Size(104, 24);
+            this.toolStripButtonPMDA.Text = "PMDA薬情";
+            this.toolStripButtonPMDA.Click += new System.EventHandler(this.toolStripButtonPMDA_Click);
+            // 
             // toolStripButtonSummary
             // 
             this.toolStripButtonSummary.Image = global::OQSDrug.Properties.Resources.ai32;
             this.toolStripButtonSummary.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonSummary.Name = "toolStripButtonSummary";
-            this.toolStripButtonSummary.Size = new System.Drawing.Size(88, 24);
+            this.toolStripButtonSummary.Size = new System.Drawing.Size(88, 26);
             this.toolStripButtonSummary.Text = "AIサマリ";
             this.toolStripButtonSummary.Visible = false;
             this.toolStripButtonSummary.Click += new System.EventHandler(this.toolStripButtonSummary_Click);
@@ -473,16 +488,9 @@
             this.toolStripComboBoxConnectionMode.ToolTipText = "データベース接続モード";
             this.toolStripComboBoxConnectionMode.Visible = false;
             // 
-            // toolStripSeparatorDebug2
-            // 
-            this.toolStripSeparatorDebug2.Name = "toolStripSeparatorDebug2";
-            this.toolStripSeparatorDebug2.Size = new System.Drawing.Size(6, 27);
-            this.toolStripSeparatorDebug2.Visible = false;
-            // 
             // toolStripTextBoxDebug
             // 
             this.toolStripTextBoxDebug.AutoSize = false;
-            this.toolStripTextBoxDebug.Font = new System.Drawing.Font("Yu Gothic UI", 9F);
             this.toolStripTextBoxDebug.Name = "toolStripTextBoxDebug";
             this.toolStripTextBoxDebug.Size = new System.Drawing.Size(60, 27);
             this.toolStripTextBoxDebug.ToolTipText = "デバッグ用xmlの患者ID(枝番付)";
@@ -669,6 +677,7 @@
         private System.Windows.Forms.PictureBox pictureBoxDynamics;
         private System.Windows.Forms.PictureBox pictureBoxOQSFolder;
         private System.Windows.Forms.GroupBox groupBox2;
+        private System.Windows.Forms.ToolStripButton toolStripButtonPMDA;
     }
 }
 

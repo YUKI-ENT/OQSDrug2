@@ -46,8 +46,6 @@
             this.buttonOQSDrugData = new System.Windows.Forms.Button();
             this.labelMDB1 = new System.Windows.Forms.Label();
             this.textBoxOQSDrugData = new System.Windows.Forms.TextBox();
-            this.label13 = new System.Windows.Forms.Label();
-            this.label15 = new System.Windows.Forms.Label();
             this.textBoxTemprs = new System.Windows.Forms.TextBox();
             this.label14 = new System.Windows.Forms.Label();
             this.checkBoxTopmost = new System.Windows.Forms.CheckBox();
@@ -88,12 +86,22 @@
             this.label19 = new System.Windows.Forms.Label();
             this.checkBoxOmitMyOrg = new System.Windows.Forms.CheckBox();
             this.label3 = new System.Windows.Forms.Label();
+            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.tabPageMain = new System.Windows.Forms.TabPage();
+            this.tabPageViewer = new System.Windows.Forms.TabPage();
+            this.groupBoxDI = new System.Windows.Forms.GroupBox();
+            this.radioButtonRSB = new System.Windows.Forms.RadioButton();
+            this.radioButtonSGML = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
+            this.tabControl1.SuspendLayout();
+            this.tabPageMain.SuspendLayout();
+            this.tabPageViewer.SuspendLayout();
+            this.groupBoxDI.SuspendLayout();
             this.SuspendLayout();
             // 
             // textBoxDatadyna
             // 
-            this.textBoxDatadyna.Location = new System.Drawing.Point(180, 189);
+            this.textBoxDatadyna.Location = new System.Drawing.Point(157, 170);
             this.textBoxDatadyna.Name = "textBoxDatadyna";
             this.textBoxDatadyna.Size = new System.Drawing.Size(365, 19);
             this.textBoxDatadyna.TabIndex = 2;
@@ -101,7 +109,7 @@
             // 
             // textBoxOQSFolder
             // 
-            this.textBoxOQSFolder.Location = new System.Drawing.Point(180, 262);
+            this.textBoxOQSFolder.Location = new System.Drawing.Point(157, 243);
             this.textBoxOQSFolder.Name = "textBoxOQSFolder";
             this.textBoxOQSFolder.Size = new System.Drawing.Size(365, 19);
             this.textBoxOQSFolder.TabIndex = 4;
@@ -110,7 +118,7 @@
             // checkBoxKeepXml
             // 
             this.checkBoxKeepXml.AutoSize = true;
-            this.checkBoxKeepXml.Location = new System.Drawing.Point(38, 366);
+            this.checkBoxKeepXml.Location = new System.Drawing.Point(15, 347);
             this.checkBoxKeepXml.Name = "checkBoxKeepXml";
             this.checkBoxKeepXml.Size = new System.Drawing.Size(104, 16);
             this.checkBoxKeepXml.TabIndex = 29;
@@ -123,7 +131,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(27, 192);
+            this.label1.Location = new System.Drawing.Point(4, 173);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(103, 12);
             this.label1.TabIndex = 5;
@@ -132,7 +140,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(27, 265);
+            this.label2.Location = new System.Drawing.Point(4, 246);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(109, 12);
             this.label2.TabIndex = 6;
@@ -142,7 +150,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(27, 313);
+            this.label4.Location = new System.Drawing.Point(4, 294);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(97, 12);
             this.label4.TabIndex = 8;
@@ -151,7 +159,7 @@
             // comboBoxTimerSecond
             // 
             this.comboBoxTimerSecond.FormattingEnabled = true;
-            this.comboBoxTimerSecond.Location = new System.Drawing.Point(180, 310);
+            this.comboBoxTimerSecond.Location = new System.Drawing.Point(157, 291);
             this.comboBoxTimerSecond.Name = "comboBoxTimerSecond";
             this.comboBoxTimerSecond.Size = new System.Drawing.Size(53, 20);
             this.comboBoxTimerSecond.TabIndex = 14;
@@ -160,7 +168,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(27, 290);
+            this.label5.Location = new System.Drawing.Point(4, 271);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(92, 12);
             this.label5.TabIndex = 10;
@@ -168,7 +176,7 @@
             // 
             // textBoxMCode
             // 
-            this.textBoxMCode.Location = new System.Drawing.Point(180, 287);
+            this.textBoxMCode.Location = new System.Drawing.Point(157, 268);
             this.textBoxMCode.Name = "textBoxMCode";
             this.textBoxMCode.Size = new System.Drawing.Size(100, 19);
             this.textBoxMCode.TabIndex = 12;
@@ -176,7 +184,7 @@
             // 
             // buttonDatadyna
             // 
-            this.buttonDatadyna.Location = new System.Drawing.Point(551, 189);
+            this.buttonDatadyna.Location = new System.Drawing.Point(528, 170);
             this.buttonDatadyna.Name = "buttonDatadyna";
             this.buttonDatadyna.Size = new System.Drawing.Size(21, 19);
             this.buttonDatadyna.TabIndex = 3;
@@ -186,7 +194,7 @@
             // 
             // buttonOQSFolder
             // 
-            this.buttonOQSFolder.Location = new System.Drawing.Point(551, 262);
+            this.buttonOQSFolder.Location = new System.Drawing.Point(528, 243);
             this.buttonOQSFolder.Name = "buttonOQSFolder";
             this.buttonOQSFolder.Size = new System.Drawing.Size(21, 19);
             this.buttonOQSFolder.TabIndex = 5;
@@ -196,7 +204,7 @@
             // 
             // buttonSaveExit
             // 
-            this.buttonSaveExit.Location = new System.Drawing.Point(488, 567);
+            this.buttonSaveExit.Location = new System.Drawing.Point(510, 487);
             this.buttonSaveExit.Name = "buttonSaveExit";
             this.buttonSaveExit.Size = new System.Drawing.Size(93, 23);
             this.buttonSaveExit.TabIndex = 50;
@@ -206,7 +214,7 @@
             // 
             // buttonCancel
             // 
-            this.buttonCancel.Location = new System.Drawing.Point(407, 567);
+            this.buttonCancel.Location = new System.Drawing.Point(429, 487);
             this.buttonCancel.Name = "buttonCancel";
             this.buttonCancel.Size = new System.Drawing.Size(75, 23);
             this.buttonCancel.TabIndex = 44;
@@ -242,27 +250,9 @@
             this.textBoxOQSDrugData.TabIndex = 0;
             this.toolTipSetting.SetToolTip(this.textBoxOQSDrugData, "通常はダイナミクスのdatadyna.mdbのあるフォルダに配置・設定してください");
             // 
-            // label13
-            // 
-            this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(12, 9);
-            this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(55, 12);
-            this.label13.TabIndex = 51;
-            this.label13.Text = "メイン設定";
-            // 
-            // label15
-            // 
-            this.label15.AutoSize = true;
-            this.label15.Location = new System.Drawing.Point(17, 452);
-            this.label15.Name = "label15";
-            this.label15.Size = new System.Drawing.Size(64, 12);
-            this.label15.TabIndex = 53;
-            this.label15.Text = "Viewer設定";
-            // 
             // textBoxTemprs
             // 
-            this.textBoxTemprs.Location = new System.Drawing.Point(407, 467);
+            this.textBoxTemprs.Location = new System.Drawing.Point(386, 20);
             this.textBoxTemprs.Name = "textBoxTemprs";
             this.textBoxTemprs.Size = new System.Drawing.Size(151, 19);
             this.textBoxTemprs.TabIndex = 54;
@@ -271,7 +261,7 @@
             // label14
             // 
             this.label14.AutoSize = true;
-            this.label14.Location = new System.Drawing.Point(40, 470);
+            this.label14.Location = new System.Drawing.Point(19, 23);
             this.label14.Name = "label14";
             this.label14.Size = new System.Drawing.Size(148, 12);
             this.label14.TabIndex = 55;
@@ -281,7 +271,7 @@
             // checkBoxTopmost
             // 
             this.checkBoxTopmost.AutoSize = true;
-            this.checkBoxTopmost.Location = new System.Drawing.Point(41, 492);
+            this.checkBoxTopmost.Location = new System.Drawing.Point(20, 45);
             this.checkBoxTopmost.Name = "checkBoxTopmost";
             this.checkBoxTopmost.Size = new System.Drawing.Size(163, 16);
             this.checkBoxTopmost.TabIndex = 56;
@@ -290,7 +280,7 @@
             // 
             // buttonViewerPositionReset
             // 
-            this.buttonViewerPositionReset.Location = new System.Drawing.Point(210, 488);
+            this.buttonViewerPositionReset.Location = new System.Drawing.Point(189, 41);
             this.buttonViewerPositionReset.Name = "buttonViewerPositionReset";
             this.buttonViewerPositionReset.Size = new System.Drawing.Size(218, 23);
             this.buttonViewerPositionReset.TabIndex = 57;
@@ -300,7 +290,7 @@
             // 
             // buttonImport
             // 
-            this.buttonImport.Location = new System.Drawing.Point(245, 567);
+            this.buttonImport.Location = new System.Drawing.Point(267, 487);
             this.buttonImport.Name = "buttonImport";
             this.buttonImport.Size = new System.Drawing.Size(75, 23);
             this.buttonImport.TabIndex = 58;
@@ -310,7 +300,7 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(326, 567);
+            this.button2.Location = new System.Drawing.Point(348, 487);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
             this.button2.TabIndex = 59;
@@ -321,7 +311,7 @@
             // checkBoxMinimumStart
             // 
             this.checkBoxMinimumStart.AutoSize = true;
-            this.checkBoxMinimumStart.Location = new System.Drawing.Point(31, 397);
+            this.checkBoxMinimumStart.Location = new System.Drawing.Point(8, 378);
             this.checkBoxMinimumStart.Name = "checkBoxMinimumStart";
             this.checkBoxMinimumStart.Size = new System.Drawing.Size(108, 16);
             this.checkBoxMinimumStart.TabIndex = 60;
@@ -332,7 +322,7 @@
             // checkBoxAutoStart
             // 
             this.checkBoxAutoStart.AutoSize = true;
-            this.checkBoxAutoStart.Location = new System.Drawing.Point(242, 312);
+            this.checkBoxAutoStart.Location = new System.Drawing.Point(219, 293);
             this.checkBoxAutoStart.Name = "checkBoxAutoStart";
             this.checkBoxAutoStart.Size = new System.Drawing.Size(102, 16);
             this.checkBoxAutoStart.TabIndex = 70;
@@ -344,7 +334,7 @@
             // 
             this.checkBoxRSBreloadXml.AutoSize = true;
             this.checkBoxRSBreloadXml.Enabled = false;
-            this.checkBoxRSBreloadXml.Location = new System.Drawing.Point(148, 366);
+            this.checkBoxRSBreloadXml.Location = new System.Drawing.Point(125, 347);
             this.checkBoxRSBreloadXml.Name = "checkBoxRSBreloadXml";
             this.checkBoxRSBreloadXml.Size = new System.Drawing.Size(164, 16);
             this.checkBoxRSBreloadXml.TabIndex = 74;
@@ -355,7 +345,7 @@
             // textBoxRSBxmlURL
             // 
             this.textBoxRSBxmlURL.Enabled = false;
-            this.textBoxRSBxmlURL.Location = new System.Drawing.Point(310, 364);
+            this.textBoxRSBxmlURL.Location = new System.Drawing.Point(287, 345);
             this.textBoxRSBxmlURL.Name = "textBoxRSBxmlURL";
             this.textBoxRSBxmlURL.Size = new System.Drawing.Size(235, 19);
             this.textBoxRSBxmlURL.TabIndex = 75;
@@ -397,7 +387,7 @@
             this.groupBox1.Controls.Add(this.textBoxPGport);
             this.groupBox1.Controls.Add(this.textBoxPGaddress);
             this.groupBox1.Controls.Add(this.labelPG1);
-            this.groupBox1.Location = new System.Drawing.Point(29, 25);
+            this.groupBox1.Location = new System.Drawing.Point(6, 6);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(555, 158);
             this.groupBox1.TabIndex = 85;
@@ -598,7 +588,7 @@
             "thept.txt",
             "ダイナC:\\DynaID",
             "ダイナD:\\DynaID"});
-            this.comboBoxRSBID.Location = new System.Drawing.Point(210, 467);
+            this.comboBoxRSBID.Location = new System.Drawing.Point(189, 20);
             this.comboBoxRSBID.Name = "comboBoxRSBID";
             this.comboBoxRSBID.Size = new System.Drawing.Size(124, 20);
             this.comboBoxRSBID.TabIndex = 61;
@@ -607,7 +597,7 @@
             // 
             this.label17.AutoSize = true;
             this.label17.Font = new System.Drawing.Font("MS UI Gothic", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.label17.Location = new System.Drawing.Point(168, 211);
+            this.label17.Location = new System.Drawing.Point(145, 192);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(364, 33);
             this.label17.TabIndex = 64;
@@ -617,7 +607,7 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(41, 518);
+            this.label18.Location = new System.Drawing.Point(20, 71);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(109, 12);
             this.label18.TabIndex = 65;
@@ -626,7 +616,7 @@
             // comboBoxViewSpan
             // 
             this.comboBoxViewSpan.FormattingEnabled = true;
-            this.comboBoxViewSpan.Location = new System.Drawing.Point(210, 515);
+            this.comboBoxViewSpan.Location = new System.Drawing.Point(189, 68);
             this.comboBoxViewSpan.Name = "comboBoxViewSpan";
             this.comboBoxViewSpan.Size = new System.Drawing.Size(65, 20);
             this.comboBoxViewSpan.TabIndex = 66;
@@ -634,7 +624,7 @@
             // label19
             // 
             this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(281, 518);
+            this.label19.Location = new System.Drawing.Point(260, 71);
             this.label19.Name = "label19";
             this.label19.Size = new System.Drawing.Size(65, 12);
             this.label19.TabIndex = 67;
@@ -643,7 +633,7 @@
             // checkBoxOmitMyOrg
             // 
             this.checkBoxOmitMyOrg.AutoSize = true;
-            this.checkBoxOmitMyOrg.Location = new System.Drawing.Point(41, 542);
+            this.checkBoxOmitMyOrg.Location = new System.Drawing.Point(20, 95);
             this.checkBoxOmitMyOrg.Name = "checkBoxOmitMyOrg";
             this.checkBoxOmitMyOrg.Size = new System.Drawing.Size(100, 16);
             this.checkBoxOmitMyOrg.TabIndex = 69;
@@ -653,58 +643,130 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(29, 348);
+            this.label3.Location = new System.Drawing.Point(6, 329);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(127, 12);
             this.label3.TabIndex = 86;
             this.label3.Text = "⑥ RSBase xml取り込み";
             // 
+            // tabControl1
+            // 
+            this.tabControl1.Controls.Add(this.tabPageMain);
+            this.tabControl1.Controls.Add(this.tabPageViewer);
+            this.tabControl1.Location = new System.Drawing.Point(12, 12);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.Size = new System.Drawing.Size(595, 469);
+            this.tabControl1.TabIndex = 87;
+            // 
+            // tabPageMain
+            // 
+            this.tabPageMain.Controls.Add(this.groupBox1);
+            this.tabPageMain.Controls.Add(this.label3);
+            this.tabPageMain.Controls.Add(this.textBoxDatadyna);
+            this.tabPageMain.Controls.Add(this.textBoxRSBxmlURL);
+            this.tabPageMain.Controls.Add(this.textBoxOQSFolder);
+            this.tabPageMain.Controls.Add(this.checkBoxRSBreloadXml);
+            this.tabPageMain.Controls.Add(this.label1);
+            this.tabPageMain.Controls.Add(this.checkBoxKeepXml);
+            this.tabPageMain.Controls.Add(this.label2);
+            this.tabPageMain.Controls.Add(this.checkBoxAutoStart);
+            this.tabPageMain.Controls.Add(this.label4);
+            this.tabPageMain.Controls.Add(this.comboBoxTimerSecond);
+            this.tabPageMain.Controls.Add(this.label5);
+            this.tabPageMain.Controls.Add(this.textBoxMCode);
+            this.tabPageMain.Controls.Add(this.buttonDatadyna);
+            this.tabPageMain.Controls.Add(this.label17);
+            this.tabPageMain.Controls.Add(this.buttonOQSFolder);
+            this.tabPageMain.Controls.Add(this.checkBoxMinimumStart);
+            this.tabPageMain.Location = new System.Drawing.Point(4, 22);
+            this.tabPageMain.Name = "tabPageMain";
+            this.tabPageMain.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageMain.Size = new System.Drawing.Size(587, 443);
+            this.tabPageMain.TabIndex = 0;
+            this.tabPageMain.Text = "取り込み設定";
+            this.tabPageMain.UseVisualStyleBackColor = true;
+            // 
+            // tabPageViewer
+            // 
+            this.tabPageViewer.Controls.Add(this.groupBoxDI);
+            this.tabPageViewer.Controls.Add(this.label14);
+            this.tabPageViewer.Controls.Add(this.checkBoxOmitMyOrg);
+            this.tabPageViewer.Controls.Add(this.label19);
+            this.tabPageViewer.Controls.Add(this.textBoxTemprs);
+            this.tabPageViewer.Controls.Add(this.comboBoxViewSpan);
+            this.tabPageViewer.Controls.Add(this.checkBoxTopmost);
+            this.tabPageViewer.Controls.Add(this.label18);
+            this.tabPageViewer.Controls.Add(this.buttonViewerPositionReset);
+            this.tabPageViewer.Controls.Add(this.comboBoxRSBID);
+            this.tabPageViewer.Location = new System.Drawing.Point(4, 22);
+            this.tabPageViewer.Name = "tabPageViewer";
+            this.tabPageViewer.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageViewer.Size = new System.Drawing.Size(587, 443);
+            this.tabPageViewer.TabIndex = 1;
+            this.tabPageViewer.Text = "Viewer設定";
+            this.tabPageViewer.UseVisualStyleBackColor = true;
+            // 
+            // groupBoxDI
+            // 
+            this.groupBoxDI.Controls.Add(this.radioButtonSGML);
+            this.groupBoxDI.Controls.Add(this.radioButtonRSB);
+            this.groupBoxDI.Location = new System.Drawing.Point(20, 127);
+            this.groupBoxDI.Name = "groupBoxDI";
+            this.groupBoxDI.Size = new System.Drawing.Size(158, 48);
+            this.groupBoxDI.TabIndex = 70;
+            this.groupBoxDI.TabStop = false;
+            this.groupBoxDI.Text = "⑮添付文書表示選択";
+            this.toolTipSetting.SetToolTip(this.groupBoxDI, "薬剤名ダブルクリック時に、薬剤添付文書をRSBaseで開くか、内蔵のSGMLデータで表示するか選択します。\r\nRSBaseを選択した場合は、このPCにRSBase" +
+        "がインストールされている必要があります。");
+            this.groupBoxDI.UseCompatibleTextRendering = true;
+            // 
+            // radioButtonRSB
+            // 
+            this.radioButtonRSB.AutoSize = true;
+            this.radioButtonRSB.Location = new System.Drawing.Point(7, 19);
+            this.radioButtonRSB.Name = "radioButtonRSB";
+            this.radioButtonRSB.Size = new System.Drawing.Size(64, 16);
+            this.radioButtonRSB.TabIndex = 0;
+            this.radioButtonRSB.TabStop = true;
+            this.radioButtonRSB.Text = "RSBase";
+            this.radioButtonRSB.UseVisualStyleBackColor = true;
+            // 
+            // radioButtonSGML
+            // 
+            this.radioButtonSGML.AutoSize = true;
+            this.radioButtonSGML.Location = new System.Drawing.Point(78, 19);
+            this.radioButtonSGML.Name = "radioButtonSGML";
+            this.radioButtonSGML.Size = new System.Drawing.Size(77, 16);
+            this.radioButtonSGML.TabIndex = 1;
+            this.radioButtonSGML.TabStop = true;
+            this.radioButtonSGML.Text = "内蔵SGML";
+            this.radioButtonSGML.UseVisualStyleBackColor = true;
+            // 
             // Form2
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(606, 604);
-            this.Controls.Add(this.label3);
-            this.Controls.Add(this.textBoxRSBxmlURL);
-            this.Controls.Add(this.checkBoxRSBreloadXml);
-            this.Controls.Add(this.checkBoxKeepXml);
-            this.Controls.Add(this.checkBoxAutoStart);
-            this.Controls.Add(this.checkBoxOmitMyOrg);
-            this.Controls.Add(this.label19);
-            this.Controls.Add(this.comboBoxViewSpan);
-            this.Controls.Add(this.label18);
-            this.Controls.Add(this.label17);
-            this.Controls.Add(this.comboBoxRSBID);
-            this.Controls.Add(this.checkBoxMinimumStart);
+            this.ClientSize = new System.Drawing.Size(615, 521);
+            this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.buttonImport);
-            this.Controls.Add(this.buttonViewerPositionReset);
-            this.Controls.Add(this.checkBoxTopmost);
-            this.Controls.Add(this.label14);
-            this.Controls.Add(this.textBoxTemprs);
-            this.Controls.Add(this.label15);
-            this.Controls.Add(this.label13);
             this.Controls.Add(this.buttonCancel);
             this.Controls.Add(this.buttonSaveExit);
-            this.Controls.Add(this.buttonOQSFolder);
-            this.Controls.Add(this.buttonDatadyna);
-            this.Controls.Add(this.textBoxMCode);
-            this.Controls.Add(this.label5);
-            this.Controls.Add(this.comboBoxTimerSecond);
-            this.Controls.Add(this.label4);
-            this.Controls.Add(this.label2);
-            this.Controls.Add(this.label1);
-            this.Controls.Add(this.textBoxOQSFolder);
-            this.Controls.Add(this.textBoxDatadyna);
-            this.Controls.Add(this.groupBox1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form2";
             this.Text = "設定";
             this.Load += new System.EventHandler(this.Form2_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.tabControl1.ResumeLayout(false);
+            this.tabPageMain.ResumeLayout(false);
+            this.tabPageMain.PerformLayout();
+            this.tabPageViewer.ResumeLayout(false);
+            this.tabPageViewer.PerformLayout();
+            this.groupBoxDI.ResumeLayout(false);
+            this.groupBoxDI.PerformLayout();
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
@@ -725,8 +787,6 @@
         private System.Windows.Forms.Button buttonOQSDrugData;
         private System.Windows.Forms.Label labelMDB1;
         private System.Windows.Forms.TextBox textBoxOQSDrugData;
-        private System.Windows.Forms.Label label13;
-        private System.Windows.Forms.Label label15;
         private System.Windows.Forms.TextBox textBoxTemprs;
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.CheckBox checkBoxTopmost;
@@ -768,5 +828,11 @@
         private System.Windows.Forms.ComboBox comboBoxLLMModels;
         private System.Windows.Forms.Button buttonGetModels;
         private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.TabControl tabControl1;
+        private System.Windows.Forms.TabPage tabPageMain;
+        private System.Windows.Forms.TabPage tabPageViewer;
+        private System.Windows.Forms.GroupBox groupBoxDI;
+        private System.Windows.Forms.RadioButton radioButtonSGML;
+        private System.Windows.Forms.RadioButton radioButtonRSB;
     }
 }

@@ -323,6 +323,16 @@ namespace OQSDrug.Properties {
         /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
+        internal static System.Drawing.Bitmap Notes {
+            get {
+                object obj = ResourceManager.GetObject("Notes", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
         internal static System.Drawing.Bitmap PG {
             get {
                 object obj = ResourceManager.GetObject("PG", resourceCulture);
@@ -353,6 +363,16 @@ namespace OQSDrug.Properties {
         /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
+        internal static System.Drawing.Bitmap PMDA {
+            get {
+                object obj = ResourceManager.GetObject("PMDA", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
         internal static System.Drawing.Bitmap Postgres {
             get {
                 object obj = ResourceManager.GetObject("Postgres", resourceCulture);
@@ -366,6 +386,16 @@ namespace OQSDrug.Properties {
         internal static System.Drawing.Bitmap Refresh {
             get {
                 object obj = ResourceManager.GetObject("Refresh", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
+        internal static System.Drawing.Bitmap RSB {
+            get {
+                object obj = ResourceManager.GetObject("RSB", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

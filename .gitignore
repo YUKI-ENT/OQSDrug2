@@ -364,3 +364,5 @@ FodyWeavers.xsd
 
 # Ignore generated installers
 /Output/*.exe
+build/*.ps1
+installer.iss

@@ -116,7 +116,7 @@ namespace OQSDrug
         {
             if(textBoxDrugName.Text.Length > 0)
             {
-                List<Tuple<string[], double>> topResults = await _parentForm.FuzzySearchAsync(textBoxDrugName.Text, "", "", CommonFunctions.RSBDI, 0.1, 0.4, 0);
+                List<Tuple<string[], double>> topResults = await CommonFunctions.FuzzySearchAsync(textBoxDrugName.Text, "", "", CommonFunctions.RSBDI, 0.1, 0.4, 0);
                 if (topResults.Count > 0)
                 {
                     SetDrugLists(topResults);

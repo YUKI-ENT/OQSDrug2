@@ -6,9 +6,11 @@ using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Data.OleDb;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -37,6 +39,7 @@ namespace OQSDrug
         
         private int ShowSpan = Properties.Settings.Default.ViewerSpan;
         private FormSearch formSearch = null;
+        private FormSGML_DI formSGML_DI = null;
 
         // 同期中フラグ（必要最小限）
         private bool _syncingSelect = false;
@@ -206,7 +209,7 @@ namespace OQSDrug
                 tabControl1.Padding = new Point(6, 3);
                 // タブ切替で相互作用を更新
                 tabControl1.SelectedIndexChanged += TabControl1_SelectedIndexChanged;
-                InitializeInteractionContextMenu();
+                //InitializeInteractionContextMenu();
             }
            
             await LoadDataIntoComboBoxes();
@@ -424,17 +427,17 @@ namespace OQSDrug
         }
 
 
-        private DataTable SortDataTableByLastDate(DataTable dt)
-        {
-            var sortedRows = dt.AsEnumerable()
-                .GroupBy(row => row["Hospital"].ToString()) // Hospitalごとにグループ化
-                .OrderByDescending(g => g.Max(row => row.Field<String>("LastDate"))) // 各Hospitalの最大LastDateで降順ソート
-                .SelectMany(g => g.OrderByDescending(row => row.Field<String>("LastDate"))  // 各Hospital内でLastDate降順
-                              .ThenBy(row => row.Field<string>("MedisCode"))) // MedisCode 昇順
-                .CopyToDataTable(); // DataTable に変換
+        //private DataTable SortDataTableByLastDate(DataTable dt)
+        //{
+        //    var sortedRows = dt.AsEnumerable()
+        //        .GroupBy(row => row["Hospital"].ToString()) // Hospitalごとにグループ化
+        //        .OrderByDescending(g => g.Max(row => row.Field<String>("LastDate"))) // 各Hospitalの最大LastDateで降順ソート
+        //        .SelectMany(g => g.OrderByDescending(row => row.Field<String>("LastDate"))  // 各Hospital内でLastDate降順
+        //                      .ThenBy(row => row.Field<string>("MedisCode"))) // MedisCode 昇順
+        //        .CopyToDataTable(); // DataTable に変換
 
-            return sortedRows;
-        }
+        //    return sortedRows;
+        //}
 
         private Color getDrugClassColor(string yjCode)
         {
@@ -649,10 +652,15 @@ namespace OQSDrug
             copyHalfMenuItem.Image = Properties.Resources.Han;
             copyHalfMenuItem.Click += CopyMenuItem_Click;
 
-            // 「薬情検索」メニューアイテムを作成（初期では追加しない）
-            ToolStripMenuItem searchMedicineMenuItem = new ToolStripMenuItem("薬情検索");
-            searchMedicineMenuItem.Image = Properties.Resources.Find;
+            // 「薬情検索(RSBase)」メニューアイテムを作成（初期では追加しない）
+            ToolStripMenuItem searchMedicineMenuItem = new ToolStripMenuItem("薬情検索(RSBase)");
+            searchMedicineMenuItem.Image = Properties.Resources.RSB;
             searchMedicineMenuItem.Click += SearchMedicineMenuItem_Click;
+
+            // 「薬情検索(SGML)」メニューアイテムを作成
+            ToolStripMenuItem searchSGMLMenuItem = new ToolStripMenuItem("薬情検索(PMDA)");
+            searchSGMLMenuItem.Image = Properties.Resources.Find;
+            searchSGMLMenuItem.Click += SearchSGMLMenuItem_Click;
 
             // メニューアイテムを追加
             contextMenuStrip.Items.Add(copyFullMenuItem);
@@ -661,8 +669,14 @@ namespace OQSDrug
             {
                 contextMenuStrip.Items.Add(searchMedicineMenuItem);
             }
+            contextMenuStrip.Items.Add(searchSGMLMenuItem);
+
             // DataGridViewに右クリックメニューを設定
             dataGridViewFixed.ContextMenuStrip = contextMenuStrip;
+            if(Properties.Settings.Default.DBtype == "pg")
+            {
+                dataGridViewInteraction.ContextMenuStrip = contextMenuStrip;    
+            }
         }
 
         private async void CopyMenuItem_Click(object sender, EventArgs e)
@@ -712,7 +726,7 @@ namespace OQSDrug
             }
         }
 
-        // 「薬情検索」メニューのクリック時処理
+        // 「薬情検索」メニューのクリック時処理:RSBase
         private async void SearchMedicineMenuItem_Click(object sender, EventArgs e)
         {
             var dgv = GetInvokedGrid(sender);
@@ -791,6 +805,116 @@ namespace OQSDrug
             }
         }
 
+        private async void SearchSGMLMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!_readySGML)
+            {
+                MessageBox.Show("添付文書データがロードされてないので起動できません。データインポート作業を行ってください");
+                return;
+            }
+
+            var dgv = GetInvokedGrid(sender);
+            if (dgv == null)
+            {
+                MessageBox.Show("検索対象のグリッドが取得できませんでした。");
+                return;
+            }
+            if (dgv.SelectedCells.Count == 0 && dgv.CurrentCell == null)
+            {
+                MessageBox.Show("セルを選択してください。");
+                return;
+            }
+
+            var cell = (dgv.SelectedCells.Count > 0)
+                ? dgv.SelectedCells[dgv.SelectedCells.Count - 1]
+                : dgv.CurrentCell;
+            int row = cell.RowIndex;
+
+            // ★ ここで分岐：Interactionグリッドならセル文字列だけで検索
+            bool isInteraction = (dgv == dataGridViewInteraction) ||
+                                 (dgv.Name != null && dgv.Name.Equals("dataGridViewInteraction", StringComparison.OrdinalIgnoreCase));
+
+            string drugName, ingreN, yjCode;
+
+            if (isInteraction)
+            {
+                drugName = (cell.Value == null) ? "" : cell.Value.ToString().Trim();
+                if (string.IsNullOrEmpty(drugName) && dgv.Columns.Contains("drugn"))
+                    drugName = Convert.ToString(dgv.Rows[row].Cells["drugn"].Value) ?? "";
+
+                ingreN = "";
+                yjCode = "";
+            }
+            else
+            {
+                // ← 従来どおり dataGridViewFixed 用の取り方
+                drugName = Convert.ToString(cell.Value) ?? "";
+                if (dgv.Columns.Contains("IngreN"))
+                    ingreN = Convert.ToString(dgv.Rows[row].Cells["IngreN"].Value) ?? "";
+                else if (dgv.Columns.Contains("ingren"))
+                    ingreN = Convert.ToString(dgv.Rows[row].Cells["ingren"].Value) ?? "";
+                else ingreN = "";
+
+                if (dgv.Columns.Contains("MedisCode"))
+                    yjCode = Convert.ToString(dgv.Rows[row].Cells["MedisCode"].Value) ?? "";
+                else if (dgv.Columns.Contains("yj_code"))
+                    yjCode = Convert.ToString(dgv.Rows[row].Cells["yj_code"].Value) ?? "";
+                else yjCode = "";
+
+                if (string.IsNullOrWhiteSpace(drugName) && !string.IsNullOrWhiteSpace(ingreN))
+                    drugName = ingreN;
+            }
+
+            if (string.IsNullOrWhiteSpace(drugName))
+            { MessageBox.Show("検索キーワードが取得できませんでした。"); return; }
+
+            try
+            {
+                // ★ Interaction の場合も同じFuzzySearchを使い、不要パラメータは空で渡す
+                var topResults = await FuzzySearchAsync(drugName, ingreN, yjCode, CommonFunctions.SGMLDI, 0.2);
+                if (topResults != null && topResults.Count > 0)
+                {
+                    if (formSGML_DI == null || formSGML_DI.IsDisposed)
+                    { 
+                        formSGML_DI = new FormSGML_DI(this);
+
+                        // 前回の位置とサイズを復元
+                        if (Properties.Settings.Default.PMDABounds != Rectangle.Empty)
+                        {
+                            formSGML_DI.StartPosition = FormStartPosition.Manual;
+                            formSGML_DI.Bounds = Properties.Settings.Default.PMDABounds;
+
+                            // マージンと境界線を設定
+                            formSGML_DI.Padding = new Padding(0);
+                            formSGML_DI.Margin = new Padding(0);
+                            //form3Instance.FormBorderStyle = FormBorderStyle.None;
+                        }
+
+                        // TopMost状態を設定
+                        //formSGML_DI.TopMost = Properties.Settings.Default.ViewerTopmost;
+
+                        // Form3が閉じるときに位置、サイズ、TopMost状態を保存
+                        formSGML_DI.FormClosing += (s, args) =>
+                        {
+                            SaveViewerSettings(formSGML_DI, "PMDABounds");
+                        };
+
+                        formSGML_DI.Show(this); 
+                    }
+
+                    formSGML_DI.SetDrugLists(topResults);
+                }
+                else
+                {
+                    MessageBox.Show("PMDA薬情に該当薬剤が見つかりませんでした。");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("薬情表示時にエラーが発生しました。" + ex.Message);
+            }
+        }
+
         private DataGridView GetInvokedGrid(object sender)
         {
             // 右クリックメニューから来た場合は SourceControl を優先
@@ -828,161 +952,6 @@ namespace OQSDrug
             return v == null ? null : v.ToString();
         }
                       
-        // リストRSBDIのカラム1,2を対象にあいまい検索を行い、上位10件を返すメソッド
-        public async Task<List<Tuple<string[], double>>> FuzzySearchAsync(string drugName, string ingreN, string YJcode, List<string[]> DI, double cutoffThreshold = 0.4, double bonusForOriginator = 0.4, double penaltyForMissingIngreN = 0.5)
-        {
-            //double bonusForOriginator = 0.4;        // "先発" の場合のボーナス
-            //double penaltyForMissingIngreN = 0.5;   // 一般名が含まれない場合のペナルティ
-            double weightColumn1 = 0.3;             // 1列目のスコアに対する重み
-            double weightColumn2 = 0.5;             // 2列目のスコアに対する重み
-
-            // 正規表現で「」や【】に囲まれた部分を削除
-            string processedDrugName = RemoveCampany(drugName);
-
-            //数字アルファベットは除去しておく
-            //string drugNameNoDigit = RemoveDigits(drugName);
-
-            if (string.IsNullOrEmpty(ingreN)) ingreN = processedDrugName;
-
-            string yjPrefix = YJcode.Length >= 9 ? YJcode.Substring(0, 9) : YJcode;
-
-            var exactMatchList = new List<Tuple<string[], double>>();
-            var prefixMatchList = new List<Tuple<string[], double>>();
-            var fuzzyMatchTasks = new List<Task<Tuple<string[], double>>>();
-
-            foreach (var record in DI)
-            {
-                string column1 = record[0];  // 1列目（薬品名）
-                string column2 = record[1];  // 2列目（成分名）
-                string column3 = record[2];  // 3列目（YJコード）
-                string column4 = record[3];  // 4列目（"先発" の確認）
-
-                if (!string.IsNullOrEmpty(YJcode))
-                {
-                    // YJコード完全一致
-                    if (column3 == YJcode)
-                    {
-                        exactMatchList.Add(new Tuple<string[], double>(record, 1.0));
-                        continue;
-                    }
-                    // YJコード上位9桁一致
-                    if (column3.Length >= 9 && column3.Substring(0, 9) == yjPrefix)
-                    {
-                        prefixMatchList.Add(new Tuple<string[], double>(record, 0.9));
-                        continue;
-                    }
-                }
-
-                // あいまい検索の処理を非同期タスクで並列実行
-                fuzzyMatchTasks.Add(Task.Run(() =>
-                {
-                    double similarityColumn1 = CalculateNGramSimilarity(processedDrugName, column1);
-                    double similarityColumn2 = CalculateNGramSimilarity(ingreN, column2);
-
-                    double editDistanceScore = 1.0 - (double)CalculateLevenshteinDistance(processedDrugName, column1)
-                                               / Math.Max(processedDrugName.Length, column1.Length);
-
-                    double similarity = weightColumn1 * Math.Max(similarityColumn1, editDistanceScore) +
-                                        weightColumn2 * similarityColumn2;
-
-                    bool exact = false;
-                    if (drugName == column1)
-                    {
-                        similarity = 1.0;
-                        exact = true;
-                    }
-                    else if (ingreN == column1)
-                    {
-                        similarity = 0.9;
-                        exact = true;
-                    }
-
-                    if (similarity > cutoffThreshold && column4 == "先発")
-                    {
-                        similarity += bonusForOriginator;
-                    }
-
-                    if (!exact && !column2.Contains(ingreN) && !ingreN.Contains(column2))
-                    {
-                        similarity -= penaltyForMissingIngreN;
-                    }
-
-                    similarity = Math.Max(0, similarity);
-
-                    return new Tuple<string[], double>(record, similarity);
-                }));
-            }
-
-            // あいまい検索のタスク完了を待つ
-            var fuzzyResults = await Task.WhenAll(fuzzyMatchTasks);
-
-            // 類似度でフィルタリング
-            var filteredFuzzyResults = fuzzyResults
-                .Where(r => r.Item2 >= cutoffThreshold)
-                .OrderByDescending(r => r.Item2)
-                .ToList();
-
-            // 結果を統合（完全一致 → 9桁一致 → あいまい検索）
-            var finalResults = exactMatchList.Concat(prefixMatchList).Concat(filteredFuzzyResults).Take(20).ToList();
-
-
-            return finalResults;
-        }
-
-        private string RemoveCampany(string drugName)
-        {
-            // 正規表現で「」や【】に囲まれた部分を削除
-            string pattern = @"[「【（][^」】）]*[」】）]";
-            string processedDrugName = Regex.Replace(drugName, pattern, "");
-
-            return processedDrugName;
-        }
-
-        private HashSet<string> GenerateNGrams(string input, int n)
-        {
-            var ngrams = new HashSet<string>();
-            if (input.Length < n) return ngrams;
-
-            for (int i = 0; i <= input.Length - n; i++)
-            {
-                ngrams.Add(input.Substring(i, n));
-            }
-
-            return ngrams;
-        }
-
-        private double CalculateNGramSimilarity(string source, string target, int n = 2)
-        {
-            var sourceNGrams = GenerateNGrams(source, n);
-            var targetNGrams = GenerateNGrams(target, n);
-
-            if (sourceNGrams.Count == 0 || targetNGrams.Count == 0) return 0.0;
-
-            int intersectionCount = sourceNGrams.Intersect(targetNGrams).Count();
-            int unionCount = sourceNGrams.Union(targetNGrams).Count();
-
-            return (double)intersectionCount / unionCount;
-        }
-
-        public int CalculateLevenshteinDistance(string source, string target)
-        {
-            int[,] dp = new int[source.Length + 1, target.Length + 1];
-
-            for (int i = 0; i <= source.Length; i++) dp[i, 0] = i;
-            for (int j = 0; j <= target.Length; j++) dp[0, j] = j;
-
-            for (int i = 1; i <= source.Length; i++)
-            {
-                for (int j = 1; j <= target.Length; j++)
-                {
-                    int cost = source[i - 1] == target[j - 1] ? 0 : 1;
-                    dp[i, j] = Math.Min(Math.Min(dp[i - 1, j] + 1, dp[i, j - 1] + 1), dp[i - 1, j - 1] + cost);
-                }
-            }
-
-            return dp[source.Length, target.Length];
-        }
-
         private void toolStripButtonSum_CheckedChanged(object sender, EventArgs e)
         {
             Properties.Settings.Default.Sum = toolStripButtonSum.Checked;
@@ -1064,23 +1033,30 @@ namespace OQSDrug
 
         private void dataGridViewFixed_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (string.IsNullOrEmpty(_parentForm.RSBdrive))
-            {
-                MessageBox.Show("RSBaseが検出できなかったので薬情検索はできません");
-            }
-            else
-            {
-                // e.ColumnIndex が有効な値であることを確認
-                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
-                {
-                    // DataGridViewの列名を取得
-                    string columnName = dataGridViewFixed.Columns[e.ColumnIndex].Name;
+            // e.ColumnIndex が有効な値であることを確認
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            
+            // DataGridViewの列名を取得
+            string columnName = dataGridViewFixed.Columns[e.ColumnIndex].Name;
 
-                    // 列名が "DrugN" だった場合に関数を実行
-                    if (columnName.Equals("DrugN", StringComparison.OrdinalIgnoreCase))
+            // 列名が "DrugN" だった場合に関数を実行
+            if (columnName.Equals("DrugN", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Properties.Settings.Default.DIviewer == "RSB")
+                {
+                    if (string.IsNullOrEmpty(_parentForm.RSBdrive))
+                    {
+                        MessageBox.Show("RSBaseが検出できなかったので薬情検索はできません");
+                    }
+                    else
                     {
                         SearchMedicineMenuItem_Click(sender, e);
                     }
+
+                }
+                else
+                {
+                    SearchSGMLMenuItem_Click(sender, e);
                 }
             }
         }
@@ -1343,8 +1319,8 @@ namespace OQSDrug
                     }
                 }
 
-                SetInteractionView(dataGridViewInteraction);
-                SetInteractionColors(dataGridViewInteraction);
+                CommonFunctions.SetInteractionView(dataGridViewInteraction);
+                CommonFunctions.SetInteractionColors(dataGridViewInteraction);
             }
             catch (Exception ex)
             {
@@ -1352,97 +1328,72 @@ namespace OQSDrug
             }
         }
 
-        private void SetInteractionView(DataGridView dgv)
-        {
-            if (dgv.DataSource == null) return;
+        //private void SetInteractionView(DataGridView dgv)
+        //{
+        //    if (dgv.DataSource == null) return;
 
-            // 基本設定
-            dgv.AutoGenerateColumns = true;
-            dgv.ReadOnly = true;
-            dgv.AllowUserToAddRows = false;
-            dgv.AllowUserToDeleteRows = false;
-            dgv.AllowUserToResizeRows = false;
-            dgv.AllowUserToResizeColumns = true; 
-            dgv.SelectionMode = DataGridViewSelectionMode.CellSelect;
-            dgv.MultiSelect = false;
-            dgv.RowHeadersVisible = false;
-            //dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.None;
+        //    // 基本設定
+        //    dgv.AutoGenerateColumns = true;
+        //    dgv.ReadOnly = true;
+        //    dgv.AllowUserToAddRows = false;
+        //    dgv.AllowUserToDeleteRows = false;
+        //    dgv.AllowUserToResizeRows = false;
+        //    dgv.AllowUserToResizeColumns = true; 
+        //    dgv.SelectionMode = DataGridViewSelectionMode.CellSelect;
+        //    dgv.MultiSelect = false;
+        //    dgv.RowHeadersVisible = false;
+        //    //dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.None;
 
-            // 表示名（必要な列だけ）
-            var headers = new Dictionary<string, string>
-            {
-                { "didate", "処方日" },
-                { "drugn",  "薬剤名" },
-                { "drugc",  "院内コード" },
-                { "yj7",    "成分7桁" },
-                { "partner_name_ja",  "相互作用相手" },
-                { "partner_group_ja", "カテゴリ" },
-                { "section_type", "区分" },
-                { "symptoms_measures_ja", "説明" },
-            };
-            foreach (var kv in headers)
-                if (dgv.Columns.Contains(kv.Key))
-                    dgv.Columns[kv.Key].HeaderText = kv.Value;
+        //    // 表示名（必要な列だけ）
+        //    var headers = new Dictionary<string, string>
+        //    {
+        //        { "didate", "処方日" },
+        //        { "drugn",  "薬剤名" },
+        //        { "drugc",  "院内コード" },
+        //        { "yj7",    "成分7桁" },
+        //        { "partner_name_ja",  "相互作用相手" },
+        //        { "partner_group_ja", "カテゴリ" },
+        //        { "section_type", "区分" },
+        //        { "symptoms_measures_ja", "説明" },
+        //    };
+        //    foreach (var kv in headers)
+        //        if (dgv.Columns.Contains(kv.Key))
+        //            dgv.Columns[kv.Key].HeaderText = kv.Value;
 
-            // 非表示列（あなたの指定を踏襲）
-            string[] hiddenCols = { "ptidmain", "didate", "drugc", "yj7", "yj_code", "has_interaction" };
-            foreach (string name in hiddenCols)
-                if (dgv.Columns.Contains(name))
-                    dgv.Columns[name].Visible = false;
+        //    // 非表示列（あなたの指定を踏襲）
+        //    string[] hiddenCols = { "ptidmain", "didate", "drugc", "yj7", "yj_code", "has_interaction" };
+        //    foreach (string name in hiddenCols)
+        //        if (dgv.Columns.Contains(name))
+        //            dgv.Columns[name].Visible = false;
 
-            // 幅指定（固定）
-            SetW("drugn", 150);
-            SetW("partner_name_ja", 150);
-            SetW("partner_group_ja", 150);
-            SetW("section_type", 80);
+        //    // 幅指定（固定）
+        //    SetW("drugn", 150);
+        //    SetW("partner_name_ja", 150);
+        //    SetW("partner_group_ja", 150);
+        //    SetW("section_type", 80);
 
-            // 最後の列「説明」は残り幅をすべて使う
-            if (dgv.Columns.Contains("symptoms_measures_ja"))
-            {
-                var c = dgv.Columns["symptoms_measures_ja"];
-                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                c.MinimumWidth = 200; // お好みで
-            }
+        //    // 最後の列「説明」は残り幅をすべて使う
+        //    if (dgv.Columns.Contains("symptoms_measures_ja"))
+        //    {
+        //        var c = dgv.Columns["symptoms_measures_ja"];
+        //        c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+        //        c.MinimumWidth = 200; // お好みで
+        //    }
 
-            // すべての列をソート可能に
-            foreach (DataGridViewColumn col in dgv.Columns)
-                col.SortMode = DataGridViewColumnSortMode.Automatic;
+        //    // すべての列をソート可能に
+        //    foreach (DataGridViewColumn col in dgv.Columns)
+        //        col.SortMode = DataGridViewColumnSortMode.Automatic;
 
-            // 固定幅ヘルパ
-            void SetW(string name, int w)
-            {
-                if (!dgv.Columns.Contains(name)) return;
-                var c = dgv.Columns[name];
-                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                c.Width = w;
-            }
-        }
-
-        private void SetInteractionColors(DataGridView dgv)
-        {
-            foreach (DataGridViewRow row in dgv.Rows)
-            {
-                if (row.Cells["section_type"]?.Value == null) continue;
-
-                string type = row.Cells["section_type"].Value.ToString();
-
-                if (type.Contains("禁忌"))
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 238);
-                    row.DefaultCellStyle.ForeColor = Color.Maroon;
-                    //row.DefaultCellStyle.SelectionBackColor = row.DefaultCellStyle.BackColor;
-                    //row.DefaultCellStyle.SelectionForeColor = row.DefaultCellStyle.ForeColor;
-                }
-                else if (type.Contains("注意"))
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 224); // 淡い黄（light yellow）
-                    row.DefaultCellStyle.ForeColor = Color.Black;
-                    //row.DefaultCellStyle.SelectionBackColor = row.DefaultCellStyle.BackColor;
-                    //row.DefaultCellStyle.SelectionForeColor = row.DefaultCellStyle.ForeColor;
-                }
-            }
-        }
-
+        //    // 固定幅ヘルパ
+        //    void SetW(string name, int w)
+        //    {
+        //        if (!dgv.Columns.Contains(name)) return;
+        //        var c = dgv.Columns[name];
+        //        c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+        //        c.Width = w;
+        //    }
+        //}
+                
         private void dataGridViewInteraction_Sorted(object sender, EventArgs e)
         {
             SetInteractionColors(dataGridViewInteraction);
@@ -1459,61 +1410,32 @@ namespace OQSDrug
             }
         }
 
-        private void InitializeInteractionContextMenu()
-        {
-            var cms = new ContextMenuStrip();
-            DataGridView dgv = dataGridViewInteraction;
-
-            var copyFullMenuItem = new ToolStripMenuItem("表示のままコピー")
-            {
-                Tag = "full",
-                Image = Properties.Resources.Zen
-            };
-            copyFullMenuItem.Click += CopyMenuItem_Click;
-
-            var copyHalfMenuItem = new ToolStripMenuItem("半角でコピー")
-            {
-                Tag = "half",
-                Image = Properties.Resources.Han
-            };
-            copyHalfMenuItem.Click += CopyMenuItem_Click;
-
-            cms.Items.Add(copyFullMenuItem);
-            cms.Items.Add(copyHalfMenuItem);
-
-            // 薬情検索（RSBドライブが有効なときだけ）
-            if (!string.IsNullOrEmpty(_parentForm.RSBdrive))
-            {
-                var searchItem = new ToolStripMenuItem("薬情検索")
-                {
-                    Image = Properties.Resources.Find
-                };
-                searchItem.Click += SearchMedicineMenuItem_Click;
-                cms.Items.Add(searchItem);
-            }
-
-            dgv.ContextMenuStrip = cms;
-        }
-
         private void dataGridViewInteraction_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (string.IsNullOrEmpty(_parentForm.RSBdrive))
-            {
-                MessageBox.Show("RSBaseが検出できなかったので薬情検索はできません");
-            }
-            else
-            {
-                // e.ColumnIndex が有効な値であることを確認
-                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
-                {
-                    // DataGridViewの列名を取得
-                    string columnName =dataGridViewInteraction.Columns[e.ColumnIndex].Name;
+            // e.ColumnIndex が有効な値であることを確認
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
-                    // 列名が "DrugN" だった場合に関数を実行
-                    if (columnName.Contains("partner_name_ja") || columnName.Contains("drugn"))
+            // DataGridViewの列名を取得
+            string columnName = dataGridViewInteraction.Columns[e.ColumnIndex].Name;
+
+            // 列名が "DrugN" だった場合に関数を実行
+            if (columnName.Contains("partner_name_ja") || columnName.Contains("drugn"))
+            {
+                if (Properties.Settings.Default.DIviewer == "RSB")
+                {
+                    if (string.IsNullOrEmpty(_parentForm.RSBdrive))
+                    {
+                        MessageBox.Show("RSBaseが検出できなかったので薬情検索はできません");
+                    }
+                    else
                     {
                         SearchMedicineMenuItem_Click(sender, e);
                     }
+
+                }
+                else
+                {
+                    SearchSGMLMenuItem_Click(sender, e);
                 }
             }
         }
@@ -1819,6 +1741,11 @@ namespace OQSDrug
             {
                 labelStatus.Text = ex.Message;
             }
+        }
+
+        private void toolStripButtonSGMLDI_Click(object sender, EventArgs e)
+        {
+            SearchSGMLMenuItem_Click(sender, EventArgs.Empty);
         }
     }
 }

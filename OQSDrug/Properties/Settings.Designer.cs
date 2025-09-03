@@ -598,5 +598,29 @@ namespace OQSDrug.Properties {
                 this["LLMtimeout"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("SGML")]
+        public string DIviewer {
+            get {
+                return ((string)(this["DIviewer"]));
+            }
+            set {
+                this["DIviewer"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0, 0, 0, 0")]
+        public global::System.Drawing.Rectangle PMDABounds {
+            get {
+                return ((global::System.Drawing.Rectangle)(this["PMDABounds"]));
+            }
+            set {
+                this["PMDABounds"] = value;
+            }
+        }
     }
 }

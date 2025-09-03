@@ -1144,6 +1144,7 @@ namespace OQSDrug
             });
             tasks.Add(rsbTask);
 
+            
             // Ollama モデル一覧
             var ollamaTask = Task.Run(async () =>
             {
@@ -1355,7 +1356,8 @@ namespace OQSDrug
                 if ((okSettings & (0b001)) == 1) await reloadDataAsync();
             }
 
-            this.StartStop.Enabled = (okSettings == 0b111);
+            Invoke(new Action(() => this.StartStop.Enabled = (okSettings == 0b111))); 
+
 
         }
 
@@ -3636,19 +3638,7 @@ namespace OQSDrug
             // 設定を保存
             Properties.Settings.Default.Save();
         }
-
-        private void SaveViewerSettings(Form form, string key)
-        {
-            if (form.WindowState != FormWindowState.Normal || form.WindowState == FormWindowState.Minimized) form.WindowState = FormWindowState.Normal;
-
-            // 現在の位置とサイズを保存
-            if (Properties.Settings.Default.Properties[key] != null) // キーが存在するか確認
-            {
-                Properties.Settings.Default[key] = form.Bounds;
-                Properties.Settings.Default.Save();
-            }
-        }
-
+                
         private void ConfigureDataGridView(DataGridView dataGridView)
         {
             if (dataGridView.InvokeRequired)
@@ -4036,13 +4026,150 @@ namespace OQSDrug
                     var columns = line.Split(',');
                     if (columns.Length > 7) // 必要なカラム数が存在するか確認
                     {
-                        CommonFunctions.RSBDI.Add(new string[] { columns[0], columns[3], columns[8], columns[5] }); // 0:商品名、1:一般名、2:コード、3：先発
+                        CommonFunctions.RSBDI.Add(new string[] { columns[0], columns[3], columns[8], columns[5], columns[1] }); // 0:商品名、1:一般名、2:コード、3：先発、4：薬価
                         count++;
                     }
                 }
                 AddLogAsync($"RSBase薬情インデックス{count}件を読み込みました。");
                 AddLogAsync("薬歴の右クリックでRSBase薬情表示が可能になります。");
             }
+        }
+
+        // sgml_rawdata ∩ drug_code_map を対象に SGMLDI を構築
+        private async Task LoadSGMLDIAsync()
+        {
+            try
+            {
+                await CommonFunctions.AddLogAsync("SGML薬情インデックス（sgml_rawdata×drug_code_map）の読み込みを開始します…");
+
+                // yj_codeごとに集約した drug_code_map を中間CTEで作成
+                const string sql = @"
+                    WITH s1 AS (
+                      SELECT DISTINCT ON (s.yj_code)
+                        s.yj_code,
+                        s.package_insert_no,
+                        s.brand_name_ja,
+                        s.generic_name_ja
+                      FROM public.sgml_rawdata s
+                      WHERE s.yj_code IS NOT NULL AND s.yj_code <> ''
+                      ORDER BY s.yj_code, s.package_insert_no DESC
+                    ),
+                    d1 AS (
+                      -- YJ（drug_code_map）側。is_generic を必ず取得
+                      SELECT DISTINCT ON (d.yj_code)
+                        d.yj_code,
+                        d.is_generic,   -- TRUE=後発, FALSE=先発候補
+                        d.price,
+                        d.updated_at
+                      FROM public.drug_code_map d
+                      WHERE d.yj_code IS NOT NULL AND d.yj_code <> ''
+                      ORDER BY d.yj_code, d.updated_at DESC NULLS LAST
+                    ),
+                    m1 AS (
+                      -- MEDIS 側。is_generic と original_brand を取得
+                      SELECT DISTINCT ON (m.yj_code)
+                        m.yj_code,
+                        m.is_generic,       -- TRUE=後発, FALSE=先発/準先発, NULL=不明
+                        m.original_brand,   -- '先発品' / '準先発品' / 空白
+                        m.updated_at
+                      FROM public.drug_medis_generic m
+                      WHERE m.yj_code IS NOT NULL AND m.yj_code <> ''
+                      ORDER BY m.yj_code, m.updated_at DESC NULLS LAST
+                    )
+                    SELECT
+                      s1.yj_code,
+                      s1.brand_name_ja,
+                      s1.generic_name_ja,
+                      CASE
+                        -- 1) YJで後発なら即「空白」（後発）
+                        WHEN d1.is_generic = TRUE THEN ''
+                        -- 2) YJで先発候補（=FALSE）
+                        WHEN d1.is_generic = FALSE THEN
+                          CASE
+                            -- 2-1) MEDIS未収載 → 新薬想定 → 「先発」
+                            WHEN m1.yj_code IS NULL THEN '先発'
+                            -- 2-2) MEDISで先発/準先発（=is_generic=FALSE かつ original_brandあり） → そのまま継承
+                            WHEN m1.is_generic = FALSE AND COALESCE(m1.original_brand, '') <> '' THEN m1.original_brand
+                            -- 2-3) MEDISはあるが後発/不明（is_generic=TRUE or NULL、あるいは original_brand 空） → 後発扱いで空白
+                            ELSE ''
+                          END
+                        -- 想定外は後発扱い
+                        ELSE ''
+                      END AS originator_flag,
+                      d1.price,
+                      s1.package_insert_no
+                    FROM s1
+                    JOIN d1 ON d1.yj_code = s1.yj_code
+                    LEFT JOIN m1 ON m1.yj_code = s1.yj_code;
+                    ";
+
+
+
+                var result = new List<string[]>();
+
+                using (var conn = CommonFunctions.GetDbConnection(true))
+                {
+                    if (conn is DbConnection dbc) await dbc.OpenAsync(); else conn.Open();
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = sql;
+
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            int addCount = 0;
+                            while (r.Read())
+                            {
+                                var yj = SafeStr(r, 0);
+                                var brand = SafeStr(r, 1);
+                                var generic = SafeStr(r, 2);
+                                var originator = SafeStr(r, 3);
+                                var packageNo = SafeStr(r, 5);
+
+                                string priceStr = "";
+                                if (!r.IsDBNull(4))
+                                {
+                                    // priceはnumeric。文字列化（表示都合で小数不要ならToString("0")などに）
+                                    var priceVal = Convert.ToDecimal(r.GetValue(4));
+                                    priceStr = priceVal.ToString("0.##"); // 必要なら "0.##" などで整形
+                                }
+
+                                // SGMLDI: [0:商品名, 1:一般名, 2:yj_code, 3:先発, 4:薬価]
+                                result.Add(new string[]
+                                {
+                                    brand,
+                                    generic,
+                                    yj,
+                                    originator,
+                                    priceStr,
+                                    packageNo
+                                });
+                                addCount++;
+                            }
+                            await CommonFunctions.AddLogAsync($"SGML薬情インデックス {addCount}件を読み込みました（両表に存在するyj_codeのみ）。");
+                        }
+                    }
+                }
+
+                CommonFunctions.SGMLDI.Clear();
+                CommonFunctions.SGMLDI.AddRange(result);
+
+                CommonFunctions._readySGML = true;
+
+                await CommonFunctions.AddLogAsync("薬歴右クリックのSGMLベース薬情表示が利用可能になりました。");
+            }
+            catch (Exception ex)
+            {
+                await CommonFunctions.AddLogAsync($"SGML薬情インデックスの読み込みエラー: {ex.Message}");
+                CommonFunctions._readySGML = false;
+            }
+        }
+
+        private static string SafeStr(IDataRecord r, int ordinal)
+        {
+            if (ordinal < 0 || ordinal >= r.FieldCount) return "";
+            var v = r.GetValue(ordinal);
+            return (v == null || v is DBNull) ? "" : v.ToString().Trim();
         }
 
         private void dataGridView1_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
@@ -4520,15 +4647,27 @@ namespace OQSDrug
                     Path.GetDirectoryName(Properties.Settings.Default.OQSDrugData),
                     "KOROdata.mdb"
                 );
+
                 if (!File.Exists(koroPath))
                 {
-                    await AddLogAsync("エラー: KOROdata.mdb が見つかりません。");
-                    return;
+                    //KOROを読めないときは、SGMLDIの読み込みだけ行う
+                    await AddLogAsync("KOROdata.mdb が見つかりませんでした");
+
+                    if (Properties.Settings.Default.DBtype == "pg")
+                    {
+                        using (var conn = CommonFunctions.GetDbConnection())
+                        {
+                            await OpenAsync(conn);
+                            await RefreshDictionaryFromDbAsync(conn);
+                            await AddLogAsync("drug_code_mapをDBから更新しました。");
+                        }
+                        //SGML DIのロード
+                        await LoadSGMLDIAsync();
+                        await AddLogAsync("SGML薬剤情報インデックスをDBから更新しました。");
+                    }
                 }
-
-                if (Properties.Settings.Default.DBtype == "pg")
+                else if (Properties.Settings.Default.DBtype == "pg")
                 {
-
                     // === 1) KORO 側の最新更新日を取得 ===
                     DateTime? koroVersion = await GetKoroLatestVersionAsync(koroPath);
                     if (koroVersion == null)
@@ -4542,45 +4681,49 @@ namespace OQSDrug
                     using (var conn = CommonFunctions.GetDbConnection())
                     {
                         await OpenAsync(conn);
-                        await EnsureTablesAsync(conn); // なければ作成（Accessは失敗しても無視）
+                        //await EnsureTablesAsync(conn); // なければ作成（Accessは失敗しても無視）
 
                         // === 3) 既存バージョンと比較 ===
-                        DateTime? currentVersion = await GetCurrentVersionAsync(conn);
-                        if (currentVersion != null && currentVersion >= koroVersion)
+                        DateTime? currentVersion = await GetCurrentVersionAsync(conn, 1);
+                        DateTime? currentMedisVersion = await GetCurrentVersionAsync(conn, 2);
+                        DateTime? currentContraVer = await GetCurrentVersionAsync(conn, 3);
+
+                        if (currentVersion != null && currentVersion >= koroVersion && currentMedisVersion != null && currentMedisVersion >= koroVersion && currentContraVer != null && currentContraVer >= koroVersion)
                         {
                             await AddLogAsync("KOROdataは最新版をロード済みのため、drug_code_map の更新をスキップします。");
-                            // 最後にDictionary更新だけは行う（DB→Dictionary）
-                            await RefreshDictionaryFromDbAsync(conn);
-                            await AddLogAsync("DictionaryをDBから更新しました。");
-                            return;
-                        }
-
-                        await AddLogAsync("KOROdataが更新されているため、drug_code_mapを再構築します…");
-
-                        // === 4) KOROから全マッピング取得（Recept→YJ） ===
-                        var map = await ReadKoroMapAsync(koroPath);
-                        await AddLogAsync($"KOROdataから {map.Count} 件のマッピングを取得。");
-
-                        // === 5) 高速ルートで全入れ替え（DBごとに最速を使用）===
-                        if (conn is Npgsql.NpgsqlConnection pg)
-                        {
-                            await BulkLoadPostgresFromKoroAsync(pg, koroPath, koroVersion.Value);
-                        }
-                        else if (conn is System.Data.OleDb.OleDbConnection acc)
-                        {
-                            await BulkLoadAccessFromKoroAsync(acc, koroPath, koroVersion.Value);
                         }
                         else
                         {
-                            await AddLogAsync("未対応プロバイダのため逐次INSERTで処理します。");
-                            //await FallbackInsertLoopAsync(conn, map); // ※保険（任意）
+                            await AddLogAsync("KOROdataが更新されているため、drug_code_mapを再構築します…");
+                                                       
+                            // === 5) 高速ルートで全入れ替え（DBごとに最速を使用）===
+                            if (conn is Npgsql.NpgsqlConnection pg)
+                            {
+                                await BulkLoadPostgresFromKoroAsync(pg, koroPath, koroVersion.Value);
+                                await BulkLoadPostgresFromMedisAsync(pg, koroPath, koroVersion.Value);
+                                await BulkLoadPostgresFromContraindicationAsync(pg, koroPath, koroVersion.Value);
+
+                                // 大量挿入後に補助インデックス再作成（既存の RebuildIndexesAsync をそのまま呼んでOK）
+                                await RebuildIndexesAsync(pg);
+                            }
+                            else if (conn is System.Data.OleDb.OleDbConnection acc)
+                            {
+                                await BulkLoadAccessFromKoroAsync(acc, koroPath, koroVersion.Value);
+                            }
+                            else
+                            {
+                                await AddLogAsync("未対応プロバイダのため逐次INSERTで処理します。");
+                                //await FallbackInsertLoopAsync(conn, map); // ※保険（任意）
+                            }
+
+                            await AddLogAsync("drug_code_map を更新しました。");
                         }
-
-                        await AddLogAsync("drug_code_map を更新しました。");
-
                         // === 6) 最後に Dictionary を DB から更新 ===
                         await RefreshDictionaryFromDbAsync(conn);
-                        await AddLogAsync("DictionaryをDBから更新しました。");
+                        await AddLogAsync("drug_code_mapをDBから更新しました。");
+                        //SGML DIのロード
+                        await LoadSGMLDIAsync();
+                        await AddLogAsync("SGML薬剤情報インデックスをDBから更新しました。");
                     }
                 }
                 else // Accessの場合はDictionaryのみロード
@@ -4595,14 +4738,13 @@ namespace OQSDrug
             }
         }
 
-        private async Task BulkLoadPostgresFromKoroAsync(NpgsqlConnection pgConn, string koroPath, DateTime koroVersion)
+        private async Task BulkLoadPostgresFromKoroAsync(Npgsql.NpgsqlConnection pgConn, string koroPath, DateTime koroVersion)
         {
             var nowUns = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
-            // ★同期トランザクションに変更
             using (var tx = pgConn.BeginTransaction())
             {
-                // ローカル設定（非同期不要）
+                // 速度チューニング
                 using (var set = pgConn.CreateCommand())
                 {
                     set.Transaction = tx;
@@ -4610,61 +4752,104 @@ namespace OQSDrug
                     set.ExecuteNonQuery();
                 }
 
-                // 旧データ削除
-                using (var del = pgConn.CreateCommand())
+                // ★ DROP → CREATE
+                using (var ddl = pgConn.CreateCommand())
                 {
-                    del.Transaction = tx;
-                    del.CommandText = "DELETE FROM drug_code_map";
-                    del.ExecuteNonQuery();
+                    ddl.Transaction = tx;
+                    ddl.CommandText = @"
+                        DROP TABLE IF EXISTS public.drug_code_map;
+
+                        CREATE TABLE public.drug_code_map
+                        (
+                            drugc       character varying(64)  NOT NULL,
+                            yj_code     character varying(32)  NOT NULL,
+                            yj7         character varying(7),
+                            drugn       text,
+                            is_generic  boolean,
+                            price       numeric,
+                            updated_at  timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+                            CONSTRAINT drug_code_map_pkey PRIMARY KEY (drugc)
+                        );
+
+                        ALTER TABLE public.drug_code_map OWNER TO postgres;
+
+                        CREATE INDEX IF NOT EXISTS idx_drug_code_map_yj
+                            ON public.drug_code_map USING btree (yj_code ASC NULLS LAST);
+
+                        CREATE INDEX IF NOT EXISTS idx_drug_code_map_yj7
+                            ON public.drug_code_map USING btree (yj7 ASC NULLS LAST);";
+                                            ddl.ExecuteNonQuery();
                 }
 
-                // KORO読み出し
-                string koroConnStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;";
+                // KORO (Access) から読み出し
+                string koroConnStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;Jet OLEDB:Database Locking Mode=1;";
                 using (var koro = new System.Data.OleDb.OleDbConnection(koroConnStr))
                 {
                     await koro.OpenAsync();
 
                     const string sql = @"
-                        SELECT 医薬品コード AS ReceptCode, 薬価基準コード AS MedisCode
+                        SELECT 
+                            医薬品コード   AS ReceptCode,
+                            薬価基準コード AS MedisCode,
+                            漢字名称       AS drugn,
+                            後発品         AS IsGenericByte,
+                            金額           AS Price
                         FROM TG医薬品マスター
                         WHERE 薬価基準コード IS NOT NULL";
 
                     using (var kcmd = new System.Data.OleDb.OleDbCommand(sql, koro))
                     using (var r = await kcmd.ExecuteReaderAsync())
-                    // ★同期COPY APIに変更（BeginBinaryImport）
-                    using (var writer = pgConn.BeginBinaryImport(
-                        "COPY drug_code_map (drugc, yj_code, yj7, drugn, updated_at) FROM STDIN (FORMAT BINARY)"
-                    ))
+                    using (var writer = pgConn.BeginBinaryImport(@"
+                        COPY public.drug_code_map 
+                        (drugc, yj_code, yj7, drugn, is_generic, price, updated_at) 
+                        FROM STDIN (FORMAT BINARY)"))
                     {
                         CommonFunctions.ReceptToMedisCodeMap.Clear();
-
                         int i = 0;
+
                         while (await r.ReadAsync())
                         {
                             string recept = r["ReceptCode"]?.ToString() ?? "";
                             string yj = r["MedisCode"]?.ToString() ?? "";
                             string yj7 = (yj.Length >= 7) ? yj.Substring(0, 7) : yj;
+                            string drugn = r["drugn"]?.ToString() ?? "";
+
+                            // 後発品列（Byte）: 0=先発, 1=後発 と仮定
+                            bool? isGeneric = null;
+                            if (r["IsGenericByte"] != DBNull.Value)
+                            {
+                                byte b = Convert.ToByte(r["IsGenericByte"]);
+                                isGeneric = (b != 0); // 1=後発, 0=先発
+                            }
+
+                            decimal? price = null;
+                            if (r["Price"] != DBNull.Value)
+                            {
+                                double d = Convert.ToDouble(r["Price"]);
+                                price = Convert.ToDecimal(d);
+                            }
 
                             writer.StartRow();
-                            writer.Write(recept, NpgsqlDbType.Varchar);
-                            writer.Write(yj, NpgsqlDbType.Varchar);
-                            writer.Write(yj7, NpgsqlDbType.Varchar);
-                            writer.Write(DBNull.Value, NpgsqlDbType.Text);
-                            writer.Write(nowUns, NpgsqlDbType.Timestamp); // without time zone
+                            writer.Write(recept, NpgsqlTypes.NpgsqlDbType.Varchar);
+                            writer.Write(yj, NpgsqlTypes.NpgsqlDbType.Varchar);
+                            writer.Write(yj7, NpgsqlTypes.NpgsqlDbType.Varchar);
+                            writer.Write(drugn, NpgsqlTypes.NpgsqlDbType.Text); 
+                            writer.Write(isGeneric.HasValue ? (object)isGeneric.Value : DBNull.Value, NpgsqlTypes.NpgsqlDbType.Boolean);
+                            writer.Write(price.HasValue ? (object)price.Value : DBNull.Value, NpgsqlTypes.NpgsqlDbType.Numeric);
+                            writer.Write(nowUns, NpgsqlTypes.NpgsqlDbType.Timestamp);
 
                             if (!CommonFunctions.ReceptToMedisCodeMap.ContainsKey(recept))
                                 CommonFunctions.ReceptToMedisCodeMap[recept] = yj;
 
-                            if (++i % 50000 == 0)
-                                await AddLogAsync($"…{i} 件COPY中");
+                            if (++i % 5000 == 0)
+                                await AddLogAsync($"…{i} 件COPY中 (drug_code_map)");
                         }
 
-                        // ★同期Complete
                         writer.Complete();
                     }
                 }
 
-                // バージョン更新（コマンドは async でもOK）
+                // バージョン更新
                 using (var delVer = pgConn.CreateCommand())
                 {
                     delVer.Transaction = tx;
@@ -4675,17 +4860,14 @@ namespace OQSDrug
                 {
                     insVer.Transaction = tx;
                     insVer.CommandText = "INSERT INTO drug_code_map_version (id, source_version) VALUES (1, @v)";
-                    insVer.Parameters.Add(new NpgsqlParameter("@v", koroVersion));
+                    insVer.Parameters.Add(new Npgsql.NpgsqlParameter("@v", koroVersion));
                     await insVer.ExecuteNonQueryAsync();
                 }
 
-                // ★同期Commit
                 tx.Commit();
             }
-
-            // 大量挿入後に補助インデックス再作成（既存の RebuildIndexesAsync をそのまま呼んでOK）
-            await RebuildIndexesAsync(pgConn);
         }
+
 
         private async Task BulkLoadAccessFromKoroAsync(System.Data.OleDb.OleDbConnection accConn, string koroPath, DateTime koroVersion)
         {
@@ -4731,25 +4913,318 @@ namespace OQSDrug
             await RefreshDictionaryFromDbAsync(accConn);
         }
 
+        private async Task BulkLoadPostgresFromMedisAsync(NpgsqlConnection pgConn, string koroPath, DateTime medisVersion)
+        {
+            // Access接続（Koroと同じプロバイダ指定）
+            string accConnStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;";
+
+            // Postgres: 同期Tx
+            using (var tx = pgConn.BeginTransaction())
+            {
+                using (var set = pgConn.CreateCommand())
+                {
+                    set.Transaction = tx;
+                    set.CommandText = "SET LOCAL synchronous_commit TO OFF";
+                    set.ExecuteNonQuery();
+                }
+
+                using (var ddl = pgConn.CreateCommand())
+                {
+                    ddl.Transaction = tx;
+                    ddl.CommandText = @"
+                        DROP TABLE IF EXISTS public.drug_medis_generic;
+
+                        CREATE TABLE public.drug_medis_generic
+                        (
+                            yakka_code      text PRIMARY KEY,
+                            yj_code         text,
+                            generic_name    text,
+                            brand_name      text,
+                            unit            text,
+                            company_name    text,
+                            is_generic      boolean,
+                            original_brand  text,
+                            no_origin_generic boolean,
+                            min_price       numeric,
+                            updated_at      timestamp without time zone DEFAULT now()
+                        );
+
+                        CREATE INDEX IF NOT EXISTS idx_medis_yj_code      ON public.drug_medis_generic (yj_code);
+                        CREATE INDEX IF NOT EXISTS idx_medis_brand_name   ON public.drug_medis_generic (brand_name);
+                        CREATE INDEX IF NOT EXISTS idx_medis_generic_name ON public.drug_medis_generic (generic_name);
+                    ";
+                    ddl.ExecuteNonQuery();
+                }
+
+                using (var acc = new OleDbConnection(accConnStr))
+                {
+                    await acc.OpenAsync();
+
+                    const string sql = @"
+                        SELECT
+                            [薬価基準コード]            AS yakka,
+                            [一般名]                    AS generic_name,
+                            [販売名称]                  AS brand_name,
+                            [規格単位]                  AS unit,
+                            [販売会社]                  AS company_name,
+                            [後発品]                    AS ge_col,
+                            [先発品]                    AS origin_brand,
+                            [先発品のない後発医薬品]    AS no_origin,
+                            [最低薬価]                  AS min_price
+                        FROM [T_MEDIS一般名]
+                        WHERE [薬価基準コード] IS NOT NULL
+                    ";
+
+                    using (var cmd = new OleDbCommand(sql, acc))
+                    using (var r = await cmd.ExecuteReaderAsync())
+                    using (var writer = pgConn.BeginBinaryImport(@"
+                        COPY public.drug_medis_generic
+                        (yakka_code, yj_code, generic_name, brand_name, unit, company_name,
+                         is_generic, original_brand, no_origin_generic, min_price, updated_at)
+                        FROM STDIN (FORMAT BINARY)"))
+                    {
+                        var nowUns = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                        int i = 0;
+                        var seen = new HashSet<string>();   // 🔹 重複チェック用
+
+                        while (await r.ReadAsync())
+                        {
+                            string yakka = r["yakka"]?.ToString()?.Trim();
+                            if (string.IsNullOrEmpty(yakka)) continue;
+
+                            // 🔹 既に出た薬価コードならスキップ
+                            if (!seen.Add(yakka))
+                                continue;
+
+                            string yjCode = yakka;
+                            string gname = r["generic_name"]?.ToString();
+                            string bname = r["brand_name"]?.ToString();
+                            string unit = r["unit"]?.ToString();
+                            string company = r["company_name"]?.ToString();
+                            string geCol = r["ge_col"]?.ToString();
+                            string origin = r["origin_brand"]?.ToString();
+                            string noOrigin = r["no_origin"]?.ToString();
+                            string minPriceS = r["min_price"]?.ToString();
+
+                            bool isGeneric = string.IsNullOrEmpty(origin) && !origin.Contains("先発");
+                            bool noOriginGeneric = !string.IsNullOrWhiteSpace(noOrigin);
+
+                            decimal? minPrice = null;
+                            if (decimal.TryParse(minPriceS, out var dec)) minPrice = dec;
+
+                            writer.StartRow();
+                            writer.Write(yakka, NpgsqlDbType.Varchar);
+                            writer.Write(yjCode, NpgsqlDbType.Varchar);
+                            writer.Write(gname ?? "", NpgsqlDbType.Text);
+                            writer.Write(bname ?? "", NpgsqlDbType.Text);
+                            writer.Write(unit ?? "", NpgsqlDbType.Text);
+                            writer.Write(company ?? "", NpgsqlDbType.Text);
+                            writer.Write(isGeneric, NpgsqlDbType.Boolean);
+                            writer.Write(origin ?? "", NpgsqlDbType.Text);
+                            writer.Write(noOriginGeneric, NpgsqlDbType.Boolean);
+                            if (minPrice.HasValue)
+                                writer.Write(minPrice.Value, NpgsqlDbType.Numeric);
+                            else
+                                writer.Write(DBNull.Value, NpgsqlDbType.Numeric);
+                            writer.Write(nowUns, NpgsqlDbType.Timestamp);
+
+                            if (++i % 5000 == 0)
+                                await AddLogAsync($"…MEDIS {i} 件COPY中");
+                        }
+
+                        writer.Complete();
+                    }
+                }
+
+                // ★ バージョン更新（id=2）
+                using (var delVer = pgConn.CreateCommand())
+                {
+                    delVer.Transaction = tx;
+                    delVer.CommandText = "DELETE FROM drug_code_map_version WHERE id = 2";
+                    await delVer.ExecuteNonQueryAsync();
+                }
+                using (var insVer = pgConn.CreateCommand())
+                {
+                    insVer.Transaction = tx;
+                    insVer.CommandText = "INSERT INTO drug_code_map_version (id, source_version) VALUES (2, @v)";
+                    insVer.Parameters.Add(new NpgsqlParameter("@v", medisVersion));
+                    await insVer.ExecuteNonQueryAsync();
+                }
+
+                // 4) Commit
+                tx.Commit();
+            }
+
+        }
+
+        private async Task BulkLoadPostgresFromContraindicationAsync(Npgsql.NpgsqlConnection pgConn, string koroPath, DateTime koroVersion)
+        {
+            var nowUns = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+
+            using (var tx = pgConn.BeginTransaction())
+            {
+                // トランザクション中は同期処理で高速化
+                using (var set = pgConn.CreateCommand())
+                {
+                    set.Transaction = tx;
+                    set.CommandText = "SET LOCAL synchronous_commit TO OFF";
+                    set.ExecuteNonQuery();
+                }
+
+                // 古いテーブルを消して再作成
+                using (var drop = pgConn.CreateCommand())
+                {
+                    drop.Transaction = tx;
+                    drop.CommandText = @"
+                        DROP TABLE IF EXISTS drug_contraindication;
+                        CREATE TABLE drug_contraindication (
+                            self_code       VARCHAR,
+                            self_name       TEXT,
+                            self_generic    TEXT,
+                            target_code     VARCHAR,
+                            target_name     TEXT,
+                            target_generic  TEXT,
+                            symptom_action  TEXT,
+                            mechanism       TEXT,
+                            updated_at      TIMESTAMP WITHOUT TIME ZONE
+                        );";
+                    drop.ExecuteNonQuery();
+                }
+
+                // Access (MDB) 側に接続
+                string koroConnStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;";
+                using (var koro = new System.Data.OleDb.OleDbConnection(koroConnStr))
+                {
+                    await koro.OpenAsync();
+
+                    const string sql = @"
+                        SELECT
+                            自薬剤コード,
+                            自薬剤名,
+                            自薬剤一般名,
+                            対象薬剤コード,
+                            対象薬剤名,
+                            対象薬剤一般名,
+                            [症状・処置],
+                            [症状処置機序]
+                        FROM T_厚生禁忌";
+
+                    using (var kcmd = new System.Data.OleDb.OleDbCommand(sql, koro))
+                    using (var r = await kcmd.ExecuteReaderAsync())
+                    using (var writer = pgConn.BeginBinaryImport(@"
+                        COPY drug_contraindication
+                        (self_code, self_name, self_generic, target_code, target_name, target_generic, symptom_action, mechanism, updated_at)
+                        FROM STDIN (FORMAT BINARY)
+                    "))
+                    {
+                        int i = 0;
+                        while (await r.ReadAsync())
+                        {
+                            writer.StartRow();
+                            writer.Write(r["自薬剤コード"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Varchar);
+                            writer.Write(r["自薬剤名"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Text);
+                            writer.Write(r["自薬剤一般名"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Text);
+                            writer.Write(r["対象薬剤コード"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Varchar);
+                            writer.Write(r["対象薬剤名"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Text);
+                            writer.Write(r["対象薬剤一般名"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Text);
+                            writer.Write(r["症状・処置"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Text);
+                            writer.Write(r["症状処置機序"]?.ToString() ?? "", NpgsqlTypes.NpgsqlDbType.Text);
+                            writer.Write(nowUns, NpgsqlTypes.NpgsqlDbType.Timestamp);
+
+                            if (++i % 5000 == 0)
+                                await AddLogAsync($"…{i} 件COPY中 (T_厚生禁忌)");
+                        }
+
+                        writer.Complete();
+                    }
+                }
+
+                // バージョン管理に登録（id=3を禁忌テーブル用とする）
+                using (var delVer = pgConn.CreateCommand())
+                {
+                    delVer.Transaction = tx;
+                    delVer.CommandText = "DELETE FROM drug_code_map_version WHERE id = 3";
+                    await delVer.ExecuteNonQueryAsync();
+                }
+                using (var insVer = pgConn.CreateCommand())
+                {
+                    insVer.Transaction = tx;
+                    insVer.CommandText = "INSERT INTO drug_code_map_version (id, source_version) VALUES (3, @v)";
+                    insVer.Parameters.Add(new Npgsql.NpgsqlParameter("@v", koroVersion));
+                    await insVer.ExecuteNonQueryAsync();
+                }
+
+                tx.Commit();
+            }
+
+            await AddLogAsync("T_厚生禁忌 → drug_contraindication を更新しました。");
+        }
+
         private async Task RebuildIndexesAsync(IDbConnection conn)
         {
             if (conn is Npgsql.NpgsqlConnection)
             {
-                // DROP → CREATE（IF EXISTS/NOT EXISTS あり）
+                // ------------------------------
+                // PostgreSQL
+                // ------------------------------
+
+                // drug_code_map
                 try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_drug_code_map_yj"); } catch { }
                 try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_drug_code_map_yj7"); } catch { }
-                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_drug_code_map_yj  ON drug_code_map(yj_code)"); } catch { }
-                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_drug_code_map_yj7 ON drug_code_map(yj7)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_drug_code_map_yj  ON public.drug_code_map(yj_code)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_drug_code_map_yj7 ON public.drug_code_map(yj7)"); } catch { }
+
+                // drug_medis_generic
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_medis_yj_code"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_medis_brand_name"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_medis_generic_name"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_medis_yj_code       ON public.drug_medis_generic(yj_code)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_medis_brand_name    ON public.drug_medis_generic(brand_name)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_medis_generic_name  ON public.drug_medis_generic(generic_name)"); } catch { }
+
+                // drug_contraindication
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_contra_self_code"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_contra_target_code"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX IF EXISTS idx_contra_pair"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_contra_self_code   ON public.drug_contraindication(self_code)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_contra_target_code ON public.drug_contraindication(target_code)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX IF NOT EXISTS idx_contra_pair        ON public.drug_contraindication(self_code, target_code)"); } catch { }
+
+                // 統計更新（クエリ計画の最適化）
+                try { await ExecNonQueryAsync(conn, null, "ANALYZE public.drug_code_map"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "ANALYZE public.drug_medis_generic"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "ANALYZE public.drug_contraindication"); } catch { }
             }
             else if (conn is System.Data.OleDb.OleDbConnection)
             {
-                // AccessのDROP INDEX構文は「DROP INDEX 名 ON テーブル」
+                // ------------------------------
+                // Access（運用上は参照用が多い想定）
+                // ------------------------------
+
+                // drug_code_map
                 try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_drug_code_map_yj ON drug_code_map"); } catch { }
                 try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_drug_code_map_yj7 ON drug_code_map"); } catch { }
                 try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_drug_code_map_yj  ON drug_code_map(yj_code)"); } catch { }
                 try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_drug_code_map_yj7 ON drug_code_map(yj7)"); } catch { }
+
+                // drug_medis_generic
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_medis_yj_code ON drug_medis_generic"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_medis_brand_name ON drug_medis_generic"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_medis_generic_name ON drug_medis_generic"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_medis_yj_code      ON drug_medis_generic(yj_code)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_medis_brand_name   ON drug_medis_generic(brand_name)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_medis_generic_name ON drug_medis_generic(generic_name)"); } catch { }
+
+                // drug_contraindication
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_contra_self_code ON drug_contraindication"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_contra_target_code ON drug_contraindication"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "DROP INDEX idx_contra_pair ON drug_contraindication"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_contra_self_code   ON drug_contraindication(self_code)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_contra_target_code ON drug_contraindication(target_code)"); } catch { }
+                try { await ExecNonQueryAsync(conn, null, "CREATE INDEX idx_contra_pair        ON drug_contraindication(self_code, target_code)"); } catch { }
             }
         }
+
         // ===== 下位ユーティリティ =====
 
         // KORO: 最新の更新日（先頭行）を取得
@@ -4839,16 +5314,16 @@ namespace OQSDrug
         }
 
         // 既存バージョン取得
-        private async Task<DateTime?> GetCurrentVersionAsync(IDbConnection conn)
+        private async Task<DateTime?> GetCurrentVersionAsync(IDbConnection conn, int koroTableId = 1)
         {
-            string sql = "SELECT source_version FROM drug_code_map_version WHERE id = 1";
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = CommonFunctions.ConvertSqlForOleDb(sql);
+                cmd.CommandText = "SELECT source_version FROM drug_code_map_version WHERE id = @id";
+                CommonFunctions.AddDbParameter(cmd, "@id", koroTableId);
                 var obj = await ExecuteScalarAsync(cmd);
                 if (obj != null && DateTime.TryParse(obj.ToString(), out var dt)) return dt;
+                return null;
             }
-            return null;
         }
 
         // DB→Dictionary 更新（drugc→yj_code を全読込）
@@ -4891,6 +5366,25 @@ namespace OQSDrug
                 cmd.CommandText = CommonFunctions.ConvertSqlForOleDb(sql);
                 await ExecuteNonQueryAsync(cmd);
             }
+        }
+
+        private void toolStripButtonPMDA_Click(object sender, EventArgs e)
+        {
+            if(Properties.Settings.Default.DBtype != "pg")
+            {
+                MessageBox.Show("PostgreSQLバージョンでのみ利用可能です");
+                return;
+
+            }
+            else if (!CommonFunctions._readySGML)
+            {
+                MessageBox.Show("添付文書データがまだロードされてないので起動できません。少し時間をおいてから再度試してみてください。");
+                return;
+            }
+
+            var dlg = new FormSGML_DI(null);
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.Show(this);
         }
 
         private static async Task<int> ExecuteNonQueryAsync(IDbCommand cmd)
