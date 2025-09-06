@@ -79,6 +79,9 @@
             this.labelPG2 = new System.Windows.Forms.Label();
             this.textBoxPGport = new System.Windows.Forms.TextBox();
             this.textBoxPGaddress = new System.Windows.Forms.TextBox();
+            this.groupBoxDI = new System.Windows.Forms.GroupBox();
+            this.radioButtonSGML = new System.Windows.Forms.RadioButton();
+            this.radioButtonRSB = new System.Windows.Forms.RadioButton();
             this.comboBoxRSBID = new System.Windows.Forms.ComboBox();
             this.label17 = new System.Windows.Forms.Label();
             this.label18 = new System.Windows.Forms.Label();
@@ -89,14 +92,11 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPageMain = new System.Windows.Forms.TabPage();
             this.tabPageViewer = new System.Windows.Forms.TabPage();
-            this.groupBoxDI = new System.Windows.Forms.GroupBox();
-            this.radioButtonRSB = new System.Windows.Forms.RadioButton();
-            this.radioButtonSGML = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
+            this.groupBoxDI.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPageMain.SuspendLayout();
             this.tabPageViewer.SuspendLayout();
-            this.groupBoxDI.SuspendLayout();
             this.SuspendLayout();
             // 
             // textBoxDatadyna
@@ -483,6 +483,7 @@
             this.checkBoxAI.Size = new System.Drawing.Size(83, 16);
             this.checkBoxAI.TabIndex = 85;
             this.checkBoxAI.Text = "AI自動検索";
+            this.toolTipSetting.SetToolTip(this.checkBoxAI, "ONにすると、プロンプトテンプレートで自動取得が設定されたテンプレートで\r\nollamaに自動で問い合わせを行います。\r\n薬歴を取り込むPCでのみ有効です。");
             this.checkBoxAI.UseVisualStyleBackColor = true;
             this.checkBoxAI.CheckedChanged += new System.EventHandler(this.checkBoxAI_CheckedChanged);
             // 
@@ -577,6 +578,42 @@
             this.textBoxPGaddress.Name = "textBoxPGaddress";
             this.textBoxPGaddress.Size = new System.Drawing.Size(211, 19);
             this.textBoxPGaddress.TabIndex = 76;
+            // 
+            // groupBoxDI
+            // 
+            this.groupBoxDI.Controls.Add(this.radioButtonSGML);
+            this.groupBoxDI.Controls.Add(this.radioButtonRSB);
+            this.groupBoxDI.Location = new System.Drawing.Point(20, 127);
+            this.groupBoxDI.Name = "groupBoxDI";
+            this.groupBoxDI.Size = new System.Drawing.Size(158, 48);
+            this.groupBoxDI.TabIndex = 70;
+            this.groupBoxDI.TabStop = false;
+            this.groupBoxDI.Text = "⑮添付文書表示選択";
+            this.toolTipSetting.SetToolTip(this.groupBoxDI, "薬剤名ダブルクリック時に、薬剤添付文書をRSBaseで開くか、内蔵のSGMLデータで表示するか選択します。\r\nRSBaseを選択した場合は、このPCにRSBase" +
+        "がインストールされている必要があります。");
+            this.groupBoxDI.UseCompatibleTextRendering = true;
+            // 
+            // radioButtonSGML
+            // 
+            this.radioButtonSGML.AutoSize = true;
+            this.radioButtonSGML.Location = new System.Drawing.Point(78, 19);
+            this.radioButtonSGML.Name = "radioButtonSGML";
+            this.radioButtonSGML.Size = new System.Drawing.Size(77, 16);
+            this.radioButtonSGML.TabIndex = 1;
+            this.radioButtonSGML.TabStop = true;
+            this.radioButtonSGML.Text = "内蔵SGML";
+            this.radioButtonSGML.UseVisualStyleBackColor = true;
+            // 
+            // radioButtonRSB
+            // 
+            this.radioButtonRSB.AutoSize = true;
+            this.radioButtonRSB.Location = new System.Drawing.Point(7, 19);
+            this.radioButtonRSB.Name = "radioButtonRSB";
+            this.radioButtonRSB.Size = new System.Drawing.Size(64, 16);
+            this.radioButtonRSB.TabIndex = 0;
+            this.radioButtonRSB.TabStop = true;
+            this.radioButtonRSB.Text = "RSBase";
+            this.radioButtonRSB.UseVisualStyleBackColor = true;
             // 
             // comboBoxRSBID
             // 
@@ -707,42 +744,6 @@
             this.tabPageViewer.Text = "Viewer設定";
             this.tabPageViewer.UseVisualStyleBackColor = true;
             // 
-            // groupBoxDI
-            // 
-            this.groupBoxDI.Controls.Add(this.radioButtonSGML);
-            this.groupBoxDI.Controls.Add(this.radioButtonRSB);
-            this.groupBoxDI.Location = new System.Drawing.Point(20, 127);
-            this.groupBoxDI.Name = "groupBoxDI";
-            this.groupBoxDI.Size = new System.Drawing.Size(158, 48);
-            this.groupBoxDI.TabIndex = 70;
-            this.groupBoxDI.TabStop = false;
-            this.groupBoxDI.Text = "⑮添付文書表示選択";
-            this.toolTipSetting.SetToolTip(this.groupBoxDI, "薬剤名ダブルクリック時に、薬剤添付文書をRSBaseで開くか、内蔵のSGMLデータで表示するか選択します。\r\nRSBaseを選択した場合は、このPCにRSBase" +
-        "がインストールされている必要があります。");
-            this.groupBoxDI.UseCompatibleTextRendering = true;
-            // 
-            // radioButtonRSB
-            // 
-            this.radioButtonRSB.AutoSize = true;
-            this.radioButtonRSB.Location = new System.Drawing.Point(7, 19);
-            this.radioButtonRSB.Name = "radioButtonRSB";
-            this.radioButtonRSB.Size = new System.Drawing.Size(64, 16);
-            this.radioButtonRSB.TabIndex = 0;
-            this.radioButtonRSB.TabStop = true;
-            this.radioButtonRSB.Text = "RSBase";
-            this.radioButtonRSB.UseVisualStyleBackColor = true;
-            // 
-            // radioButtonSGML
-            // 
-            this.radioButtonSGML.AutoSize = true;
-            this.radioButtonSGML.Location = new System.Drawing.Point(78, 19);
-            this.radioButtonSGML.Name = "radioButtonSGML";
-            this.radioButtonSGML.Size = new System.Drawing.Size(77, 16);
-            this.radioButtonSGML.TabIndex = 1;
-            this.radioButtonSGML.TabStop = true;
-            this.radioButtonSGML.Text = "内蔵SGML";
-            this.radioButtonSGML.UseVisualStyleBackColor = true;
-            // 
             // Form2
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -759,13 +760,13 @@
             this.Load += new System.EventHandler(this.Form2_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.groupBoxDI.ResumeLayout(false);
+            this.groupBoxDI.PerformLayout();
             this.tabControl1.ResumeLayout(false);
             this.tabPageMain.ResumeLayout(false);
             this.tabPageMain.PerformLayout();
             this.tabPageViewer.ResumeLayout(false);
             this.tabPageViewer.PerformLayout();
-            this.groupBoxDI.ResumeLayout(false);
-            this.groupBoxDI.PerformLayout();
             this.ResumeLayout(false);
 
         }

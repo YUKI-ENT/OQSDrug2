@@ -19,6 +19,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
@@ -39,7 +40,12 @@ namespace OQSDrug
         public string RankLabel { get; set; } = "";   // ①〜④相当のラベル
         public string Note { get; set; } = "";        // 短い説明（中断リスクなど）
     }
-
+    public enum BackupOutcome
+    {
+        Success,
+        Skipped,
+        Failed
+    }
     public static class CommonFunctions
     {
         // グローバル変数の定義
@@ -86,6 +92,12 @@ namespace OQSDrug
 
         // ollama models
         public static List<ModelInfo> ollamaModelList = new List<ModelInfo>();
+
+        //PGDump
+        public static DateTime? lastDumped = null;                   // 最後に成功した時刻（ローカル時刻）
+        public static readonly TimeSpan DumpInterval = TimeSpan.FromHours(3);
+        public static readonly TimeSpan Retention = TimeSpan.FromDays(7);
+        private static readonly SemaphoreSlim _dumpGate = new SemaphoreSlim(1, 1); // 重複実行防止
 
 
         // 基準値を格納するクラス
@@ -2782,7 +2794,257 @@ namespace OQSDrug
                 Properties.Settings.Default.Save();
             }
         }
-    }
 
+        /// <summary>
+        /// スケジュール条件に従いバックアップ（メインフォームが閉じていてもOK）
+        /// </summary>
+        public static async Task<BackupOutcome> TryRunScheduledDumpAsync(
+            bool force = false,
+            Action<string> log = null,
+            CancellationToken ct = default(CancellationToken))
+        {
+            string folder = Properties.Settings.Default.PGDumpFolder;
+            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+            {
+                SafeLog(log, "[Backup] フォルダが無効: " + folder);
+                return BackupOutcome.Failed;
+            }
+
+            // 7日超のバックアップを削除（ローカル時刻でOK）
+            CleanupOldBackups(folder, log);
+
+            // 二重起動防止
+            if (!_dumpGate.Wait(0))
+            {
+                SafeLog(log, "[Backup] 別のバックアップ実行中のためスキップ");
+                return BackupOutcome.Skipped;
+            }
+
+            try
+            {
+                // 最新ファイル時刻と lastDumped のうち遅い方を基準に判定
+                DateTime now = DateTime.Now;
+                DateTime? latestFile = GetLatestBackupTime(folder); // LastWriteTime(ローカル)
+                DateTime? baseline = latestFile;
+                if (lastDumped.HasValue && (!baseline.HasValue || lastDumped.Value > baseline.Value))
+                    baseline = lastDumped.Value;
+
+                if (!force && baseline.HasValue && (now - baseline.Value) < DumpInterval)
+                {
+                    SafeLog(log, string.Format("[Backup] スキップ: 最新 {0:yyyy-MM-dd HH:mm:ss} / 経過 {1}分 (< {2}分)",
+                        baseline.Value, (int)(now - baseline.Value).TotalMinutes, (int)DumpInterval.TotalMinutes));
+                    return BackupOutcome.Skipped;
+                }
+
+                // 出力ファイル名
+                string outFile = Path.Combine(folder, $"{PGdatabaseName}_{now:yyMMdd_HHmmss}.backup");
+
+                // 接続情報（Settings から取得）
+                string host = Properties.Settings.Default.PGaddress;
+                int port = Properties.Settings.Default.PGport;
+                string user = Properties.Settings.Default.PGuser;
+                string db = CommonFunctions.PGdatabaseName;
+                string password = CommonFunctions.decodePassword(Properties.Settings.Default.PGpass);
+
+                // タイムアウト（必要あれば呼び出し側で LinkedToken にする）
+                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                {
+                    cts.CancelAfter(TimeSpan.FromMinutes(10));
+
+                    bool ok = await RunPgDumpAsync(outFile, host, port, user, db, password, cts.Token)
+                                  .ConfigureAwait(false);
+                    if (ok)
+                    {
+                        lastDumped = DateTime.Now; // ローカル時刻で保持
+                        SafeLog(log, "[Backup] 完了: " + outFile);
+                        return BackupOutcome.Success;
+                    }
+                    else
+                    {
+                        SafeLog(log, "[Backup] 失敗: " + outFile);
+                        return BackupOutcome.Failed;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeLog(log, "[Backup] 例外: " + ex.Message);
+                return BackupOutcome.Failed;
+            }
+            finally
+            {
+                _dumpGate.Release();
+            }
+        }
+
+        /// <summary>pg_dump 実行（.NET 4.8 対応、UI非依存）</summary>
+        public static async Task<bool> RunPgDumpAsync(
+            string outFile, string host, int port, string user, string database, string password, CancellationToken cancel)
+        {
+            // 追加で除外したいテーブル
+            string[] extraExcludes = {
+                "drug_code_map",
+                "drug_code_map_version",
+                "drug_contraindication",
+                "drug_medis_generic"
+            };
+            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            string pgDumpPath = Path.Combine(exeDir, "pgsql", "bin", "pg_dump.exe");
+            if (!File.Exists(pgDumpPath))
+            {
+                await AddLogAsync($"[Backup] pg_dump が見つかりません: {pgDumpPath}");
+                return false;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendFormat("-h {0} -p {1} -U {2} ", EscapeArg(host), port, EscapeArg(user));
+            sb.Append("-F c -Z 9 --no-owner --no-privileges ");
+
+            // 既存: sgml_* を除外（スキーマ付き/なし両方）
+            sb.Append("-T \"sgml_*\" -T \"public.sgml_*\" ");
+
+            // 追加: 個別テーブルの除外（スキーマ付き/なし両方）
+            foreach (var name in extraExcludes)
+            {
+                sb.AppendFormat("-T \"{0}\" -T \"public.{0}\" ", name);
+            }
+
+            // 出力先とデータベース名
+            sb.AppendFormat("-f \"{0}\" {1}", outFile, EscapeArg(database));
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = pgDumpPath, // PATH未設定なら絶対パス指定に変更
+                Arguments = sb.ToString(),
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            // パスワードは環境変数で渡す（コマンドラインに残さない）
+            if (!string.IsNullOrEmpty(password))
+                psi.EnvironmentVariables["PGPASSWORD"] = password;
+
+            using (var proc = new Process { StartInfo = psi })
+            {
+                proc.Start();
+                // .NET 4.8 では WaitForExitAsync が無いので Task.Run で待機
+                await Task.Run(new Action(proc.WaitForExit), cancel);
+                return proc.ExitCode == 0;
+            }
+        }
+
+
+        private static void CleanupOldBackups(string folder, Action<string> log)
+        {
+            try
+            {
+                foreach (var file in Directory.GetFiles(folder, $"{PGdatabaseName}_*.backup"))
+                {
+                    var age = DateTime.Now - File.GetLastWriteTime(file);
+                    if (age > Retention)
+                    {
+                        try
+                        {
+                            File.Delete(file);
+                            SafeLog(log, "[Backup] 旧ファイル削除: " + Path.GetFileName(file) + " (" + age.Days + "日経過)");
+                        }
+                        catch (Exception ex)
+                        {
+                            SafeLog(log, "[Backup] 削除失敗: " + file + " : " + ex.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeLog(log, "[Backup] クリーンアップ失敗: " + ex.Message);
+            }
+        }
+
+        private static DateTime? GetLatestBackupTime(string folder)
+        {
+            var files = Directory.GetFiles(folder, "OQSDrugData_*.backup");
+            if (files.Length == 0) return null;
+            return files.Select(f => File.GetLastWriteTime(f)).Max();
+        }
+
+        private static string EscapeArg(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return "\"" + s.Replace("\"", "\"\"") + "\"";
+        }
+
+        private static void SafeLog(Action<string> log, string msg)
+        {
+            if (log != null) log(msg);
+        }
+
+
+        /// <summary>
+        /// .backup(-Fc/-Ft/-Fd)の内容一覧を取得。tablesOnly/dataOnlyで簡易フィルタ可能。
+        /// </summary>
+        public static async Task<string[]> ListDumpContents(
+             string backupPath,
+             string password,
+             bool tablesOnly = false,
+             bool dataOnly = false)
+        {
+            if (string.IsNullOrWhiteSpace(backupPath) ||
+                (!File.Exists(backupPath) && !Directory.Exists(backupPath)))
+                throw new FileNotFoundException("バックアップファイル/ディレクトリが見つかりません。", backupPath);
+
+            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            string pgRestorePath = Path.Combine(exeDir, "pgsql", "bin", "pg_restore.exe");
+            if (!File.Exists(pgRestorePath))
+            {
+                await AddLogAsync($"[Restore] pg_restore が見つかりません: {pgRestorePath}");
+                return null;
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = pgRestorePath,
+                Arguments = $"-l \"{backupPath}\"",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            if (!string.IsNullOrEmpty(password))
+                psi.EnvironmentVariables["PGPASSWORD"] = password;
+
+            using (var p = new Process { StartInfo = psi, EnableRaisingEvents = false })
+            {
+                p.Start();
+
+                // 出力を非同期で読み取り
+                var stdOutTask = p.StandardOutput.ReadToEndAsync();
+                var stdErrTask = p.StandardError.ReadToEndAsync();
+
+                // .NET 4.8 では WaitForExitAsync が無いのでスレッド上で待機
+                await Task.Run(new Action(p.WaitForExit));
+
+                var stdout = await stdOutTask.ConfigureAwait(false);
+                var stderr = await stdErrTask.ConfigureAwait(false);
+
+                if (p.ExitCode != 0)
+                    throw new InvalidOperationException("pg_restore -l 失敗: " + stderr);
+
+                var lines = stdout.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (dataOnly)
+                    return lines.Where(l => l.Contains("TABLE DATA")).ToArray();
+
+                if (tablesOnly)
+                    return lines.Where(l => l.Contains(" TABLE ") || l.Contains("TABLE DATA")).ToArray();
+
+                return lines; // 全オブジェクト
+            }
+        }
+    }
+        
 }
+
 

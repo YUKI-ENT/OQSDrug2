@@ -36,7 +36,7 @@ namespace OQSDrug
         // フォームのフィールドにキャンセルトークンを保持
         private CancellationTokenSource _cts;
         private bool _isRunning = false;
-
+                
         public FormPGupload()
         {
             InitializeComponent();
@@ -57,7 +57,7 @@ namespace OQSDrug
                     labelServer.BackColor = Color.LightGreen;
                     labelDB.ForeColor = Color.White;
                     labelDB.BackColor = Color.LightGreen;
-                    labelServer.Text = "PosegreSQL server Connected";
+                    labelServer.Text = $"Server{Properties.Settings.Default.PGaddress} Connected";
                     labelDB.Text = CommonFunctions.PGdatabaseName + ":Ready";
 
                     buttonMigrate.Enabled = true;
@@ -399,6 +399,9 @@ namespace OQSDrug
         private void FormPGupload_Load(object sender, EventArgs e)
         {
             textBoxMDB.Text = Properties.Settings.Default.OQSDrugData;
+            textBoxPGDumpFolder.Text = Properties.Settings.Default.PGDumpFolder;
+
+            checkBoxScheduleDump.Checked = Properties.Settings.Default.AutoPGDump;
         }
 
         private void buttonSelectMDB_Click(object sender, EventArgs e)
@@ -669,7 +672,61 @@ namespace OQSDrug
             }
         }
 
-        private async Task BackupDatabaseAsync()
+        
+        private async void buttonDump_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("PostgreSQLデータのバックアップを作成しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            if (!Directory.Exists(textBoxPGDumpFolder.Text))
+            {
+                MessageBox.Show("バックアップ先フォルダを指定してから実行してください");
+                return;
+            }
+
+            buttonDump.Enabled = false;
+            var oldText = buttonDump.Text;
+            buttonDump.Text = "バックアップ中…";
+            Cursor = Cursors.WaitCursor;
+
+            try
+            {
+                // 時刻プレフィックス付けたいならこの行を使う：
+                // Action<string> uiLog = m => AddLog($"[{DateTime.Now:HH:mm:ss}] {m}");
+                // その場合は log: uiLog を渡す。
+
+                AddLog("[Backup] 手動バックアップ開始…");
+                var result = await CommonFunctions.TryRunScheduledDumpAsync(
+                    force: true,
+                    log: AddLog,                     // ← そのまま渡してOK
+                    ct: System.Threading.CancellationToken.None
+                );
+
+                switch (result)
+                {
+                    case BackupOutcome.Success:
+                        AddLog("[Backup] 手動バックアップ: 完了");
+                        break;
+                    case BackupOutcome.Skipped:
+                        AddLog("[Backup] 手動バックアップ: スキップ（間隔未経過 or 実行中）");
+                        break;
+                    default:
+                        AddLog("[Backup] 手動バックアップ: 失敗");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog("[Backup] 例外: " + ex.Message);
+            }
+            finally
+            {
+                buttonDump.Enabled = true;
+                buttonDump.Text = oldText;
+                Cursor = Cursors.Default;
+            }
+        }
+
+        private void buttonPGDumpFolderSelect_Click(object sender, EventArgs e)
         {
             using (var fbd = new FolderBrowserDialog())
             {
@@ -681,145 +738,66 @@ namespace OQSDrug
                 string folder = fbd.SelectedPath;
                 if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
                 {
-                    AddLog($"[Backup] フォルダが無効です: {folder}");
-                    return;
+                    MessageBox.Show($"[Backup] フォルダが無効です: {folder}");
                 }
-
-                // 既定ファイル名 OQSDrugData_yymmdd.backup
-                string baseName = $"OQSDrugData_{DateTime.Now:yyMMdd}.backup";
-                string outFile = Path.Combine(folder, baseName);
-
-                // 既に同名がある場合は時刻を付与
-                if (File.Exists(outFile))
+                else
                 {
-                    outFile = Path.Combine(folder, $"OQSDrugData_{DateTime.Now:yyMMdd_HHmmss}.backup");
-                }
-
-                // 接続情報（必要に応じてSettingsから取得）
-                string host = Properties.Settings.Default.PGaddress;
-                int port = Properties.Settings.Default.PGport;
-                string user = Properties.Settings.Default.PGuser;
-                string db = CommonFunctions.PGdatabaseName;
-                string password = decodePassword(Properties.Settings.Default.PGpass); // 任意の保管場所
-
-                using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10)))
-                {
-                    string orgCaption = buttonDump.Text;
-                    buttonDump.Text = "バックアップ中...";
-                    buttonDump.Enabled = false;
-
-                    bool ok = await RunPgDumpAsync(
-                        outFile: outFile,
-                        host: host, port: port, user: user, database: db, password: password,
-                        cancel: cts.Token).ConfigureAwait(true);
-
-                    string result = ok ? $"[Backup] 完了: {outFile}" : $"[Backup] 失敗: {outFile}";
-                    AddLog(result);
-
-                    buttonDump.Text = orgCaption;
-                    buttonDump.Enabled = true;
-
-                    MessageBox.Show(result);
+                    textBoxPGDumpFolder.Text = folder;
+                    Properties.Settings.Default.PGDumpFolder = folder;
+                    Properties.Settings.Default.Save();
                 }
             }
         }
 
-        // pg_dump 実行（-Fc, -Z 9、sgml_テーブル除外）
-        private async Task<bool> RunPgDumpAsync(
-            string outFile,
-            string host, int port, string user, string database, string password,
-            CancellationToken cancel)
+        private void checkBoxScheduleDump_CheckedChanged(object sender, EventArgs e)
         {
-            try
-            {
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string pgDumpPath = Path.Combine(exeDir, "pgsql", "bin", "pg_dump.exe"); // 同梱パスに合わせて調整
-                if (!File.Exists(pgDumpPath))
-                {
-                    AddLog($"[Backup] pg_dump が見つかりません: {pgDumpPath}");
-                    return false;
-                }
-
-                // -F c（= -Fc）: カスタム形式 / -Z 9: 最高圧縮
-                // -T で sgml_ を除外（スキーマ付き/なし両方指定しておくと安心）
-                var sb = new StringBuilder();
-                sb.AppendFormat("-h \"{0}\" -p {1} -U \"{2}\" -d \"{3}\" ", host, port, user, database);
-                sb.Append("-F c -Z 9 --no-owner --no-privileges ");  // 所有者/権限は環境依存を避ける
-                sb.Append("-T \"sgml_*\" -T \"public.sgml_*\" ");   // sgml_で始まるテーブル除外
-                sb.AppendFormat("-f \"{0}\"", outFile);
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = pgDumpPath,
-                    Arguments = sb.ToString(),
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    WorkingDirectory = Path.GetDirectoryName(pgDumpPath) ?? exeDir
-                };
-
-                if (!string.IsNullOrEmpty(password))
-                {
-                    psi.EnvironmentVariables["PGPASSWORD"] = password;
-                }
-
-                AddLog($"[Backup] 実行: {psi.FileName} {psi.Arguments}");
-
-                using (var proc = new Process { StartInfo = psi, EnableRaisingEvents = true })
-                {
-                    var tcsExit = new TaskCompletionSource<int>();
-
-                    proc.OutputDataReceived += async (_, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                            AddLog($"[pg_dump][out] {e.Data}");
-                    };
-                    proc.ErrorDataReceived += async (_, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                            AddLog($"[pg_dump][err] {e.Data}");
-                    };
-                    proc.Exited += (_, __) =>
-                    {
-                        try { tcsExit.TrySetResult(proc.ExitCode); } catch { }
-                    };
-
-                    if (!proc.Start())
-                    {
-                        AddLog("[Backup] pg_dump の起動に失敗しました");
-                        return false;
-                    }
-
-                    proc.BeginOutputReadLine();
-                    proc.BeginErrorReadLine();
-
-                    using (cancel.Register(() =>
-                    {
-                        try { if (!proc.HasExited) proc.Kill(); } catch { }
-                    }))
-                    {
-                        int exit = await tcsExit.Task;
-                        AddLog($"[Backup] pg_dump 終了コード: {exit}");
-                        return exit == 0;
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                AddLog("[Backup] キャンセルされました");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[Backup] 例外: {ex.GetType().Name} / {ex.Message}");
-                return false;
-            }
+            Properties.Settings.Default.AutoPGDump = checkBoxScheduleDump.Checked;
+            Properties.Settings.Default.Save();
         }
 
-        private async void buttonDump_Click(object sender, EventArgs e)
+        private async void buttonListContent_Click(object sender, EventArgs e)
         {
-            await BackupDatabaseAsync(); 
+            using (var dlg = new OpenFileDialog())
+            {
+                dlg.Title = "バックアップファイルを選択";
+                dlg.Filter = "PG Dump (*.backup;*.dump;*.tar)|*.backup;*.dump;*.tar|すべてのファイル (*.*)|*.*";
+                dlg.CheckFileExists = true;
+                dlg.Multiselect = false;
+
+                // 既定フォルダ：textBoxPGDumpFolder.Text → だめならドキュメント
+                string initial = (textBoxPGDumpFolder != null) ? textBoxPGDumpFolder.Text : null;
+                if (string.IsNullOrWhiteSpace(initial) || !Directory.Exists(initial))
+                    initial = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                dlg.InitialDirectory = initial;
+
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                string backupPath = dlg.FileName;
+                AddLog($"[Inspect] 対象: {backupPath}");
+
+                // 必要なら設定からパスワードを復号
+                string password = CommonFunctions.decodePassword(Properties.Settings.Default.PGpass);
+
+                try
+                {
+                    // テーブル「データが入っているもの」だけ見たいなら dataOnly: true
+                    // （全部見たいなら両方 false、定義も含めたテーブル系だけ見たいなら tablesOnly: true）
+                    var lines = await ListDumpContents(backupPath, password, tablesOnly: false, dataOnly: true);
+
+                    if (lines == null || lines.Length == 0)
+                    {
+                        AddLog("[Inspect] 一致するエントリがありません。");
+                        return;
+                    }
+
+                    foreach (var line in lines)
+                        AddLog(line);
+                }
+                catch (Exception ex)
+                {
+                    AddLog("[Inspect] エラー: " + ex.Message);
+                }
+            }
         }
     }
 }

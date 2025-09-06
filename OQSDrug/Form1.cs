@@ -69,6 +69,9 @@ namespace OQSDrug
         bool idChageCalled = false;
         int fileReadDelayms = 500;
 
+        // PGDump
+        private System.Threading.Timer _dumpTimer;
+
         // バックアップ、ログファイル //CommonFunctionsに移行した
         //private static readonly string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
         //private static readonly string OQSFolder = Path.Combine(PersonalFolder, "OQSDrug");
@@ -79,7 +82,7 @@ namespace OQSDrug
         //private Label[] statusLabels;
         //private Label[] statusTexts;
 
-        
+
         public FormTKK formTKKInstance = null;
         public FormDI formDIInstance = null;
         public FormSR formSRInstance = null;
@@ -116,6 +119,17 @@ namespace OQSDrug
             {
                 Invoke(new Action(() => StartStop.Checked = (okSettings == 0b111)));
             }
+
+            //PGDump timer
+            if (Properties.Settings.Default.AutoPGDump && _dumpTimer == null)
+            {
+                StartDumpTimer();
+            }
+            else if (!Properties.Settings.Default.AutoPGDump && _dumpTimer != null)
+            {
+                StopDumpTimer();
+            }
+
 
             checkAccessProcess();
 
@@ -897,118 +911,6 @@ namespace OQSDrug
             // Timer start
             StartTimer();
         }
-
-        //private async Task initializeForm()
-        //{
-
-        //    //MessageBox.Show( getOLEProviders());
-        //    InitializeDBProvider();
-        //    loadConnectionString();
-
-        //    await CheckDBVersionAsync(CommonFunctions.DBversion);
-
-        //    // UI            
-        //    listViewLog.Columns.Add("TimeStamp", 100); // 列1: タイムスタンプ
-        //    listViewLog.Columns.Add("Log");   // 列2: メッセージ
-
-        //    SetupYZKSindicator();
-        //    SetConnectionStatus();
-
-        //    // ここでいったん制御を返して、描画を進めさせる
-        //    await Task.Yield();
-
-        //    okSettings = await UpdateStatus();
-
-        //    await setStatus();
-
-        //    autoRSB = Properties.Settings.Default.autoRSB;
-        //    autoTKK = Properties.Settings.Default.autoTKK;
-        //    autoSR = Properties.Settings.Default.autoSR;
-
-        //    checkBoxAutoview.CheckedChanged -= checkBoxAutoview_CheckedChanged;
-        //    checkBoxAutoTKK.CheckedChanged -= checkBoxAutoview_CheckedChanged;
-        //    checkBoxAutoSR.CheckedChanged -= checkBoxAutoview_CheckedChanged;
-
-        //    checkBoxAutoview.Checked = autoRSB;
-        //    checkBoxAutoTKK.Checked = autoTKK;
-        //    checkBoxAutoSR.Checked = autoSR;
-
-        //    checkBoxAutoview.CheckedChanged += checkBoxAutoview_CheckedChanged;
-        //    checkBoxAutoTKK.CheckedChanged += checkBoxAutoview_CheckedChanged;
-        //    checkBoxAutoSR.CheckedChanged += checkBoxAutoview_CheckedChanged;
-
-        //    checkBoxAutoview_CheckedChanged(this, EventArgs.Empty); //初回実行してFileWatcherを起動させる
-
-        //    checkBoxAutoStart.Checked = Properties.Settings.Default.AutoStart;
-
-        //    LoadViewerSettings();
-
-        //    InitNotifyIcon();
-
-        //    //Tables AI関連はPGのみ対応
-        //    if (Properties.Settings.Default.DBtype == "pg")
-        //    {
-        //        await EnsureAiResultsTableAsync();
-
-        //        await EnsurePromptTplTableAsync();         // 1) テーブルが無ければ作成
-        //                                                   //空の場合サンプルレコード追加
-        //        await InsertSampleTemplateIfEmptyAsync();
-        //    }
-
-        //    var tasks = new List<Task>();
-
-        //    if ((okSettings & (0b001)) == 1) //OQSDrugData OK
-        //    {
-        //        await AddLogAsync("特定健診基準値データを読み込みます");
-        //        CommonFunctions.TKKreferenceDict = await CommonFunctions.LoadTKKReference();
-        //        await AddLogAsync($"{CommonFunctions.TKKreferenceDict.Count}件のデータを読み込みました");
-
-        //        //await LoadKoroDataAsync();
-        //        tasks.Add(LoadKoro2SQL());
-        //    }
-
-        //    var rsbTask = Task.Run(async () =>
-        //    {
-        //        RSBdrive = await GetRSBdrive().ConfigureAwait(false);
-        //        if (!string.IsNullOrEmpty(RSBdrive))
-        //        {
-        //            var path = System.IO.Path.Combine(RSBdrive, @"Users\rsn\public_html\drug_RSB.dat");
-        //            await LoadRSBDIAsync(path).ConfigureAwait(false);
-        //        }
-        //    });
-        //    tasks.Add(rsbTask);
-
-        //    Task ollamaTask = Task.Run(async () =>
-        //    {
-        //        if (Properties.Settings.Default.LLMserver.Length > 4 && Properties.Settings.Default.LLMport > 1)
-        //        {
-        //            string ollamaUrl = $"http://{Properties.Settings.Default.LLMserver.Trim()}:{Properties.Settings.Default.LLMport.ToString()}";
-
-        //            await CommonFunctions.GetOllamaModelsAsync(ollamaUrl);
-        //        }
-        //    });
-        //    tasks.Add(ollamaTask);
-
-        //    try
-        //    {
-        //        await Task.WhenAll(tasks);
-        //        await AddLogAsync("KORO取込・RSB読込：並列完了");
-        //    }
-        //    catch
-        //    {
-        //        // どちらか失敗時の詳細ログ
-        //        foreach (var t in tasks)
-        //        {
-        //            if (t.IsFaulted && t.Exception != null)
-        //            {
-        //                var ae = t.Exception.Flatten();
-        //                foreach (var ex in ae.InnerExceptions)
-        //                    await AddLogAsync($"並列処理エラー: {ex.Message}\n{ex.StackTrace}").ConfigureAwait(false);
-        //            }
-        //        }
-        //        throw;
-        //    }
-        //}
 
         private async Task initializeForm()
         {
@@ -3797,6 +3699,7 @@ namespace OQSDrug
             contextMenu.Items.Add("診療情報", Properties.Resources.Equipment, toolStripButtonSinryo_Click);
             contextMenu.Items.Add("健診", Properties.Resources.Heart, toolStripButtonTKK_Click);
             contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add("PMDA薬情",Properties.Resources.PMDA, toolStripButtonPMDA_Click);
             contextMenu.Items.Add("終了", Properties.Resources.Exit, ExitApplication);
 
             notifyIcon1.ContextMenuStrip = contextMenu;
@@ -3912,6 +3815,8 @@ namespace OQSDrug
             notifyIcon1?.Dispose();
             animationTimer?.Stop();
             animationTimer?.Dispose();
+
+            if (_dumpTimer != null) StopDumpTimer();
 
             BackupSettings();
 
@@ -5383,7 +5288,26 @@ namespace OQSDrug
             }
 
             var dlg = new FormSGML_DI(null);
-            dlg.StartPosition = FormStartPosition.CenterParent;
+            // 前回の位置とサイズを復元
+            if (Properties.Settings.Default.PMDABounds != Rectangle.Empty)
+            {
+                dlg.StartPosition = FormStartPosition.Manual;
+                dlg.Bounds = Properties.Settings.Default.PMDABounds;
+
+                // マージンと境界線を設定
+                dlg.Padding = new Padding(0);
+                dlg.Margin = new Padding(0);
+                //form3Instance.FormBorderStyle = FormBorderStyle.None;
+            }
+
+            // TopMost状態を設定
+            //formSGML_DI.TopMost = Properties.Settings.Default.ViewerTopmost;
+
+            // Form3が閉じるときに位置、サイズ、TopMost状態を保存
+            dlg.FormClosing += (s, args) =>
+            {
+                SaveViewerSettings(dlg, "PMDABounds");
+            };
             dlg.Show(this);
         }
 
@@ -5412,6 +5336,70 @@ namespace OQSDrug
             CommonFunctions.connectionOQSdata     = $"Provider={CommonFunctions.DBProvider};Data Source={Properties.Settings.Default.OQSDrugData};";
             CommonFunctions.connectionReadOQSdata = $"Provider={CommonFunctions.DBProvider};Data Source={Properties.Settings.Default.OQSDrugData};Mode={DataReadMode};";
         }
+
+        // PGDump
+        private void StartDumpTimer(TimeSpan? checkEvery = null)
+        {
+            // 起動直後に一度チェック、その後30分ごとに確認
+            _dumpTimer = new System.Threading.Timer(async _ =>
+            {
+                try
+                {
+                    // UIを直接触らないログ関数（UIへ出すなら Invoke 必須）
+                    Action<string> log = AddLogSafe;
+
+                    await CommonFunctions.TryRunScheduledDumpAsync(
+                        force: false,
+                        log: log,
+                        ct: CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    AddLogSafe("[Backup] タイマー例外: " + ex.Message);
+                }
+            }, null, TimeSpan.Zero, TimeSpan.FromMinutes(30));
+        }
+
+        private void StopDumpTimer()
+        {
+            if (_dumpTimer != null)
+            {
+                _dumpTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                _dumpTimer.Dispose();
+                _dumpTimer = null;
+            }
+        }
+
+        private void AddLogSafe(string msg)
+        {
+            if (IsDisposed) return;
+
+            if (InvokeRequired)
+            {
+                // UIスレッドにマーシャリングしてから async 実行
+                BeginInvoke(new Action(async () =>
+                {
+                    try
+                    {
+                        await AddLogAsync(msg);   // UIスレッド上でawait（UI更新も安全）
+                    }
+                    catch (Exception ex)
+                    {
+                        // ここで握りつぶす／ログに落とす
+                        System.Diagnostics.Debug.WriteLine("[AddLogSafe] " + ex);
+                    }
+                }));
+            }
+            else
+            {
+                // 既にUIスレッド。awaitしないなら例外を拾う
+                var _ = AddLogAsync(msg).ContinueWith(t =>
+                {
+                    System.Diagnostics.Debug.WriteLine("[AddLogSafe] " + t.Exception);
+                }, TaskContinuationOptions.OnlyOnFaulted);
+            }
+        }
+
     }
 }
 

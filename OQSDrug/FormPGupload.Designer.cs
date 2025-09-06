@@ -44,8 +44,18 @@
             this.buttonClose = new System.Windows.Forms.Button();
             this.buttonDump = new System.Windows.Forms.Button();
             this.buttonImportSGML = new System.Windows.Forms.Button();
+            this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.buttonPGDumpFolderSelect = new System.Windows.Forms.Button();
+            this.textBoxPGDumpFolder = new System.Windows.Forms.TextBox();
+            this.checkBoxScheduleDump = new System.Windows.Forms.CheckBox();
+            this.label5 = new System.Windows.Forms.Label();
+            this.buttonListContent = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
+            this.groupBox3.SuspendLayout();
+            this.groupBox4.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonMigrate
@@ -67,7 +77,7 @@
             this.textBoxStatus.Multiline = true;
             this.textBoxStatus.Name = "textBoxStatus";
             this.textBoxStatus.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBoxStatus.Size = new System.Drawing.Size(341, 470);
+            this.textBoxStatus.Size = new System.Drawing.Size(341, 557);
             this.textBoxStatus.TabIndex = 1;
             // 
             // labelServer
@@ -191,7 +201,7 @@
             // buttonClose
             // 
             this.buttonClose.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.buttonClose.Location = new System.Drawing.Point(775, 505);
+            this.buttonClose.Location = new System.Drawing.Point(775, 579);
             this.buttonClose.Name = "buttonClose";
             this.buttonClose.Size = new System.Drawing.Size(129, 41);
             this.buttonClose.TabIndex = 11;
@@ -203,7 +213,7 @@
             // 
             this.buttonDump.Enabled = false;
             this.buttonDump.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.buttonDump.Location = new System.Drawing.Point(18, 444);
+            this.buttonDump.Location = new System.Drawing.Point(6, 57);
             this.buttonDump.Name = "buttonDump";
             this.buttonDump.Size = new System.Drawing.Size(544, 38);
             this.buttonDump.TabIndex = 11;
@@ -216,22 +226,113 @@
             // 
             this.buttonImportSGML.Enabled = false;
             this.buttonImportSGML.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.buttonImportSGML.Location = new System.Drawing.Point(18, 366);
+            this.buttonImportSGML.Location = new System.Drawing.Point(281, 57);
             this.buttonImportSGML.Name = "buttonImportSGML";
-            this.buttonImportSGML.Size = new System.Drawing.Size(544, 38);
+            this.buttonImportSGML.Size = new System.Drawing.Size(269, 38);
             this.buttonImportSGML.TabIndex = 12;
             this.buttonImportSGML.Text = "Backupデータのインポート";
             this.buttonImportSGML.TextImageRelation = System.Windows.Forms.TextImageRelation.TextBeforeImage;
             this.buttonImportSGML.UseVisualStyleBackColor = true;
             this.buttonImportSGML.Click += new System.EventHandler(this.buttonImportSGML_Click);
             // 
+            // groupBox3
+            // 
+            this.groupBox3.Controls.Add(this.buttonListContent);
+            this.groupBox3.Controls.Add(this.label4);
+            this.groupBox3.Controls.Add(this.buttonImportSGML);
+            this.groupBox3.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.groupBox3.Location = new System.Drawing.Point(12, 348);
+            this.groupBox3.Name = "groupBox3";
+            this.groupBox3.Size = new System.Drawing.Size(556, 107);
+            this.groupBox3.TabIndex = 13;
+            this.groupBox3.TabStop = false;
+            this.groupBox3.Text = "インポート";
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.label4.Location = new System.Drawing.Point(35, 24);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(444, 30);
+            this.label4.TabIndex = 13;
+            this.label4.Text = "薬剤添付文書データや、バックアップデータを接続中のPostgreSQLサーバーにリストアします。\r\n上書きになるので、既存のデータは消えますので注意してください。" +
+    "";
+            // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.buttonPGDumpFolderSelect);
+            this.groupBox4.Controls.Add(this.textBoxPGDumpFolder);
+            this.groupBox4.Controls.Add(this.checkBoxScheduleDump);
+            this.groupBox4.Controls.Add(this.label5);
+            this.groupBox4.Controls.Add(this.buttonDump);
+            this.groupBox4.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.groupBox4.Location = new System.Drawing.Point(12, 474);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(556, 146);
+            this.groupBox4.TabIndex = 14;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "バックアップ";
+            // 
+            // buttonPGDumpFolderSelect
+            // 
+            this.buttonPGDumpFolderSelect.Font = new System.Drawing.Font("ＭＳ Ｐゴシック", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.buttonPGDumpFolderSelect.Location = new System.Drawing.Point(526, 104);
+            this.buttonPGDumpFolderSelect.Name = "buttonPGDumpFolderSelect";
+            this.buttonPGDumpFolderSelect.Size = new System.Drawing.Size(24, 23);
+            this.buttonPGDumpFolderSelect.TabIndex = 12;
+            this.buttonPGDumpFolderSelect.Text = "...";
+            this.buttonPGDumpFolderSelect.UseVisualStyleBackColor = true;
+            this.buttonPGDumpFolderSelect.Click += new System.EventHandler(this.buttonPGDumpFolderSelect_Click);
+            // 
+            // textBoxPGDumpFolder
+            // 
+            this.textBoxPGDumpFolder.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.textBoxPGDumpFolder.Location = new System.Drawing.Point(125, 104);
+            this.textBoxPGDumpFolder.Name = "textBoxPGDumpFolder";
+            this.textBoxPGDumpFolder.Size = new System.Drawing.Size(395, 23);
+            this.textBoxPGDumpFolder.TabIndex = 15;
+            // 
+            // checkBoxScheduleDump
+            // 
+            this.checkBoxScheduleDump.AutoSize = true;
+            this.checkBoxScheduleDump.Location = new System.Drawing.Point(6, 101);
+            this.checkBoxScheduleDump.Name = "checkBoxScheduleDump";
+            this.checkBoxScheduleDump.Size = new System.Drawing.Size(113, 24);
+            this.checkBoxScheduleDump.TabIndex = 14;
+            this.checkBoxScheduleDump.Text = "自動 保存先";
+            this.checkBoxScheduleDump.UseVisualStyleBackColor = true;
+            this.checkBoxScheduleDump.CheckedChanged += new System.EventHandler(this.checkBoxScheduleDump_CheckedChanged);
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.label5.Location = new System.Drawing.Point(35, 24);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(471, 30);
+            this.label5.TabIndex = 13;
+            this.label5.Text = "薬歴、健診歴、取得履歴のテーブルをバックアップします。\r\n自動バックアップは、取り込みを行っているPCでのみ有効で、3時間毎に実行し、7日間保存します。";
+            // 
+            // buttonListContent
+            // 
+            this.buttonListContent.Font = new System.Drawing.Font("Meiryo UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.buttonListContent.Location = new System.Drawing.Point(6, 57);
+            this.buttonListContent.Name = "buttonListContent";
+            this.buttonListContent.Size = new System.Drawing.Size(269, 38);
+            this.buttonListContent.TabIndex = 14;
+            this.buttonListContent.Text = "Backup内容表示";
+            this.buttonListContent.TextImageRelation = System.Windows.Forms.TextImageRelation.TextBeforeImage;
+            this.buttonListContent.UseVisualStyleBackColor = true;
+            this.buttonListContent.Click += new System.EventHandler(this.buttonListContent_Click);
+            // 
             // FormPGupload
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(916, 558);
-            this.Controls.Add(this.buttonImportSGML);
-            this.Controls.Add(this.buttonDump);
+            this.ClientSize = new System.Drawing.Size(916, 632);
+            this.Controls.Add(this.groupBox4);
+            this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.buttonClose);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.groupBox1);
@@ -246,6 +347,10 @@
             this.groupBox1.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
+            this.groupBox3.ResumeLayout(false);
+            this.groupBox3.PerformLayout();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -268,5 +373,13 @@
         private System.Windows.Forms.Button buttonClose;
         private System.Windows.Forms.Button buttonDump;
         private System.Windows.Forms.Button buttonImportSGML;
+        private System.Windows.Forms.GroupBox groupBox3;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.Button buttonPGDumpFolderSelect;
+        private System.Windows.Forms.TextBox textBoxPGDumpFolder;
+        private System.Windows.Forms.CheckBox checkBoxScheduleDump;
+        private System.Windows.Forms.Button buttonListContent;
     }
 }

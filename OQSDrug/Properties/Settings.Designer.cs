@@ -622,5 +622,29 @@ namespace OQSDrug.Properties {
                 this["PMDABounds"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string PGDumpFolder {
+            get {
+                return ((string)(this["PGDumpFolder"]));
+            }
+            set {
+                this["PGDumpFolder"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool AutoPGDump {
+            get {
+                return ((bool)(this["AutoPGDump"]));
+            }
+            set {
+                this["AutoPGDump"] = value;
+            }
+        }
     }
 }
