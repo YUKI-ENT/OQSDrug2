@@ -57,7 +57,7 @@ namespace OQSDrug
                     labelServer.BackColor = Color.LightGreen;
                     labelDB.ForeColor = Color.White;
                     labelDB.BackColor = Color.LightGreen;
-                    labelServer.Text = $"Server{Properties.Settings.Default.PGaddress} Connected";
+                    labelServer.Text = $"Server {Properties.Settings.Default.PGaddress} Connected";
                     labelDB.Text = CommonFunctions.PGdatabaseName + ":Ready";
 
                     buttonMigrate.Enabled = true;
@@ -76,7 +76,7 @@ namespace OQSDrug
                     labelDB.ForeColor = Color.Gray;
                     labelDB.BackColor = Color.LightGray;
 
-                    labelServer.Text = "PosegreSQL server Connected";
+                    labelServer.Text = $"Server {Properties.Settings.Default.PGaddress} Connected";
                     labelDB.Text = CommonFunctions.PGdatabaseName + " not found";
 
                     buttonMigrate.Enabled = true;
@@ -95,7 +95,7 @@ namespace OQSDrug
                     labelDB.ForeColor = Color.Gray;
                     labelDB.BackColor = Color.LightGray;
 
-                    labelServer.Text = "PosegreSQL server not found";
+                    labelServer.Text = $"Server {Properties.Settings.Default.PGaddress} not found";
                     labelDB.Text = CommonFunctions.PGdatabaseName + " not found";
 
                     buttonMigrate.Enabled = false;
