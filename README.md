@@ -12,6 +12,15 @@
   
 となっております。
 
+|   環境      | PostgreSQLなし      | PostgreSQLありOllamaなし | PostgreSQLあり、Ollamaあり                 |
+|---------------|---------------------|-----------------------|-----------------------------|
+| xml薬歴健診歴表示  | △(動作保証外)   | ⭕️                    | ⭕️                      |
+| 薬剤添付文書表示 | ❌️                |  ⭕️                  |  ⭕️                     |
+| 相互作用表示    | ❌️                |  ⭕️                  |  ⭕️                     |
+| AI要約表示     | ❌️                |  ❌️                  |  ⭕️                     |
+
+
+
 逆にVersion1からは、**PDF形式でのファイリング機能は削除しました**。引き続きPDF形式で薬歴を見たい方は、RSBaseやOQSDrug version1系統を利用するようにお願いします。
 
 <<相互作用表示画面>>
@@ -78,22 +87,36 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
      ![top2](https://github.com/user-attachments/assets/35b5e62e-cfa8-4851-8dac-891a1cff562c)
    - 右上の「`設定`」を開きます
    - OQSDrug version1の設定ファイルも読み込めますので、まずversion1で設定の`エクスポート`をしてから、そのconfigファイルをインポートすると、医療機関コード等の設定がそのまま移行できます。
-   - `①データベース形式`で、`PostgreSQL`を選択後、 `サーバーアドレス`、`Port`(デフォルト5432推奨)、`ユーザー名`(デフォルトpostgres推奨)、`パスワード`(インストール時に設定してください) を設定
+   - `①データベース形式`で、`PostgreSQL`を選択後、 `サーバーアドレス`、`Port`(デフォルト5432推奨)、`ユーザー名`(デフォルトpostgres推奨)、`パスワード`(PostgreSQLインストール時に設定してください) を設定
    - 「象のマークのついた`設定`」ボタンを押す
-     
-     ![settings1](https://github.com/user-attachments/assets/20ab6cb1-b33e-4352-ad86-d43922e5699d)
+
+     ![settings11](https://github.com/user-attachments/assets/194cfbd0-7852-48ce-89f4-40413183760a)
+
    - PostgreSQLの設定画面になります。左上の部分が接続状況を示します。初期状態では以下のようになるはずです。
-     ![pg1](https://github.com/user-attachments/assets/3425e91b-7def-40a8-aa2d-a18da98cf0d1)
+
+     ![PG11](https://github.com/user-attachments/assets/b226eac0-df0f-4319-9767-aba804834dcf)
+
    - 「`データベース/テーブル新規作成`」ボタンを押します。
    - 成功すると以下のように、`OQSDrug_data:Ready`が点灯します。
-     ![PG2](https://github.com/user-attachments/assets/23d78719-8be8-4cc7-ad2b-a9ef6a455547)
+ 
+     ![PG12](https://github.com/user-attachments/assets/57a35355-d605-479c-b745-b7d419322b15)
+
    - 従来の `OQSDrugdata.mdb` を引き継ぐ時は、`移行元mdb`を選択後、`データ移行開始` ボタンを押してください。数分かかることもありますが、成功すると以下のようになります。引き継がずに新規に使用する場合はこのステップは不要です。
-     ![PG3](https://github.com/user-attachments/assets/f6968db9-4295-4dde-84af-8707bc13100b)
-   - **薬剤情報データベースをインポートします** [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases) から`DrugSGMLdatayyyymmdd.backup`(約200MBあります)をダウンロード後、`Backupデータのインポート`ボタンを押して、このファイルを選択してください。インポートには1-5分程度かかります。インポート中は以下のような表示になりますが完了するまで操作しないようお願いします。
-     ![PG4](https://github.com/user-attachments/assets/090c17da-fc2a-4f2a-94ef-9d993e916202)
+ 
+     ![PG13](https://github.com/user-attachments/assets/ca058531-fa53-4306-b2fb-d4e8ea2dff50)
+
+   - **薬剤情報データベースをインポートします** [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases) から`DrugSGMLdatayyyymmdd.backup`(約200MBあります)をダウンロード後、`Backupデータのインポート`ボタンを押して、このファイルを選択してください。インポートには1-5分程度かかります。インポート中は以下のような表示になり、フリーズしたみたいに見えますが、完了するまで操作しないようお願いします。
+
+    ![PG14](https://github.com/user-attachments/assets/5a3096d1-61ec-460a-b180-0945279a154c)
 
    - 完了すると以下のようになります。これで初期設定は完了です。Version1と同じように操作できます。
-     ![PG5](https://github.com/user-attachments/assets/f21da939-193f-43bf-b481-1c0a92dff8c0)
+
+    ![PG15](https://github.com/user-attachments/assets/43d4fbec-60fe-45ae-8687-3df66592fbfb)
+
+   - **バックアップ機能** `保存先`のフォルダを選択後、 `バックアップ`ボタンを押すと、薬歴、健診歴、取得歴ログなどのテーブルを外部ファイルに手動保存します。
+      `自動`にチェックをいれると、3時間毎に自動で指定フォルダにバックアップ作成します。7日経過すると削除される設定です。
+     
+     ![PG16](https://github.com/user-attachments/assets/e44a9507-e1ad-429e-a3c7-ec4158029414)
 
 
 - **相互作用表示**
@@ -102,6 +125,19 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
   - `相互作用` タブを押すと、他院投薬中の薬剤に対する併用禁忌、注意の薬剤をリスト表示します。RSBaseがインストールされていれば、`相互作用相手`列の薬剤ダブルクリックで、その薬剤の添付文書をひらきますが、名前が一致しないと該当なしになることもあります。
   
     ![DI6](https://github.com/user-attachments/assets/cc4cf392-81e4-4cb9-a6fd-712931a1aaec)
+
+  - 薬歴、相互作用どちらでも薬剤右クリックで、添付文書を開くことができます。また、薬剤名をダブルクリックした場合、`設定` → `Viewer設定`で`⑮添付文書表示選択` で選択したほうで添付文書を検索表示します。
+
+    ![DI21](https://github.com/user-attachments/assets/9e6e7875-5fbc-4fc8-a69e-67c79e99ef92)
+
+    ![DI22](https://github.com/user-attachments/assets/c83ecddf-64d8-4c0d-9b3d-5336f5b6bcd5)
+
+    こんな感じの薬剤情報が表示できます。
+
+    ![DI23](https://github.com/user-attachments/assets/29d3b88d-42d4-44f1-8cfc-bae95d8cbfb8)
+
+
+
 - **AI推論表示**
   - `(AI)病態背景`は`Ollama`の設定がされている場合機能します。
   - もし、ローカルLLMをつかわず、ChatGPTなど外部汎用LLMを使う場合は、①のテンプレート選択後③のリサイクルマークのボタンを押すとプロンプトを⑥のテキストボックスに個人情報は削除した状態で生成しますので、これをコピーペーストして利用してもよいかと思いますが、汎用AI利用のプライバシーやガイドラインリスクには十分注意ください。
