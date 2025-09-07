@@ -136,6 +136,8 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
 
     ![DI23](https://github.com/user-attachments/assets/29d3b88d-42d4-44f1-8cfc-bae95d8cbfb8)
 
+    詳細は[こちら](https://github.com/YUKI-ENT/OQSDrug2/releases/tag/v2.25.9.3)。
+
 
 
 - **AI推論表示**
