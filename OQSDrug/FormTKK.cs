@@ -263,6 +263,16 @@ namespace OQSDrug
                 dataGridView.EditMode = DataGridViewEditMode.EditProgrammatically;
                 dataGridView.SelectionMode = DataGridViewSelectionMode.CellSelect;
 
+                // 列タイトルを日本語に変更
+                if (dataGridView.Columns.Contains("itemname"))
+                {
+                    dataGridView.Columns["itemname"].HeaderText = "項目名";
+                }
+                if (dataGridView.Columns.Contains("unit"))
+                {
+                    dataGridView.Columns["unit"].HeaderText = "単位";
+                }
+
                 dataGridView.Columns["itemcode4"].Visible = false;
                 dataGridView.Columns["sex"].Visible = false;
 
@@ -439,7 +449,7 @@ namespace OQSDrug
                             }
 
                             // 2. ItemName列の値を取得
-                            clipboardText += dataGridViewTKK.Rows[cell.RowIndex].Cells["itemname4"].Value?.ToString() + ":";
+                            clipboardText += dataGridViewTKK.Rows[cell.RowIndex].Cells["itemname"].Value?.ToString() + ":";
 
                             // 3. セルの値を取得
                             clipboardText += cell.Value?.ToString() + Environment.NewLine;
