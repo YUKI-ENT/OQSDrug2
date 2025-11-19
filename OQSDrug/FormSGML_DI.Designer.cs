@@ -172,9 +172,11 @@
             // 
             this.tabSectionsInner.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabSectionsInner.Location = new System.Drawing.Point(3, 3);
+            this.tabSectionsInner.Multiline = true;
             this.tabSectionsInner.Name = "tabSectionsInner";
             this.tabSectionsInner.SelectedIndex = 0;
             this.tabSectionsInner.Size = new System.Drawing.Size(786, 481);
+            this.tabSectionsInner.SizeMode = System.Windows.Forms.TabSizeMode.FillToRight;
             this.tabSectionsInner.TabIndex = 0;
             // 
             // tabInter
@@ -234,6 +236,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "FormSGML_DI";
             this.Text = "PMDA添付文書";
+            this.Shown += new System.EventHandler(this.FormSGML_DI_Shown);
             this.LocationChanged += new System.EventHandler(this.FormSGML_DI_LocationChanged);
             this.SizeChanged += new System.EventHandler(this.FormSGML_DI_SizeChanged);
             this.toolStrip1.ResumeLayout(false);

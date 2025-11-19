@@ -2515,21 +2515,25 @@ namespace OQSDrug
 
             // 表示名（必要な列だけ）
             var headers = new Dictionary<string, string>
-                {
-                    { "didate", "処方日" },
-                    { "drugn",  "薬剤名" },
-                    { "drugc",  "院内コード" },
-                    { "yj7",    "成分7桁" },
-                    { "partner_name_ja",  "相互作用相手" },
-                    { "partner_group_ja", "カテゴリ" },
-                    { "section_type", "区分" },
-                    { "symptoms_measures_ja", "説明" },
-                    { "mechanism_ja", "機序" }
-                };
+            {
+                { "didate", "処方日" },                  // DIフォーム側だけに出したければ Visible を制御
+                { "drugn",  "薬剤名" },
+                { "drugc",  "院内コード" },
+                { "yj7",    "成分7桁" },
+
+                { "section_type",         "区分" },      // 併用禁忌 / 併用注意 など
+                { "partner_name_ja",      "相互作用相手" },
+                { "symptoms_measures_ja", "説明" },
+                { "mechanism_ja",         "機序" },
+            };
+            int idx = 0;
             foreach (var kv in headers)
             {
-                var col = FindCol(kv.Key);
-                if (col != null) col.HeaderText = kv.Value;
+                if (dgv.Columns.Contains(kv.Key))
+                {
+                    dgv.Columns[kv.Key].HeaderText = kv.Value;
+                    dgv.Columns[kv.Key].DisplayIndex = idx++;
+                }
             }
 
             // 非表示列
@@ -2543,12 +2547,12 @@ namespace OQSDrug
             // 幅指定（固定）
             SetW("drugn", 150);
             SetW("partner_name_ja", 150);
-            SetW("partner_group_ja", 150);
-            SetW("section_type", 80);
+            SetW("section_type", 70);
+            SetW("symptoms_measures_ja", 160);
 
             // 「説明」は残り幅
             {
-                var c = FindCol("symptoms_measures_ja");
+                var c = FindCol("mechanism_ja");
                 if (c != null)
                 {
                     c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;

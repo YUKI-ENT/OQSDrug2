@@ -43,7 +43,7 @@ namespace OQSDrug
 {
     new SectionDef {
         Title = "1. 警告",
-        Names = new[]{ "Warning" }
+        Names = new[]{ "Warnings" }
     },
 
     new SectionDef {
@@ -245,6 +245,7 @@ namespace OQSDrug
         private string _currentDrugName = "";
         private string _currentThera = "";
         private string _currentYj = "";
+        private string _currentIndication;
 
         private readonly BindingSource _bsContra = new BindingSource();
 
@@ -434,11 +435,9 @@ namespace OQSDrug
 
                     using (IDbCommand cmd = conn.CreateCommand())
                     {
-                        // ← スペル修正: therapeutic_class_ja
                         cmd.CommandText = $@"
                             SELECT 
                               doc_xml::text           AS doc_xml_text,
-                              interactions_flat::text AS interactions_flat_text,
                               therapeutic_class_ja    AS thera
                             FROM {_table}
                             WHERE package_insert_no = @pkg AND yj_code = @yj
@@ -448,7 +447,6 @@ namespace OQSDrug
                         CommonFunctions.AddDbParameter(cmd, "@yj", _currentYj);
 
                         string xmlText = null;
-                        string interFlat = null;
                         
                         using (var rd = await ((System.Data.Common.DbCommand)cmd).ExecuteReaderAsync())
                         {
@@ -456,8 +454,7 @@ namespace OQSDrug
                             {
                                 // DBNull 安全に読む
                                 xmlText = rd.IsDBNull(0) ? null : rd.GetString(0);
-                                interFlat = rd.IsDBNull(1) ? null : rd.GetString(1);
-                                _currentThera = rd.IsDBNull(2) ? null : rd.GetString(2);
+                                _currentThera = rd.IsDBNull(1) ? null : rd.GetString(1);
                             }
                         }
 
@@ -486,7 +483,8 @@ namespace OQSDrug
                         if (InvokeRequired) BeginInvoke((Action)UpdateUi); else UpdateUi();
 
                         BuildSectionTabs();                 // 既存ロジック
-                        LoadInteractionsGrid(interFlat ?? ""); // nullでも安全に
+
+                        await LoadInteractionsFromDbAsync(pkg, _currentYj);
                     }
                 }
             }
@@ -495,6 +493,79 @@ namespace OQSDrug
                 MessageBox.Show("詳細の取得に失敗しました: " + ex.Message);
             }
         }
+
+        private async Task LoadInteractionsFromDbAsync(string pkg, string yj)
+        {
+            // FormDI / CommonFunctions.SetInteractionView と揃えたいカラム構成
+            var dt = new DataTable();
+            dt.Columns.Add("section_type", typeof(string));           // 区分（併用禁忌/併用注意 など）
+            dt.Columns.Add("partner_name_ja", typeof(string));        // 相互作用相手
+            dt.Columns.Add("symptoms_measures_ja", typeof(string));   // 説明（症状・対応）
+            dt.Columns.Add("mechanism_ja", typeof(string));           // 機序
+
+            try
+            {
+                using (IDbConnection conn = CommonFunctions.GetDbConnection(true))
+                {
+                    if (conn is System.Data.Common.DbConnection dbc)
+                        await dbc.OpenAsync();
+                    else
+                        conn.Open();
+
+                    using (IDbCommand cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            SELECT
+                                section_type,
+                                partner_name_ja,
+                                symptoms_measures_ja,
+                                mechanism_ja
+                            FROM public.sgml_interaction
+                            WHERE package_insert_no = @pkg
+                              AND yj_code           = @yj
+                            ORDER BY
+                                CASE
+                                  WHEN section_type = '併用禁忌' THEN 0
+                                  WHEN section_type = '併用注意' THEN 1
+                                  ELSE 2
+                                END,
+                                partner_name_ja;";
+
+                        CommonFunctions.AddDbParameter(cmd, "@pkg", pkg);
+                        CommonFunctions.AddDbParameter(cmd, "@yj", yj);
+
+                        using (var rd = await ((System.Data.Common.DbCommand)cmd).ExecuteReaderAsync())
+                        {
+                            while (await rd.ReadAsync())
+                            {
+                                string sec = rd.IsDBNull(0) ? "" : rd.GetString(0);
+                                string name = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                                string sym = rd.IsDBNull(2) ? "" : rd.GetString(2);
+                                string mech = rd.IsDBNull(3) ? "" : rd.GetString(3);
+
+                                dt.Rows.Add(sec, name, sym, mech);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("相互作用の読み込みに失敗しました: " + ex.Message);
+            }
+
+            // UIスレッドで DataSource 設定
+            void UpdateGrid()
+            {
+                dgvInter.DataSource = dt;
+
+                // 起動時の例外対策でタブ切り替え時にやってるなら、この2行はコメントのままでもOK
+                //CommonFunctions.SetInteractionView(dgvInter);
+                //CommonFunctions.SetInteractionColors(dgvInter);
+            }
+            if (InvokeRequired) BeginInvoke((Action)UpdateGrid); else UpdateGrid();
+        }
+
 
         private string GetCellValueByProp(DataGridView dgv, DataGridViewRow row, string propName)
         {
@@ -541,54 +612,22 @@ namespace OQSDrug
             return (s.Length > max) ? (s.Substring(0, max) + " …") : s;
         }
 
-        /// <summary>
-        /// interactions_flat(JSON配列) を DataTable にして表示
-        /// 期待形: [{ "partner": "...", "symptoms": "...", "mechanism": "...", "category": "併用禁忌|併用注意" }, ...]
-        /// </summary>
-        private void LoadInteractionsGrid(string json)
-        {
-            // 他フォームと同じ内部列名でテーブルを作る
-            var dt = new DataTable();
-            dt.Columns.Add("section_type", typeof(string));           // 区分（注意/禁忌 など）
-            dt.Columns.Add("partner_name_ja", typeof(string));        // 相手薬
-            dt.Columns.Add("symptoms_measures_ja", typeof(string));   // 症状・対応
-            dt.Columns.Add("mechanism_ja", typeof(string));           // 機序・要因
-
-            if (!string.IsNullOrWhiteSpace(json))
-            {
-                try
-                {
-                    var arr = JArray.Parse(json);
-                    foreach (var item in arr)
-                    {
-                        // JSONのキーに合わせて安全取得（無ければ空）
-                        string cat = item["category"]?.ToString() ?? "";
-                        string part = item["partner"]?.ToString() ?? "";
-                        string sym = item["symptoms"]?.ToString() ?? "";
-                        string mech = item["mechanism"]?.ToString() ?? "";
-
-                        dt.Rows.Add(cat, part, sym, mech);
-                    }
-                }
-                catch
-                {
-                    // フォールバック：JSONが配列でない等
-                }
-            }
-            dgvInter.DataSource = dt;
-
-            //// 起動時にdgvフォーマットをすると例外が発生するので、フォーマットはタブ変更時に実施する
-            //CommonFunctions.SetInteractionView(dgvInter);
-            ////Color
-            //CommonFunctions.SetInteractionColors(dgvInter);
-        }
-
         private void BuildSectionTabs()
         {
             tabSectionsInner.TabPages.Clear();
+
+            // まず Indication を XML から取得（_currentXml/_pi がある場合のみ）
+            if (_currentXml != null && _pi != null)
+            {
+                _currentIndication = NormalizeBlankLines(GatherByNames(new[] { "IndicationsOrEfficacy" }));
+            }
+            // ContraIndications、ImportantPrecautions も概要に
+            string contraIndication    = NormalizeBlankLines(GatherByNames(new[] { "ContraIndications" }));
+            string importantPrecaution = NormalizeBlankLines(GatherByNames(new[] { "ImportantPrecautions" }));
+            string Warings             = NormalizeBlankLines(GatherByNames(new[] { "Warnings" }));
             
             // ① 概要タブ（最初に追加）
-            AddSummaryTab(_currentDrugName, _currentThera, _currentYj);
+            AddSummaryTab(_currentDrugName, _currentThera, _currentYj, _currentIndication, contraIndication, importantPrecaution, Warings);
 
             if (_currentXml == null || _pi == null) return;
 
@@ -614,7 +653,7 @@ namespace OQSDrug
                     }
                 }
 
-                var body = sb.ToString().Trim();
+                var body = NormalizeBlankLines(sb.ToString().Trim());
                 if (string.IsNullOrWhiteSpace(body)) continue; // ← 内容が無ければタブを作らない
 
                 var page = new TabPage(sec.Title);
@@ -627,7 +666,7 @@ namespace OQSDrug
                     BorderStyle = BorderStyle.Fixed3D,
                     BackColor = Color.FloralWhite,
                     HideSelection = false,
-                    Font = new System.Drawing.Font("Meiryo UI", 10F)
+                    Font = new System.Drawing.Font("Meiryo UI", 12F)
                 };
 
                 // 見出し（章タイトル）を太字
@@ -656,9 +695,11 @@ namespace OQSDrug
             }
         }
         // 概要タブを作るヘルパ
-        private void AddSummaryTab(string drugName, string thera, string yj)
+        private void AddSummaryTab(string drugName, string thera, string yj,
+    string indicationText, string contraIndication, string importantPrecaution, string Warnings)
         {
             var page = new TabPage("概要");
+
             var rtb = new RichTextBox
             {
                 Dock = DockStyle.Fill,
@@ -668,34 +709,117 @@ namespace OQSDrug
                 BorderStyle = BorderStyle.Fixed3D,
                 BackColor = Color.FloralWhite,
                 HideSelection = false,
-                Font = new System.Drawing.Font("Meiryo UI", 12F)
+                Font = new System.Drawing.Font("Meiryo UI", 12F) // ←この値はベースなのでこのままでOK
             };
 
-            // タイトル（薬剤名）太字
-            var bold = new System.Drawing.Font(rtb.Font, System.Drawing.FontStyle.Bold);
-            var normal = new System.Drawing.Font(rtb.Font, System.Drawing.FontStyle.Regular);
+            // ---- フォント定義 ----
+            var fontTitleBold = new Font("Meiryo UI", 12F, FontStyle.Bold);    // 見出し・タイトル
+            var fontBody = new Font("Meiryo UI", 11F, FontStyle.Regular);      // 本文
+            var fontBodyBold = new Font("Meiryo UI", 11F, FontStyle.Bold);     // 必要なら使える本文太字
 
-            rtb.SelectionFont = bold;
+            // ---- タイトル ----
+            rtb.SelectionColor = Color.Black;
+            rtb.SelectionFont = fontTitleBold;
             rtb.AppendText((string.IsNullOrWhiteSpace(drugName) ? "(薬剤名未設定)" : drugName) + Environment.NewLine);
-            rtb.SelectionFont = normal;
 
-            if (!string.IsNullOrWhiteSpace(yj))
-                rtb.AppendText("YJコード: " + yj + Environment.NewLine);
+            // ---- 薬効分類名 ----
+            rtb.SelectionFont = fontTitleBold;
+            rtb.AppendText("【薬効分類名】" + Environment.NewLine);
 
-            rtb.AppendText(Environment.NewLine);
-
-            rtb.SelectionFont = bold;
-            rtb.AppendText("効能・効果" + Environment.NewLine);
-            rtb.SelectionFont = normal;
+            rtb.SelectionFont = fontBody;
             rtb.AppendText(string.IsNullOrWhiteSpace(thera) ? "(情報なし)" : thera);
+            rtb.AppendText(Environment.NewLine + Environment.NewLine);
+
+
+            // ---- 警告 ----
+            if (!string.IsNullOrWhiteSpace(Warnings))
+            {
+                rtb.SelectionFont = fontTitleBold;
+                rtb.SelectionColor = Color.Red;
+                rtb.AppendText("【1.警告】" + Environment.NewLine);
+
+                rtb.SelectionFont = fontBody;
+                rtb.SelectionColor = Color.Red;
+                rtb.AppendText(Warnings);
+                rtb.AppendText(Environment.NewLine + Environment.NewLine);
+            }
+
+            // ---- 禁忌 ----
+            if (!string.IsNullOrWhiteSpace(contraIndication))
+            {
+                rtb.SelectionFont = fontTitleBold;
+                rtb.SelectionColor = Color.Red;
+                rtb.AppendText("【2.禁忌】" + Environment.NewLine);
+
+                rtb.SelectionFont = fontBody;
+                rtb.SelectionColor = Color.Red;
+                rtb.AppendText(contraIndication);
+                rtb.AppendText(Environment.NewLine + Environment.NewLine);
+            }
+ 
+            // ---- 効能・効果 ----
+            rtb.SelectionFont = fontTitleBold;
+            rtb.AppendText("【4.効能・効果】" + Environment.NewLine);
+
+            rtb.SelectionFont = fontBody;
+            rtb.AppendText(string.IsNullOrWhiteSpace(indicationText) ? "(情報なし)" : indicationText);
+            rtb.AppendText(Environment.NewLine + Environment.NewLine);
+
+
+            // ---- 重要な基本的注意 ----
+            if (!string.IsNullOrWhiteSpace(importantPrecaution))
+            {
+                rtb.SelectionColor = Color.Black; // 色リセット
+                rtb.SelectionFont = fontTitleBold;
+                rtb.AppendText("【8.重要な基本的注意】" + Environment.NewLine);
+
+                rtb.SelectionFont = fontBody;
+                rtb.AppendText(importantPrecaution);
+                rtb.AppendText(Environment.NewLine);
+            }
+
+            // ---- YJコード ----
+            if (!string.IsNullOrWhiteSpace(yj))
+            {
+                rtb.SelectionFont = fontBody;
+                rtb.AppendText(Environment.NewLine + "YJコード: " + yj + Environment.NewLine);
+            }
 
             page.Controls.Add(rtb);
             tabSectionsInner.TabPages.Add(page);
 
-            // 先頭へ
+            // 先頭へスクロール
             rtb.Select(0, 0);
             rtb.ScrollToCaret();
         }
+
+
+        //空行削除
+        private static string NormalizeBlankLines(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            // 改行コードを一旦統一
+            var normalized = text.Replace("\r\n", "\n").Replace('\r', '\n');
+
+            var lines = normalized.Split('\n');
+            var sb = new StringBuilder(text.Length);
+
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.TrimEnd(); // 行末の空白は消す（任意）
+
+                // 完全な空行（空白のみ含む行）はスキップ
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                sb.Append(line);
+                sb.Append(Environment.NewLine);
+            }
+
+            return sb.ToString().TrimEnd('\r', '\n');
+        }
+
 
         // 指定の要素集合から日本語Langを優先して本文を集約
         private string GatherTextFromElements(IEnumerable<XElement> elems)
@@ -994,6 +1118,11 @@ namespace OQSDrug
             {
                 CommonFunctions.SnapToScreenEdges(this, SnapDistance, SnapCompPixel);
             }
+        }
+
+        private void FormSGML_DI_Shown(object sender, EventArgs e)
+        {
+            toolStripTextBoxSearch.Focus();
         }
     }
 }

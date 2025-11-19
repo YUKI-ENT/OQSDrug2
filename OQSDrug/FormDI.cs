@@ -1244,59 +1244,48 @@ namespace OQSDrug
                             ),
                             -- sgml_interaction から yj7 単位の代表行を抽出（区分はここで日本語化）
                             di_longest AS (
-                                SELECT
-                                    di_yj7,
-                                    partner_name_ja,
-                                    partner_group_ja,
-                                    section_type,              -- ← ここは既に日本語（禁忌/注意）
-                                    symptoms_measures_ja
-                                FROM (
-                                    SELECT
-                                        LEFT(si.yj_code, 7) AS di_yj7,
-                                        si.partner_name_ja,
-                                        si.partner_group_ja,
-                                        CASE
-                                          WHEN si.section_type = 'contraindicated' THEN '禁忌'
-                                          WHEN si.section_type = 'precaution'      THEN '注意'
-                                          ELSE '（その他）'
-                                        END AS section_type,
-                                        si.symptoms_measures_ja,
-                                        si.mechanism_ja,
-                                        si.id,
-                                        ROW_NUMBER() OVER (
-                                            PARTITION BY LEFT(si.yj_code, 7),
-                                                         COALESCE(si.partner_name_ja, ''),
-                                                         COALESCE(si.partner_group_ja, ''),
-                                                         si.section_type
-                                            ORDER BY (LENGTH(COALESCE(si.symptoms_measures_ja,'')) +
-                                                      LENGTH(COALESCE(si.mechanism_ja,''))) DESC,
-                                                     si.id DESC
-                                        ) AS rn
-                                    FROM public.sgml_interaction si
-                                    WHERE si.section_type IN ('contraindicated','precaution')
-                                ) x
-                                WHERE x.rn = 1
+                                    SELECT *
+                                    FROM (
+                                        SELECT
+                                            LEFT(si.yj_code, 7) AS di_yj7,
+                                            si.section_type,              -- ← 既に「併用禁忌」「併用注意」など
+                                            si.partner_name_ja,
+                                            si.symptoms_measures_ja,
+                                            si.mechanism_ja,
+                                            si.id,
+                                            ROW_NUMBER() OVER (
+                                                PARTITION BY LEFT(si.yj_code, 7),
+                                                             COALESCE(si.partner_name_ja, ''),
+                                                             COALESCE(si.section_type, '')
+                                                ORDER BY (LENGTH(COALESCE(si.symptoms_measures_ja,'')) +
+                                                          LENGTH(COALESCE(si.mechanism_ja,''))) DESC,
+                                                         si.id DESC
+                                            ) AS rn
+                                        FROM public.sgml_interaction si   -- ※テスト環境なら public.test_sgml_interaction に
+                                        -- section_type は既に日本語なので WHERE は不要
+                                    ) x
+                                    WHERE x.rn = 1
                             )
                             SELECT
-                                l.didate,
-                                l.ptidmain,
-                                l.drugc,
-                                l.drugn,
-                                l.yj_code,
-                                l.yj7,
-                                COALESCE(di.partner_name_ja, '(相互作用データなし)') AS partner_name_ja,
-                                COALESCE(di.partner_group_ja, '')                    AS partner_group_ja,
-                                COALESCE(di.section_type, '')                         AS section_type,            -- ← 日本語（禁忌/注意）
-                                COALESCE(di.symptoms_measures_ja, '')                 AS symptoms_measures_ja,
-                                (di.partner_name_ja IS NOT NULL)                      AS has_interaction
-                            FROM latest_per_yj7 l
-                            LEFT JOIN di_longest di
-                                   ON di.di_yj7 = l.yj7
+                                 l.didate,
+                                 l.ptidmain,
+                                 l.drugc,
+                                 l.drugn,
+                                 l.yj_code,
+                                 l.yj7,
+                                 COALESCE(di.partner_name_ja, '(相互作用データなし)') AS partner_name_ja,
+                                 COALESCE(di.section_type, '')                         AS section_type,            -- 区分
+                                 COALESCE(di.symptoms_measures_ja, '')                 AS symptoms_measures_ja,    -- 説明
+                                 COALESCE(di.mechanism_ja, '')                         AS mechanism_ja,            -- 機序
+                                 (di.partner_name_ja IS NOT NULL)                      AS has_interaction
+                             FROM latest_per_yj7 l
+                             LEFT JOIN di_longest di
+                                    ON di.di_yj7 = l.yj7
                             ORDER BY
                                 has_interaction DESC,
                                 CASE
-                                  WHEN di.section_type = '禁忌' THEN 0
-                                  WHEN di.section_type = '注意' THEN 1
+                                  WHEN di.section_type LIKE '併用禁忌%' THEN 0
+                                  WHEN di.section_type LIKE '併用注意%' THEN 1
                                   ELSE 2
                                 END,
                                 l.didate DESC,
@@ -1328,72 +1317,6 @@ namespace OQSDrug
             }
         }
 
-        //private void SetInteractionView(DataGridView dgv)
-        //{
-        //    if (dgv.DataSource == null) return;
-
-        //    // 基本設定
-        //    dgv.AutoGenerateColumns = true;
-        //    dgv.ReadOnly = true;
-        //    dgv.AllowUserToAddRows = false;
-        //    dgv.AllowUserToDeleteRows = false;
-        //    dgv.AllowUserToResizeRows = false;
-        //    dgv.AllowUserToResizeColumns = true; 
-        //    dgv.SelectionMode = DataGridViewSelectionMode.CellSelect;
-        //    dgv.MultiSelect = false;
-        //    dgv.RowHeadersVisible = false;
-        //    //dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.None;
-
-        //    // 表示名（必要な列だけ）
-        //    var headers = new Dictionary<string, string>
-        //    {
-        //        { "didate", "処方日" },
-        //        { "drugn",  "薬剤名" },
-        //        { "drugc",  "院内コード" },
-        //        { "yj7",    "成分7桁" },
-        //        { "partner_name_ja",  "相互作用相手" },
-        //        { "partner_group_ja", "カテゴリ" },
-        //        { "section_type", "区分" },
-        //        { "symptoms_measures_ja", "説明" },
-        //    };
-        //    foreach (var kv in headers)
-        //        if (dgv.Columns.Contains(kv.Key))
-        //            dgv.Columns[kv.Key].HeaderText = kv.Value;
-
-        //    // 非表示列（あなたの指定を踏襲）
-        //    string[] hiddenCols = { "ptidmain", "didate", "drugc", "yj7", "yj_code", "has_interaction" };
-        //    foreach (string name in hiddenCols)
-        //        if (dgv.Columns.Contains(name))
-        //            dgv.Columns[name].Visible = false;
-
-        //    // 幅指定（固定）
-        //    SetW("drugn", 150);
-        //    SetW("partner_name_ja", 150);
-        //    SetW("partner_group_ja", 150);
-        //    SetW("section_type", 80);
-
-        //    // 最後の列「説明」は残り幅をすべて使う
-        //    if (dgv.Columns.Contains("symptoms_measures_ja"))
-        //    {
-        //        var c = dgv.Columns["symptoms_measures_ja"];
-        //        c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-        //        c.MinimumWidth = 200; // お好みで
-        //    }
-
-        //    // すべての列をソート可能に
-        //    foreach (DataGridViewColumn col in dgv.Columns)
-        //        col.SortMode = DataGridViewColumnSortMode.Automatic;
-
-        //    // 固定幅ヘルパ
-        //    void SetW(string name, int w)
-        //    {
-        //        if (!dgv.Columns.Contains(name)) return;
-        //        var c = dgv.Columns[name];
-        //        c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-        //        c.Width = w;
-        //    }
-        //}
-                
         private void dataGridViewInteraction_Sorted(object sender, EventArgs e)
         {
             SetInteractionColors(dataGridViewInteraction);
