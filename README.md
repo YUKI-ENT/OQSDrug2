@@ -70,7 +70,8 @@
 
 1. [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases)から**OQSDrug2_v2.xx.xx.xx.exe(インストーラになってます) をダウンロード**
 2. 実行するとインストールが始まります。
-3. <<**初回または薬剤情報バージョンアップ時のみ**>>`DrugSGMLdata_xxxxxxxx.backup` をダウンロードしてインポート作業を行ってください。
+3. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
+   
 ---
 
 ## 運用方法
