@@ -23,6 +23,12 @@ namespace OQSDrug
         private FormDI _parentForm;
         private List<Tuple<string[], double>> _results;
 
+        // ★ 添付文書データの「古さ」判定に使う基準日（ここを書き換えればOK）
+        private static readonly DateTime DataUpdatedThreshold = new DateTime(2025, 11, 1);
+
+        // ★ 一度警告を出したら、以降は何度も出さないようにするフラグ
+        private bool _dataUpdatedWarningShown = false;
+
         // 小見出し（9.1, 10.1 など）
         private sealed class SubDef
         {
@@ -67,7 +73,7 @@ namespace OQSDrug
 
     new SectionDef {
         Title = "5. 効能又は効果に関連する注意",
-        Names = new[]{ "IndicationsOrEfficacyRelatedPrecautions" }
+        Names = new[]{  "IndicationsOrEfficacyRelatedPrecautions", "EfficacyRelatedPrecautions" } 
     },
 
     new SectionDef {
@@ -77,7 +83,7 @@ namespace OQSDrug
 
     new SectionDef {
         Title = "7. 用法及び用量に関連する注意",
-        Names = new[]{ "InfoDoseAdminRelatedPrecautions" }
+        Names = new[]{ "InfoPrecautionsDosage", "InfoDoseAdminRelatedPrecautions" }
     },
 
     new SectionDef {
@@ -121,7 +127,7 @@ namespace OQSDrug
 
     new SectionDef {
         Title = "11. 副作用",
-        Names = new[]{ "AdverseReactions" },
+        Names = new[]{ "AdverseEvents", "AdverseReactions" },
         Subs  = new[]{
             new SubDef { SubTitle = "11.1 重大な副作用",
                          Names = new[]{ "SeriousAdverseReactions", "ImportantAdverseReactions" } },
@@ -132,17 +138,17 @@ namespace OQSDrug
 
     new SectionDef {
         Title = "12. 臨床検査結果に及ぼす影響",
-        Names = new[]{ "InfluenceOnClinicalLabTest", "EffectsOnLabTest" }
+        Names = new[]{ "InfluenceOnClinicalLabTest", "EffectsOnLabTest", "InfluenceOnLaboratoryValues" }
     },
 
     new SectionDef {
         Title = "13. 過量投与",
-        Names = new[]{ "Overdosage", "Overdose" }
+        Names = new[]{ "Overdosage", "Overdose", "OverDosage" }
     },
 
     new SectionDef {
         Title = "14. 適用上の注意",
-        Names = new[]{ "PrecautionsForApplication", "PrecautionsForHandling" }
+        Names = new[]{ "PrecautionsForApplication" }
     },
 
     new SectionDef {
@@ -176,7 +182,7 @@ namespace OQSDrug
 
     new SectionDef {
         Title = "17. 臨床成績",
-        Names = new[]{ "ClinicalResults" },
+        Names = new[]{ "ClinicalResults", "ResultsOfClinicalTrials" },
         Subs  = new[]{
             new SubDef { SubTitle = "17.1 有効性及び安全性に関する試験",
                          Names = new[]{ "EfficacyAndSafetyStudies" } },
@@ -198,12 +204,12 @@ namespace OQSDrug
 
     new SectionDef {
         Title = "19. 有効成分に関する理化学的知見",
-        Names = new[]{ "PhysicochemicalKnowledge", "KnowledgeAboutActiveIngredient" }
+        Names = new[]{"PhyschemOfActIngredients", "PhysicochemicalKnowledge", "KnowledgeAboutActiveIngredient" }
     },
 
     new SectionDef {
         Title = "20. 取扱い上の注意",
-        Names = new[]{ "HandlingPrecautions", "PrecautionsForHandling" }
+        Names = new[]{ "PrecautionsForHandling", "HandlingPrecautions" }
     },
 
     new SectionDef {
@@ -213,27 +219,27 @@ namespace OQSDrug
 
     new SectionDef {
         Title = "22. 包装",
-        Names = new[]{ "Packaging" }
+        Names = new[]{ "Package", "Packaging" }
     },
 
     new SectionDef {
         Title = "23. 主要文献",
-        Names = new[]{ "MainReferences" }
+        Names = new[]{ "MainLiterature", "MainReferences" }
     },
 
     new SectionDef {
         Title = "24. 文献請求先及び問い合わせ先",
-        Names = new[]{ "ContactInformation", "Inquiries" }
+        Names = new[]{ "AddresseeOfLiteratureRequest", "ContactInformation", "Inquiries" }
     },
 
     new SectionDef {
         Title = "25. 保険給付上の注意",
-        Names = new[]{ "PrecautionsForInsuranceCoverage", "InsuranceCautions" }
+        Names = new[]{ "AttentionOfInsurance", "PrecautionsForInsuranceCoverage", "InsuranceCautions" }
     },
 
     new SectionDef {
         Title = "26. 製造販売業者等",
-        Names = new[]{ "MarketingAuthorizationHolder", "MAH" }
+        Names = new[]{ "NameAddressManufact", "MarketingAuthorizationHolder", "MAH" }
     },
 };
 
@@ -438,7 +444,8 @@ namespace OQSDrug
                         cmd.CommandText = $@"
                             SELECT 
                               doc_xml::text           AS doc_xml_text,
-                              therapeutic_class_ja    AS thera
+                              therapeutic_class_ja    AS thera,
+                              updated_at
                             FROM {_table}
                             WHERE package_insert_no = @pkg AND yj_code = @yj
                             LIMIT 1;";
@@ -447,7 +454,8 @@ namespace OQSDrug
                         CommonFunctions.AddDbParameter(cmd, "@yj", _currentYj);
 
                         string xmlText = null;
-                        
+                        DateTime? updatedAt = null;
+
                         using (var rd = await ((System.Data.Common.DbCommand)cmd).ExecuteReaderAsync())
                         {
                             if (await rd.ReadAsync())
@@ -455,6 +463,27 @@ namespace OQSDrug
                                 // DBNull 安全に読む
                                 xmlText = rd.IsDBNull(0) ? null : rd.GetString(0);
                                 _currentThera = rd.IsDBNull(1) ? null : rd.GetString(1);
+
+                                if (!rd.IsDBNull(2)) updatedAt = rd.GetDateTime(2);
+                                
+                            }
+                        }
+
+                        // ★ 一度だけ、基準日より古ければ警告を出す
+                        if (!_dataUpdatedWarningShown && updatedAt.HasValue)
+                        {
+                            if (updatedAt.Value < DataUpdatedThreshold)
+                            {
+                                _dataUpdatedWarningShown = true;  // 以降は出さない
+
+                                MessageBox.Show(
+                                    this,
+                                    $"この添付文書データの最終更新日は {updatedAt.Value:yyyy/MM/dd} です。\n" +
+                                    $"基準日より古いため、表示が乱れることがあります。最新データへ更新してください。",
+                                    "添付文書データの更新確認",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning
+                                );
                             }
                         }
 
