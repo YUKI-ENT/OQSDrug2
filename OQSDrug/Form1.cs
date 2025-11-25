@@ -4586,7 +4586,7 @@ namespace OQSDrug
                     using (var conn = CommonFunctions.GetDbConnection())
                     {
                         await OpenAsync(conn);
-                        //await EnsureTablesAsync(conn); // なければ作成（Accessは失敗しても無視）
+                        await EnsureTablesAsync(conn); // なければ作成（Accessは失敗しても無視）
 
                         // === 3) 既存バージョンと比較 ===
                         DateTime? currentVersion = await GetCurrentVersionAsync(conn, 1);
@@ -5345,13 +5345,16 @@ namespace OQSDrug
             {
                 try
                 {
-                    // UIを直接触らないログ関数（UIへ出すなら Invoke 必須）
-                    Action<string> log = AddLogSafe;
+                    if ((okSettings & 0b1) != 0)
+                    {
+                        // UIを直接触らないログ関数（UIへ出すなら Invoke 必須）
+                        Action<string> log = AddLogSafe;
 
-                    await CommonFunctions.TryRunScheduledDumpAsync(
-                        force: false,
-                        log: log,
-                        ct: CancellationToken.None);
+                        await CommonFunctions.TryRunScheduledDumpAsync(
+                            force: false,
+                            log: log,
+                            ct: CancellationToken.None);
+                    }
                 }
                 catch (Exception ex)
                 {
