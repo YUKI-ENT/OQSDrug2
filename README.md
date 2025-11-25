@@ -23,8 +23,8 @@
 
 逆にVersion1からは、**PDF形式でのファイリング機能は削除しました**。引き続きPDF形式で薬歴を見たい方は、RSBaseやOQSDrug version1系統を利用するようにお願いします。
 
-<<相互作用表示画面>>
-![DI2](https://github.com/user-attachments/assets/c47418ce-bf79-4eee-94c1-7367034a4381)
+<<相互作用表示画面>> **投与中の薬剤すべての相互作用薬**を一覧表示し、相互作用相手薬剤ダブルクリックで、その添付文書を開けます。
+![スクリーンショット 2025-11-25 234411](https://github.com/user-attachments/assets/a1bcc6d3-1914-4806-ae53-895b4d817eb0)
 
 <<AI推論表示画面>>
 ![DI3](https://github.com/user-attachments/assets/a66d916c-3d1b-4d73-943d-30db991f9952)
