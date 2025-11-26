@@ -914,6 +914,10 @@ namespace OQSDrug
 
         private async Task initializeForm()
         {
+            // 失敗メッセージをためる
+            var initErrors = new List<string>();
+            bool needSettingsDialog = false;
+
             // ========= UIを先に（Invoke不要：UIスレッド上想定） =========
             OnUI(() =>
             {
@@ -959,11 +963,13 @@ namespace OQSDrug
                 loadConnectionString();
             }), 3000, "InitializeDBProvider/loadConnectionString"))
             {
-                // ここが失敗でもUIは継続（DB依存機能はオフライン扱い）
+                initErrors.Add("DBプロバイダの初期化または接続文字列の読み込みに失敗しました。");
+                needSettingsDialog = true;
             }
 
             // スキーマ/バージョンチェック（重い・ネットワーク要素あり：タイムアウト短めに）
-            bool dbOk = await TryRunAsync(() => CheckDBVersionAsync(CommonFunctions.DBversion), 8000, "CheckDBVersionAsync");
+            //bool dbOk = await TryRunAsync(() => CheckDBVersionAsync(CommonFunctions.DBversion), 8000, "CheckDBVersionAsync");
+            bool dbOk = await CheckDBVersionAsync(CommonFunctions.DBversion);
 
             // 設定やステータス更新（DBに触るならdbOkで分岐）
             if (dbOk)
@@ -979,6 +985,8 @@ namespace OQSDrug
                 await AddLogAsync("[Init] DB到達不可のため一部機能はオフラインで起動します。").ConfigureAwait(false);
                 // DB前提UIをここで無効化するなら↓
                 // DisableDbOnlyButtons();
+                initErrors.Add("OQSDrug_data に接続できませんでした。データベースの設定を確認してください。");
+                needSettingsDialog = true;
             }
 
             // ユーザー設定（UI）
@@ -1016,8 +1024,32 @@ namespace OQSDrug
                 await TryRunAsync(() => InsertSampleTemplateIfEmptyAsync(), 8000, "InsertSampleTemplateIfEmptyAsync");
             }
 
-            // ====== 重い並列タスク（KORO取込 / RSB読込 / Ollamaモデル） ======
-            var tasks = new List<Task>();
+            // ここまでで初期化と各種並列処理は一通り完了
+
+            if (needSettingsDialog)
+            {
+                // UI スレッドに戻してメッセージ＋設定画面を出す
+                OnUI(() =>
+                {
+                    if (initErrors.Count > 0)
+                    {
+                        var msg = string.Join(Environment.NewLine, initErrors);
+                        MessageBox.Show(this,
+                            msg,
+                            "初期化エラー",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    }
+
+                    // 設定画面を開く（クリックと同等の処理）
+                    toolStripButtonSettings.PerformClick();
+                    // もしくは toolStripButtonSettings_Click(this, EventArgs.Empty);
+                });
+            }
+
+
+        // ====== 重い並列タスク（KORO取込 / RSB読込 / Ollamaモデル） ======
+        var tasks = new List<Task>();
 
             if ((okSettings & (0b001)) == 1) // OQSDrugData OK
             {
@@ -4595,11 +4627,11 @@ namespace OQSDrug
 
                         if (currentVersion != null && currentVersion >= koroVersion && currentMedisVersion != null && currentMedisVersion >= koroVersion && currentContraVer != null && currentContraVer >= koroVersion)
                         {
-                            await AddLogAsync("KOROdataは最新版をロード済みのため、drug_code_map の更新をスキップします。");
+                            await AddLogAsync("KOROdataは最新版をロード済みのため、drug_code_mapテーブルの更新をスキップします。");
                         }
                         else
                         {
-                            await AddLogAsync("KOROdataが更新されているため、drug_code_mapを再構築します…");
+                            await AddLogAsync("KOROdataが更新されているため、drug_code_mapテーブルを再構築します…");
                                                        
                             // === 5) 高速ルートで全入れ替え（DBごとに最速を使用）===
                             if (conn is Npgsql.NpgsqlConnection pg)
@@ -4621,14 +4653,14 @@ namespace OQSDrug
                                 //await FallbackInsertLoopAsync(conn, map); // ※保険（任意）
                             }
 
-                            await AddLogAsync("drug_code_map を更新しました。");
+                            await AddLogAsync("drug_code_mapテーブルを更新しました。");
                         }
                         // === 6) 最後に Dictionary を DB から更新 ===
                         await RefreshDictionaryFromDbAsync(conn);
-                        await AddLogAsync("drug_code_mapをDBから更新しました。");
+                        await AddLogAsync("drug_code_mapをDBから読み込みました。");
                         //SGML DIのロード
                         await LoadSGMLDIAsync();
-                        await AddLogAsync("SGML薬剤情報インデックスをDBから更新しました。");
+                        await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
                     }
                 }
                 else // Accessの場合はDictionaryのみロード
