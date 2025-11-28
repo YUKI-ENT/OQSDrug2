@@ -323,7 +323,7 @@
             this.toolStripVersion.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.HorizontalStackWithOverflow;
             this.toolStripVersion.Location = new System.Drawing.Point(0, 0);
             this.toolStripVersion.Name = "toolStripVersion";
-            this.toolStripVersion.Size = new System.Drawing.Size(973, 29);
+            this.toolStripVersion.Size = new System.Drawing.Size(973, 27);
             this.toolStripVersion.Stretch = true;
             this.toolStripVersion.TabIndex = 3;
             this.toolStripVersion.Text = "toolStrip1";
@@ -332,7 +332,7 @@
             // toolStripLabel1
             // 
             this.toolStripLabel1.Name = "toolStripLabel1";
-            this.toolStripLabel1.Size = new System.Drawing.Size(24, 26);
+            this.toolStripLabel1.Size = new System.Drawing.Size(24, 24);
             this.toolStripLabel1.Text = "ID";
             this.toolStripLabel1.ToolTipText = "枝番なしIDを入力し右のいずれかのボタンを押すと\r\n薬歴、健診歴等のウインドウが開きます\r\n空欄だと患者選択無しでウインドウが開きます\r\n";
             // 
@@ -340,7 +340,7 @@
             // 
             this.toolStripTextBoxPtIDmain.Font = new System.Drawing.Font("Yu Gothic UI", 9F);
             this.toolStripTextBoxPtIDmain.Name = "toolStripTextBoxPtIDmain";
-            this.toolStripTextBoxPtIDmain.Size = new System.Drawing.Size(70, 29);
+            this.toolStripTextBoxPtIDmain.Size = new System.Drawing.Size(70, 27);
             this.toolStripTextBoxPtIDmain.ToolTipText = "枝番なしIDを入力し右のいずれかのボタンを押すと\r\n薬歴、健診歴等のウインドウが開きます\r\n空欄だと患者選択無しでウインドウが開きます";
             this.toolStripTextBoxPtIDmain.KeyDown += new System.Windows.Forms.KeyEventHandler(this.toolStripTextBoxPtIDmain_KeyDown);
             // 
@@ -350,7 +350,7 @@
             this.toolStripButtonViewer.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonViewer.Image")));
             this.toolStripButtonViewer.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonViewer.Name = "toolStripButtonViewer";
-            this.toolStripButtonViewer.Size = new System.Drawing.Size(59, 26);
+            this.toolStripButtonViewer.Size = new System.Drawing.Size(59, 24);
             this.toolStripButtonViewer.Text = "薬歴";
             this.toolStripButtonViewer.ToolTipText = "薬歴を表示します";
             this.toolStripButtonViewer.Click += new System.EventHandler(this.toolStripButtonDI_Click);
@@ -362,7 +362,7 @@
             this.toolStripButtonExit.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonExit.Image")));
             this.toolStripButtonExit.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonExit.Name = "toolStripButtonExit";
-            this.toolStripButtonExit.Size = new System.Drawing.Size(59, 26);
+            this.toolStripButtonExit.Size = new System.Drawing.Size(59, 24);
             this.toolStripButtonExit.Text = "終了";
             this.toolStripButtonExit.Click += new System.EventHandler(this.buttonExit_Click);
             // 
@@ -372,7 +372,7 @@
             this.toolStripButtonToTaskTray.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonToTaskTray.Image")));
             this.toolStripButtonToTaskTray.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonToTaskTray.Name = "toolStripButtonToTaskTray";
-            this.toolStripButtonToTaskTray.Size = new System.Drawing.Size(23, 26);
+            this.toolStripButtonToTaskTray.Size = new System.Drawing.Size(23, 24);
             this.toolStripButtonToTaskTray.ToolTipText = "タスクトレイに最小化します";
             this.toolStripButtonToTaskTray.Click += new System.EventHandler(this.toolStripButtonToTaskTray_Click);
             // 
@@ -380,7 +380,7 @@
             // 
             this.toolStripSeparator1.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 29);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 27);
             // 
             // toolStripButtonVersion
             // 
@@ -389,7 +389,7 @@
             this.toolStripButtonVersion.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonVersion.Image")));
             this.toolStripButtonVersion.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonVersion.Name = "toolStripButtonVersion";
-            this.toolStripButtonVersion.Size = new System.Drawing.Size(23, 26);
+            this.toolStripButtonVersion.Size = new System.Drawing.Size(23, 24);
             this.toolStripButtonVersion.Text = "Version";
             this.toolStripButtonVersion.Click += new System.EventHandler(this.toolStripButtonVersion_Click);
             // 
@@ -400,7 +400,7 @@
             this.toolStripButtonLog.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonLog.Image")));
             this.toolStripButtonLog.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonLog.Name = "toolStripButtonLog";
-            this.toolStripButtonLog.Size = new System.Drawing.Size(23, 26);
+            this.toolStripButtonLog.Size = new System.Drawing.Size(23, 24);
             this.toolStripButtonLog.Text = "Log";
             this.toolStripButtonLog.ToolTipText = "ログを開きます";
             this.toolStripButtonLog.Click += new System.EventHandler(this.toolStripButtonLog_Click);
@@ -409,7 +409,7 @@
             // 
             this.toolStripSeparator2.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
             this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 29);
+            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 27);
             // 
             // toolStripButtonSettings
             // 
@@ -418,7 +418,7 @@
             this.toolStripButtonSettings.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonSettings.Image")));
             this.toolStripButtonSettings.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonSettings.Name = "toolStripButtonSettings";
-            this.toolStripButtonSettings.Size = new System.Drawing.Size(59, 26);
+            this.toolStripButtonSettings.Size = new System.Drawing.Size(59, 24);
             this.toolStripButtonSettings.Text = "設定";
             this.toolStripButtonSettings.Click += new System.EventHandler(this.toolStripButtonSettings_Click);
             // 
@@ -427,7 +427,7 @@
             this.toolStripButtonTKK.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonTKK.Image")));
             this.toolStripButtonTKK.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonTKK.Name = "toolStripButtonTKK";
-            this.toolStripButtonTKK.Size = new System.Drawing.Size(59, 26);
+            this.toolStripButtonTKK.Size = new System.Drawing.Size(59, 24);
             this.toolStripButtonTKK.Text = "健診";
             this.toolStripButtonTKK.ToolTipText = "健診結果を表示します";
             this.toolStripButtonTKK.Click += new System.EventHandler(this.toolStripButtonTKK_Click);
@@ -437,7 +437,7 @@
             this.toolStripButtonSinryo.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonSinryo.Image")));
             this.toolStripButtonSinryo.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonSinryo.Name = "toolStripButtonSinryo";
-            this.toolStripButtonSinryo.Size = new System.Drawing.Size(89, 26);
+            this.toolStripButtonSinryo.Size = new System.Drawing.Size(89, 24);
             this.toolStripButtonSinryo.Text = "診療手術";
             this.toolStripButtonSinryo.ToolTipText = "診療手術情報を表示します";
             this.toolStripButtonSinryo.Click += new System.EventHandler(this.toolStripButtonSinryo_Click);
@@ -445,14 +445,14 @@
             // toolStripSeparatorDebug2
             // 
             this.toolStripSeparatorDebug2.Name = "toolStripSeparatorDebug2";
-            this.toolStripSeparatorDebug2.Size = new System.Drawing.Size(6, 29);
+            this.toolStripSeparatorDebug2.Size = new System.Drawing.Size(6, 27);
             // 
             // toolStripButtonPMDA
             // 
             this.toolStripButtonPMDA.Image = global::OQSDrug.Properties.Resources.PMDA;
             this.toolStripButtonPMDA.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonPMDA.Name = "toolStripButtonPMDA";
-            this.toolStripButtonPMDA.Size = new System.Drawing.Size(104, 26);
+            this.toolStripButtonPMDA.Size = new System.Drawing.Size(104, 24);
             this.toolStripButtonPMDA.Text = "PMDA薬情";
             this.toolStripButtonPMDA.Click += new System.EventHandler(this.toolStripButtonPMDA_Click);
             // 
@@ -469,14 +469,14 @@
             // toolStripSeparatorDebug1
             // 
             this.toolStripSeparatorDebug1.Name = "toolStripSeparatorDebug1";
-            this.toolStripSeparatorDebug1.Size = new System.Drawing.Size(6, 29);
+            this.toolStripSeparatorDebug1.Size = new System.Drawing.Size(6, 27);
             this.toolStripSeparatorDebug1.Visible = false;
             // 
             // toolStripComboBoxDBProviders
             // 
             this.toolStripComboBoxDBProviders.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.toolStripComboBoxDBProviders.Name = "toolStripComboBoxDBProviders";
-            this.toolStripComboBoxDBProviders.Size = new System.Drawing.Size(180, 29);
+            this.toolStripComboBoxDBProviders.Size = new System.Drawing.Size(180, 27);
             this.toolStripComboBoxDBProviders.ToolTipText = "OleDbプロバイダを設定します";
             this.toolStripComboBoxDBProviders.Visible = false;
             this.toolStripComboBoxDBProviders.SelectedIndexChanged += new System.EventHandler(this.toolStripComboBoxDBProviders_SelectedIndexChanged);

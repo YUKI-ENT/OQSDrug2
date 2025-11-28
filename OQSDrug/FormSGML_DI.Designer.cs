@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormSGML_DI));
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
@@ -37,6 +38,7 @@
             this.toolStripButtonClear = new System.Windows.Forms.ToolStripButton();
             this.btnSearch = new System.Windows.Forms.ToolStripButton();
             this.toolStripTextBoxSearch = new System.Windows.Forms.ToolStripTextBox();
+            this.toolStripLabel1 = new System.Windows.Forms.ToolStripLabel();
             this.dgvList = new System.Windows.Forms.DataGridView();
             this.tabMain = new System.Windows.Forms.TabControl();
             this.tabSections = new System.Windows.Forms.TabPage();
@@ -45,6 +47,14 @@
             this.dgvInter = new System.Windows.Forms.DataGridView();
             this.tabContra = new System.Windows.Forms.TabPage();
             this.dgvContra = new System.Windows.Forms.DataGridView();
+            this.panelDocSearch = new System.Windows.Forms.Panel();
+            this.buttonDocNext = new System.Windows.Forms.Button();
+            this.buttonDocPrev = new System.Windows.Forms.Button();
+            this.buttonDocSerach = new System.Windows.Forms.Button();
+            this.textBoxDocSerach = new System.Windows.Forms.TextBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.labelMatches = new System.Windows.Forms.Label();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvList)).BeginInit();
             this.tabMain.SuspendLayout();
@@ -53,6 +63,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.dgvInter)).BeginInit();
             this.tabContra.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvContra)).BeginInit();
+            this.panelDocSearch.SuspendLayout();
             this.SuspendLayout();
             // 
             // toolStrip1
@@ -63,7 +74,8 @@
             this.toolStripSeparator2,
             this.toolStripButtonClear,
             this.btnSearch,
-            this.toolStripTextBoxSearch});
+            this.toolStripTextBoxSearch,
+            this.toolStripLabel1});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
             this.toolStrip1.Size = new System.Drawing.Size(800, 25);
@@ -123,6 +135,13 @@
             this.toolStripTextBoxSearch.ToolTipText = "検索薬剤名を入れてください";
             this.toolStripTextBoxSearch.KeyDown += new System.Windows.Forms.KeyEventHandler(this.toolStripTextBoxSearch_KeyDown);
             // 
+            // toolStripLabel1
+            // 
+            this.toolStripLabel1.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
+            this.toolStripLabel1.Name = "toolStripLabel1";
+            this.toolStripLabel1.Size = new System.Drawing.Size(55, 22);
+            this.toolStripLabel1.Text = "薬剤検索";
+            // 
             // dgvList
             // 
             this.dgvList.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
@@ -149,11 +168,11 @@
             this.tabMain.Controls.Add(this.tabContra);
             this.tabMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabMain.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.tabMain.Location = new System.Drawing.Point(0, 175);
+            this.tabMain.Location = new System.Drawing.Point(0, 211);
             this.tabMain.Name = "tabMain";
             this.tabMain.SelectedIndex = 0;
-            this.tabMain.Size = new System.Drawing.Size(800, 517);
-            this.tabMain.TabIndex = 2;
+            this.tabMain.Size = new System.Drawing.Size(800, 481);
+            this.tabMain.TabIndex = 0;
             this.tabMain.SelectedIndexChanged += new System.EventHandler(this.tabMain_SelectedIndexChanged);
             // 
             // tabSections
@@ -163,7 +182,7 @@
             this.tabSections.Location = new System.Drawing.Point(4, 26);
             this.tabSections.Name = "tabSections";
             this.tabSections.Padding = new System.Windows.Forms.Padding(3);
-            this.tabSections.Size = new System.Drawing.Size(792, 487);
+            this.tabSections.Size = new System.Drawing.Size(792, 451);
             this.tabSections.TabIndex = 2;
             this.tabSections.Text = "添付文書";
             this.tabSections.UseVisualStyleBackColor = true;
@@ -175,7 +194,7 @@
             this.tabSectionsInner.Multiline = true;
             this.tabSectionsInner.Name = "tabSectionsInner";
             this.tabSectionsInner.SelectedIndex = 0;
-            this.tabSectionsInner.Size = new System.Drawing.Size(786, 481);
+            this.tabSectionsInner.Size = new System.Drawing.Size(786, 445);
             this.tabSectionsInner.SizeMode = System.Windows.Forms.TabSizeMode.FillToRight;
             this.tabSectionsInner.TabIndex = 0;
             // 
@@ -186,7 +205,7 @@
             this.tabInter.Location = new System.Drawing.Point(4, 26);
             this.tabInter.Name = "tabInter";
             this.tabInter.Padding = new System.Windows.Forms.Padding(3);
-            this.tabInter.Size = new System.Drawing.Size(792, 487);
+            this.tabInter.Size = new System.Drawing.Size(792, 455);
             this.tabInter.TabIndex = 1;
             this.tabInter.Text = "相互作用リスト(PMDA)";
             this.tabInter.UseVisualStyleBackColor = true;
@@ -199,7 +218,7 @@
             this.dgvInter.Name = "dgvInter";
             this.dgvInter.RowHeadersVisible = false;
             this.dgvInter.RowTemplate.Height = 21;
-            this.dgvInter.Size = new System.Drawing.Size(786, 481);
+            this.dgvInter.Size = new System.Drawing.Size(786, 449);
             this.dgvInter.TabIndex = 0;
             this.dgvInter.DataBindingComplete += new System.Windows.Forms.DataGridViewBindingCompleteEventHandler(this.dgvInter_DataBindingComplete);
             // 
@@ -209,7 +228,7 @@
             this.tabContra.Location = new System.Drawing.Point(4, 26);
             this.tabContra.Name = "tabContra";
             this.tabContra.Padding = new System.Windows.Forms.Padding(3);
-            this.tabContra.Size = new System.Drawing.Size(792, 487);
+            this.tabContra.Size = new System.Drawing.Size(792, 455);
             this.tabContra.TabIndex = 3;
             this.tabContra.Text = "禁忌リスト(厚労)";
             this.tabContra.UseVisualStyleBackColor = true;
@@ -221,9 +240,90 @@
             this.dgvContra.Location = new System.Drawing.Point(3, 3);
             this.dgvContra.Name = "dgvContra";
             this.dgvContra.RowTemplate.Height = 21;
-            this.dgvContra.Size = new System.Drawing.Size(786, 481);
+            this.dgvContra.Size = new System.Drawing.Size(786, 449);
             this.dgvContra.TabIndex = 0;
             this.dgvContra.DataBindingComplete += new System.Windows.Forms.DataGridViewBindingCompleteEventHandler(this.dgvContra_DataBindingComplete);
+            // 
+            // panelDocSearch
+            // 
+            this.panelDocSearch.BackColor = System.Drawing.SystemColors.ControlLight;
+            this.panelDocSearch.Controls.Add(this.labelMatches);
+            this.panelDocSearch.Controls.Add(this.buttonDocNext);
+            this.panelDocSearch.Controls.Add(this.buttonDocPrev);
+            this.panelDocSearch.Controls.Add(this.buttonDocSerach);
+            this.panelDocSearch.Controls.Add(this.textBoxDocSerach);
+            this.panelDocSearch.Controls.Add(this.label1);
+            this.panelDocSearch.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelDocSearch.Location = new System.Drawing.Point(0, 175);
+            this.panelDocSearch.Name = "panelDocSearch";
+            this.panelDocSearch.Size = new System.Drawing.Size(800, 36);
+            this.panelDocSearch.TabIndex = 1;
+            // 
+            // buttonDocNext
+            // 
+            this.buttonDocNext.Image = global::OQSDrug.Properties.Resources.Next;
+            this.buttonDocNext.Location = new System.Drawing.Point(284, 3);
+            this.buttonDocNext.Margin = new System.Windows.Forms.Padding(0);
+            this.buttonDocNext.Name = "buttonDocNext";
+            this.buttonDocNext.Size = new System.Drawing.Size(26, 28);
+            this.buttonDocNext.TabIndex = 4;
+            this.toolTip1.SetToolTip(this.buttonDocNext, "Next");
+            this.buttonDocNext.UseVisualStyleBackColor = true;
+            this.buttonDocNext.Click += new System.EventHandler(this.buttonDocNext_Click);
+            // 
+            // buttonDocPrev
+            // 
+            this.buttonDocPrev.Image = global::OQSDrug.Properties.Resources.Previous;
+            this.buttonDocPrev.Location = new System.Drawing.Point(258, 3);
+            this.buttonDocPrev.Margin = new System.Windows.Forms.Padding(0);
+            this.buttonDocPrev.Name = "buttonDocPrev";
+            this.buttonDocPrev.Size = new System.Drawing.Size(26, 28);
+            this.buttonDocPrev.TabIndex = 3;
+            this.toolTip1.SetToolTip(this.buttonDocPrev, "Previous");
+            this.buttonDocPrev.UseVisualStyleBackColor = true;
+            this.buttonDocPrev.Click += new System.EventHandler(this.buttonDocPrev_Click);
+            // 
+            // buttonDocSerach
+            // 
+            this.buttonDocSerach.Image = global::OQSDrug.Properties.Resources.Find;
+            this.buttonDocSerach.Location = new System.Drawing.Point(232, 3);
+            this.buttonDocSerach.Margin = new System.Windows.Forms.Padding(0);
+            this.buttonDocSerach.Name = "buttonDocSerach";
+            this.buttonDocSerach.Size = new System.Drawing.Size(26, 28);
+            this.buttonDocSerach.TabIndex = 2;
+            this.toolTip1.SetToolTip(this.buttonDocSerach, "検索");
+            this.buttonDocSerach.UseVisualStyleBackColor = true;
+            this.buttonDocSerach.Click += new System.EventHandler(this.buttonDocSerach_Click);
+            // 
+            // textBoxDocSerach
+            // 
+            this.textBoxDocSerach.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.textBoxDocSerach.ImeMode = System.Windows.Forms.ImeMode.Hiragana;
+            this.textBoxDocSerach.Location = new System.Drawing.Point(83, 6);
+            this.textBoxDocSerach.Name = "textBoxDocSerach";
+            this.textBoxDocSerach.Size = new System.Drawing.Size(146, 24);
+            this.textBoxDocSerach.TabIndex = 1;
+            this.toolTip1.SetToolTip(this.textBoxDocSerach, "文書内の文字列を検索します");
+            this.textBoxDocSerach.KeyDown += new System.Windows.Forms.KeyEventHandler(this.textBoxDocSerach_KeyDown);
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.label1.Location = new System.Drawing.Point(4, 9);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(73, 17);
+            this.label1.TabIndex = 0;
+            this.label1.Text = "文書内検索";
+            // 
+            // labelMatches
+            // 
+            this.labelMatches.AutoSize = true;
+            this.labelMatches.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.labelMatches.Location = new System.Drawing.Point(313, 11);
+            this.labelMatches.Name = "labelMatches";
+            this.labelMatches.Size = new System.Drawing.Size(0, 15);
+            this.labelMatches.TabIndex = 5;
             // 
             // FormSGML_DI
             // 
@@ -231,6 +331,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 692);
             this.Controls.Add(this.tabMain);
+            this.Controls.Add(this.panelDocSearch);
             this.Controls.Add(this.dgvList);
             this.Controls.Add(this.toolStrip1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -248,6 +349,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.dgvInter)).EndInit();
             this.tabContra.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dgvContra)).EndInit();
+            this.panelDocSearch.ResumeLayout(false);
+            this.panelDocSearch.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -270,5 +373,14 @@
         private System.Windows.Forms.ToolStripButton toolStripButtonClear;
         private System.Windows.Forms.TabPage tabContra;
         private System.Windows.Forms.DataGridView dgvContra;
+        private System.Windows.Forms.ToolStripLabel toolStripLabel1;
+        private System.Windows.Forms.Panel panelDocSearch;
+        private System.Windows.Forms.TextBox textBoxDocSerach;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Button buttonDocNext;
+        private System.Windows.Forms.Button buttonDocPrev;
+        private System.Windows.Forms.Button buttonDocSerach;
+        private System.Windows.Forms.ToolTip toolTip1;
+        private System.Windows.Forms.Label labelMatches;
     }
 }

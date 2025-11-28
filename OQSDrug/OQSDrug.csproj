@@ -392,6 +392,9 @@
     <Content Include="Resources\02_create_oqsdrug_data.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Resources\Next.png" />
+    <None Include="Resources\Previous.png" />
+    <None Include="Resources\Back.png" />
     <None Include="Resources\BlueDrug.png" />
     <None Include="Resources\Hourglass.png" />
     <None Include="Resources\saveas.png" />

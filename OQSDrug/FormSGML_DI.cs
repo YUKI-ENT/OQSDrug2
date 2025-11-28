@@ -29,6 +29,27 @@ namespace OQSDrug
         // ★ 一度警告を出したら、以降は何度も出さないようにするフラグ
         private bool _dataUpdatedWarningShown = false;
 
+        // 文書内検索関係 添付文書タブ1つ分の情報
+        private class SectionInfo
+        {
+            public string Title { get; set; } = "";
+            public TabPage Tab { get; set; } = null;
+            public RichTextBox RichTextBox { get; set; } = null;
+        }
+        // 検索ヒット1件
+        private class SearchHit
+        {
+            public int SectionIndex { get; set; }
+            public int CharIndex { get; set; }
+            public int Length { get; set; }
+            public string SectionTitle { get; set; } = "";
+            public string Preview { get; set; } = "";
+        }
+
+        private readonly List<SectionInfo> _sections = new List<SectionInfo>();
+        private readonly List<SearchHit> _searchHits = new List<SearchHit>();
+        private int _searchHitIndex = -1;
+
         // 小見出し（9.1, 10.1 など）
         private sealed class SubDef
         {
@@ -645,6 +666,13 @@ namespace OQSDrug
         {
             tabSectionsInner.TabPages.Clear();
 
+            // 検索情報もリセット
+            _sections.Clear();
+            _searchHits.Clear();
+            _searchHitIndex = -1;
+            textBoxDocSerach.Text = string.Empty;
+            labelMatches.Text = string.Empty;
+
             // まず Indication を XML から取得（_currentXml/_pi がある場合のみ）
             if (_currentXml != null && _pi != null)
             {
@@ -706,6 +734,14 @@ namespace OQSDrug
 
                 page.Controls.Add(rtb);
                 tabSectionsInner.TabPages.Add(page);
+
+                // ★ ここで SectionInfo を登録する ★
+                SectionInfo info = new SectionInfo();
+                info.Title = sec.Title;
+                info.Tab = page;
+                info.RichTextBox = rtb;
+                _sections.Add(info);
+
                 // ここでカーソルを先頭に戻す
                 rtb.Select(0, 0);
                 rtb.ScrollToCaret();
@@ -723,6 +759,7 @@ namespace OQSDrug
                 tabSectionsInner.TabPages.Add(empty);
             }
         }
+
         // 概要タブを作るヘルパ
         private void AddSummaryTab(string drugName, string thera, string yj,
     string indicationText, string contraIndication, string importantPrecaution, string Warnings)
@@ -816,6 +853,13 @@ namespace OQSDrug
 
             page.Controls.Add(rtb);
             tabSectionsInner.TabPages.Add(page);
+
+            // ★ ここで SectionInfo を登録する ★
+            SectionInfo info = new SectionInfo();
+            info.Title = "概要";
+            info.Tab = page;
+            info.RichTextBox = rtb;
+            _sections.Add(info);
 
             // 先頭へスクロール
             rtb.Select(0, 0);
@@ -1152,6 +1196,169 @@ namespace OQSDrug
         private void FormSGML_DI_Shown(object sender, EventArgs e)
         {
             toolStripTextBoxSearch.Focus();
+        }
+
+        private void RunGlobalSearch()
+        {
+            string keyword = textBoxDocSerach.Text;
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return;
+            }
+
+            _searchHits.Clear();
+            _searchHitIndex = -1;
+
+            StringComparison comparison = StringComparison.CurrentCultureIgnoreCase;
+
+            for (int i = 0; i < _sections.Count; i++)
+            {
+                SectionInfo sec = _sections[i];
+                string text = sec.RichTextBox.Text;
+                int index = 0;
+
+                while (index < text.Length)
+                {
+                    int found = text.IndexOf(keyword, index, comparison);
+                    if (found < 0)
+                    {
+                        break;
+                    }
+
+                    int startPreview = Math.Max(found - 20, 0);
+                    int lenPreview = Math.Min(keyword.Length + 40, text.Length - startPreview);
+                    string preview = text.Substring(startPreview, lenPreview);
+                    preview = preview.Replace("\r", " ").Replace("\n", " ");
+
+                    SearchHit hit = new SearchHit();
+                    hit.SectionIndex = i;
+                    hit.CharIndex = found;
+                    hit.Length = keyword.Length;
+                    hit.SectionTitle = sec.Title;
+                    hit.Preview = preview;
+
+                    _searchHits.Add(hit);
+
+                    index = found + keyword.Length;
+                }
+            }
+
+            if (_searchHits.Count == 0)
+            {
+                MessageBox.Show("該当する文字列が見つかりません。");
+                toolStripTextBoxTitle.Text = "";
+                return;
+            }
+
+            _searchHitIndex = 0;
+            JumpToHit(_searchHits[_searchHitIndex]);
+            UpdateSearchStatusLabel();
+        }
+        private void JumpToHit(SearchHit hit)
+        {
+            if (hit.SectionIndex < 0 || hit.SectionIndex >= _sections.Count)
+            {
+                return;
+            }
+
+            SectionInfo sec = _sections[hit.SectionIndex];
+
+            // 添付文書タブを前面に
+            tabMain.SelectedTab = tabSections;       // 外側タブ（名前に合わせて修正してください）
+            tabSectionsInner.SelectedTab = sec.Tab;  // 内側タブ
+
+            RichTextBox rtb = sec.RichTextBox;
+            if (hit.CharIndex >= 0 && hit.CharIndex + hit.Length <= rtb.TextLength)
+            {
+                rtb.SelectionStart = hit.CharIndex;
+                rtb.SelectionLength = hit.Length;
+                rtb.ScrollToCaret();
+                rtb.Focus();
+            }
+        }
+        private void MoveToNextHit()
+        {
+            if (_searchHits.Count == 0)
+            {
+                return;
+            }
+
+            _searchHitIndex++;
+            if (_searchHitIndex >= _searchHits.Count)
+            {
+                _searchHitIndex = 0; // ループ
+            }
+
+            JumpToHit(_searchHits[_searchHitIndex]);
+            UpdateSearchStatusLabel();
+        }
+
+        private void MoveToPrevHit()
+        {
+            if (_searchHits.Count == 0)
+            {
+                return;
+            }
+
+            _searchHitIndex--;
+            if (_searchHitIndex < 0)
+            {
+                _searchHitIndex = _searchHits.Count - 1;
+            }
+
+            JumpToHit(_searchHits[_searchHitIndex]);
+            UpdateSearchStatusLabel();
+        }
+
+        private void UpdateSearchStatusLabel()
+        {
+            if (_searchHits.Count == 0)
+            {
+                labelMatches.Text = "";
+            }
+            else
+            {
+                labelMatches.Text =
+                    string.Format("{0} / {1} 件ヒット", _searchHitIndex + 1, _searchHits.Count);
+            }
+        }
+
+        private void buttonDocSerach_Click(object sender, EventArgs e)
+        {
+            RunGlobalSearch();
+        }
+
+        private void buttonDocNext_Click(object sender, EventArgs e)
+        {
+            if (_searchHits.Count == 0)
+            {
+                RunGlobalSearch();
+            }
+            else
+            {
+                MoveToNextHit();
+            }
+        }
+
+        private void buttonDocPrev_Click(object sender, EventArgs e)
+        {
+            if (_searchHits.Count == 0)
+            {
+                RunGlobalSearch();
+            }
+            else
+            {
+                MoveToPrevHit();
+            }
+        }
+
+        private void textBoxDocSerach_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                RunGlobalSearch();
+                e.SuppressKeyPress = true; // ビープ音防止
+            }
         }
     }
 }
