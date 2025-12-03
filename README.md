@@ -37,24 +37,7 @@
 - **PostgreSQL**
   - ある程度は従来のAccess mdb形式(OQSDrug_data.mdb)でも動作しますが、**薬剤併用情報やAI機能はPostgreSQL使用時しか動作しない**ようにしてあります。
   - PostgreSQLのバージョンは**15以上**が推奨です。RSBaseのPostgreSQLサーバーにデータを置くこともできるかもしれませんが、バージョンが古いPostgreSQLですとJSONB形式の保存や検索ができない可能性があるので、できれば別サーバーで新しいバージョンのものを入れてください。
-  [PostgreSQLダウンロードサイト](https://www.postgresql.jp/download) からサーバーOSにあったものをダウンロードしてインストールしてください。
-  - PostgresSQLのデータ置き場はできればDドライブ等にしたほうが管理がしやすいです。
-    ![スクリーンショット 2025-11-25 223058](https://github.com/user-attachments/assets/53f5fb74-69a2-4118-b9bb-95224294d803)
-  - 管理者(postgres)パスワードの設定で設定したパスワードでOQSDrugからアクセスします。
-    ![スクリーンショット 2025-11-25 223306](https://github.com/user-attachments/assets/35395bef-af72-4efd-87b6-04f82f7370e3)
-  - あとの設定はデフォルトで動くと思います。
-  - 外部からアクセス可能にする設定：`pg_hba.conf` **の追記、Windowsファイヤーウォールのポート5432の開放**は必要です。
-    - PostgresSQLのデータ置き場のフォルダに、`pg_hba.conf`というファイルがあるので、これをメモ帳等で最終行に以下を追記します。(ネットワーク状況に応じてアドレスは変更してください)
-      ```
-      host    all             all             192.168.11.1/24         scram-sha-256
-      ```
-    - PostgreSQLサービスを再起動します
-      ![スクリーンショット 2025-11-25 225643](https://github.com/user-attachments/assets/13d02afe-97b6-4108-b0dc-bb1a47b29744)
-    - それでも繋がらない場合は、Windowsファイヤーウォールの設定も確認します。普通は自動で許可されているはずです。
-      ![スクリーンショット 2025-11-25 225912](https://github.com/user-attachments/assets/fa68f8fe-8cba-4deb-bbe4-76abfcfbb8df)
-
-
-    
+      
 - **Ollama (Local LLMランタイム)**
   - Ollamaが利用できる環境では、**病名病態等の推論機能**が利用できます
   - 病名の推論では、`gemma3:12b`、`gpt-oss:20b` あたりが安定した出力でした。これらのモデルを動かすには、16GB以上のVRAMを積んだNvidia製GPUが必要です。当方では、**CPU Intel Corei9-9900、メモリ32GB、GeForce RTX5080 16GB/ Ubuntu24.04の環境**で安定動作を確認しました。
@@ -87,11 +70,34 @@
    
    して使用してください。
    推奨構成はこんな感じです。PostgreSQLサーバーはダイナLANのどこにおいても結構です。
-   <img width="1024" height="1024" alt="Gemini_Generated_Image_z1kj0tz1kj0tz1kj" src="https://github.com/user-attachments/assets/c2d0e756-7fdb-4825-b97a-c1a53bd5d7ec" />
+   <img width="512" height="512" alt="Gemini_Generated_Image25" src="https://github.com/user-attachments/assets/1d0e5119-5cf7-4326-8211-567215ac210e" />
 
-3. [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases)から**OQSDrug2_v2.xx.xx.xx.exe(インストーラになってます) をダウンロード**
-4. 実行するとインストールが始まります。
-5. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
+2.**PostgreSQLのインストール**
+
+  [PostgreSQLダウンロードサイト](https://www.postgresql.jp/download) からサーバーOSにあったものをダウンロードしてインストールしてください。
+  - PostgresSQLのデータ置き場はできればDドライブ等にしたほうが管理がしやすいです。
+    ![スクリーンショット 2025-11-25 223058](https://github.com/user-attachments/assets/53f5fb74-69a2-4118-b9bb-95224294d803)
+  - 管理者(postgres)パスワードの設定で設定したパスワードでOQSDrugからアクセスします。
+    ![スクリーンショット 2025-11-25 223306](https://github.com/user-attachments/assets/35395bef-af72-4efd-87b6-04f82f7370e3)
+  - あとの設定はデフォルトで動くと思います。
+  - 外部からアクセス可能にする設定：`pg_hba.conf` **の追記、Windowsファイヤーウォールのポート5432の開放**は必要です。
+    - PostgresSQLのデータ置き場のフォルダに、`pg_hba.conf`というファイルがあるので、これをメモ帳等で最終行に以下を追記します。(ネットワーク状況に応じてアドレスは変更してください)
+      ```
+      host    all             all             192.168.11.1/24         scram-sha-256
+      ```
+    - PostgreSQLサービスを再起動します
+      ![スクリーンショット 2025-11-25 225643](https://github.com/user-attachments/assets/13d02afe-97b6-4108-b0dc-bb1a47b29744)
+    - それでも繋がらない場合は、Windowsファイヤーウォールの設定も確認します。普通は自動で許可されているはずです。
+      ![スクリーンショット 2025-11-25 225912](https://github.com/user-attachments/assets/fa68f8fe-8cba-4deb-bbe4-76abfcfbb8df)
+
+
+3. **OQSDrugのインストール**
+
+    [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases)から**OQSDrug2_v2.xx.xx.xx.exe(インストーラになってます) をダウンロード**
+   
+    これを実行するとインストールが始まります。
+   
+4. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
    
 ---
 
