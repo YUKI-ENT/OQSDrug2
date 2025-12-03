@@ -659,7 +659,7 @@ namespace OQSDrug
 
             // 「薬情検索(SGML)」メニューアイテムを作成
             ToolStripMenuItem searchSGMLMenuItem = new ToolStripMenuItem("薬情検索(PMDA)");
-            searchSGMLMenuItem.Image = Properties.Resources.Find;
+            searchSGMLMenuItem.Image = Properties.Resources.PMDA;
             searchSGMLMenuItem.Click += SearchSGMLMenuItem_Click;
 
             // メニューアイテムを追加
@@ -1669,6 +1669,22 @@ namespace OQSDrug
         private void toolStripButtonSGMLDI_Click(object sender, EventArgs e)
         {
             SearchSGMLMenuItem_Click(sender, EventArgs.Empty);
+        }
+
+        private async void buttonCopySummary_Click(object sender, EventArgs e)
+        {
+            string clipboardText = textBoxDiseaseResponse.Text.Trim();
+
+            // リトライを使ってクリップボードにコピー
+            if (clipboardText.Length > 0)
+            {
+                bool success = await CommonFunctions.RetryClipboardSetTextAsync(clipboardText);
+
+                if (!success)
+                {
+                    MessageBox.Show("クリップボードへのコピーに失敗しました。もう一度トライしてみてください。");
+                }
+            }
         }
     }
 }

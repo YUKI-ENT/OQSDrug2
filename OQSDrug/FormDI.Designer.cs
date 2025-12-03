@@ -28,7 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            this.components = new System.ComponentModel.Container();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormDI));
             this.webBrowser1 = new System.Windows.Forms.WebBrowser();
             this.dataGridViewFixed = new System.Windows.Forms.DataGridView();
@@ -54,6 +55,8 @@
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.labelStatus = new System.Windows.Forms.Label();
             this.comboBoxAIresults = new System.Windows.Forms.ComboBox();
+            this.buttonCopySummary = new System.Windows.Forms.Button();
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.toolStrip1 = new OQSDrug.ClickThroughToolStrip();
             this.toolStripComboBoxPt = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -218,14 +221,14 @@
             this.dataGridViewInteraction.AllowUserToAddRows = false;
             this.dataGridViewInteraction.AllowUserToDeleteRows = false;
             this.dataGridViewInteraction.AllowUserToResizeRows = false;
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridViewInteraction.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridViewInteraction.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dataGridViewInteraction.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             this.dataGridViewInteraction.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dataGridViewInteraction.Location = new System.Drawing.Point(3, 3);
@@ -324,6 +327,7 @@
             this.buttonPromptTpl.Name = "buttonPromptTpl";
             this.buttonPromptTpl.Size = new System.Drawing.Size(28, 23);
             this.buttonPromptTpl.TabIndex = 9;
+            this.toolTip1.SetToolTip(this.buttonPromptTpl, "プロンプトテンプレートの編集");
             this.buttonPromptTpl.UseVisualStyleBackColor = true;
             this.buttonPromptTpl.Click += new System.EventHandler(this.buttonPromptTpl_Click);
             // 
@@ -347,6 +351,7 @@
             this.comboBoxLLMtemplates.Name = "comboBoxLLMtemplates";
             this.comboBoxLLMtemplates.Size = new System.Drawing.Size(288, 23);
             this.comboBoxLLMtemplates.TabIndex = 8;
+            this.toolTip1.SetToolTip(this.comboBoxLLMtemplates, "プロンプトテンプレートを選びます");
             this.comboBoxLLMtemplates.SelectedIndexChanged += new System.EventHandler(this.comboBoxLLMtemplates_SelectedIndexChanged);
             // 
             // buttonDiseaseRemakePrompt
@@ -356,11 +361,13 @@
             this.buttonDiseaseRemakePrompt.Name = "buttonDiseaseRemakePrompt";
             this.buttonDiseaseRemakePrompt.Size = new System.Drawing.Size(33, 25);
             this.buttonDiseaseRemakePrompt.TabIndex = 7;
+            this.toolTip1.SetToolTip(this.buttonDiseaseRemakePrompt, "プロンプト作成");
             this.buttonDiseaseRemakePrompt.UseVisualStyleBackColor = true;
             this.buttonDiseaseRemakePrompt.Click += new System.EventHandler(this.buttonDiseaseRemakePrompt_Click);
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.buttonCopySummary);
             this.groupBox2.Controls.Add(this.labelStatus);
             this.groupBox2.Controls.Add(this.comboBoxAIresults);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -393,6 +400,19 @@
             this.comboBoxAIresults.Size = new System.Drawing.Size(891, 23);
             this.comboBoxAIresults.TabIndex = 5;
             this.comboBoxAIresults.SelectedIndexChanged += new System.EventHandler(this.comboBoxAIresults_SelectedIndexChanged);
+            // 
+            // buttonCopySummary
+            // 
+            this.buttonCopySummary.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.buttonCopySummary.Image = global::OQSDrug.Properties.Resources.Copy;
+            this.buttonCopySummary.Location = new System.Drawing.Point(864, 48);
+            this.buttonCopySummary.Name = "buttonCopySummary";
+            this.buttonCopySummary.Size = new System.Drawing.Size(33, 25);
+            this.buttonCopySummary.TabIndex = 8;
+            this.toolTip1.SetToolTip(this.buttonCopySummary, "AI回答をクリップボードにコピー");
+            this.buttonCopySummary.UseVisualStyleBackColor = true;
+            this.buttonCopySummary.Click += new System.EventHandler(this.buttonCopySummary_Click);
             // 
             // toolStrip1
             // 
@@ -689,5 +709,7 @@
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.ComboBox comboBoxModel;
         private System.Windows.Forms.ToolStripButton toolStripButtonSGMLDI;
+        private System.Windows.Forms.ToolTip toolTip1;
+        private System.Windows.Forms.Button buttonCopySummary;
     }
 }

@@ -319,6 +319,7 @@ namespace OQSDrug
             //tvXml.PathSeparator = "/";
 
             toolStripTextBoxSearch.Control.ImeMode = ImeMode.Hiragana;
+            toolStriptextBoxDocSerach.Control.ImeMode = ImeMode.Hiragana;
 
             // イベント
             dgvList.SelectionChanged += dgvList_SelectionChanged;
@@ -670,7 +671,7 @@ namespace OQSDrug
             _sections.Clear();
             _searchHits.Clear();
             _searchHitIndex = -1;
-            textBoxDocSerach.Text = string.Empty;
+            toolStriptextBoxDocSerach.Text = string.Empty;
             labelMatches.Text = string.Empty;
 
             // まず Indication を XML から取得（_currentXml/_pi がある場合のみ）
@@ -1200,7 +1201,7 @@ namespace OQSDrug
 
         private void RunGlobalSearch()
         {
-            string keyword = textBoxDocSerach.Text;
+            string keyword = toolStriptextBoxDocSerach.Text;
             if (string.IsNullOrWhiteSpace(keyword))
             {
                 return;
