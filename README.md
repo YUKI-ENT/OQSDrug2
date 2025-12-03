@@ -37,6 +37,43 @@
 - **PostgreSQL**
   - ある程度は従来のAccess mdb形式(OQSDrug_data.mdb)でも動作しますが、**薬剤併用情報やAI機能はPostgreSQL使用時しか動作しない**ようにしてあります。
   - PostgreSQLのバージョンは**15以上**が推奨です。RSBaseのPostgreSQLサーバーにデータを置くこともできるかもしれませんが、バージョンが古いPostgreSQLですとJSONB形式の保存や検索ができない可能性があるので、できれば別サーバーで新しいバージョンのものを入れてください。
+      
+- **Ollama (Local LLMランタイム)**
+  - Ollamaが利用できる環境では、**病名病態等の推論機能**が利用できます
+  - 病名の推論では、`gemma3:12b`、`gpt-oss:20b` あたりが安定した出力でした。これらのモデルを動かすには、16GB以上のVRAMを積んだNvidia製GPUが必要です。当方では、**CPU Intel Corei9-9900、メモリ32GB、GeForce RTX5080 16GB/ Ubuntu24.04の環境**で安定動作を確認しました。
+  - Windows、Macでも動作するようですので、[ダウンロードサイト](https://ollama.com/download/windows) からインストールしてください。
+  - OllamaもLAN内のPCからアクセスできるよう設定が必要です。
+    
+- **ダイナミクス**  
+  ダイナミクスが本ソフトの必須環境です。v1の時と同じく、**薬剤・健診情報取得は、ダイナミクスクライアントが動作していないPCで行う**のが望ましいです。どうしてもダイナミクスクライアントが動いているPCで取得を行うときは、`設定②`の`ダイナミクスの場所`に**datadyna.mdbではなく、クライアントダイナミクス**を指定してください。
+- **RSBase**  
+  RSBaseがあればRSBaseの薬剤情報詳細も表示できます。またRSBase側で、xmlの薬歴や健診歴を表示できます（設定要）。
+
+### 実行環境
+- .NET 4.8Frameworkが必要です。最近のWindows10以上ではデフォルトでインストールされていますが、起動できない場合、以下のリンクから **.NET Framework 4.8 ランタイム** をダウンロードしてください：  
+[公式ダウンロードページ](https://dotnet.microsoft.com/ja-jp/download/dotnet-framework/net48)
+ 
+- **Accessデータベースエンジン**  
+  実行PCにAccessデータベースエンジンが必要です。
+  - **Access 32bit版** のインストール
+  - または **Access ランタイム 32bit版** のインストール
+   ( [公式ダウンロードページ](https://www.microsoft.com/ja-jp/download/details.aspx?id=50040) )
+    で導入されます。
+
+---
+
+## 設置方法
+
+1. [Version1のとき](https://github.com/YUKI-ENT/OQSDrug?tab=readme-ov-file#%E9%81%8B%E7%94%A8%E6%96%B9%E6%B3%95)と同じく、**取り込みを行うOQSDrugは、**
+     - **ダイナミクスが動いていないPCに設置して、ダイナサーバーのdatadynaにリンク**
+     - **ダイナミクスが動いているPCの場合は、そのPCのクライアントダイナにリンク**
+   
+   して使用してください。
+   推奨構成はこんな感じです。PostgreSQLサーバーはダイナLANのどこにおいても結構です。
+   <img width="512" height="512" alt="Gemini_Generated_Image25" src="https://github.com/user-attachments/assets/1d0e5119-5cf7-4326-8211-567215ac210e" />
+
+2.**PostgreSQLのインストール**
+
   [PostgreSQLダウンロードサイト](https://www.postgresql.jp/download) からサーバーOSにあったものをダウンロードしてインストールしてください。
   - PostgresSQLのデータ置き場はできればDドライブ等にしたほうが管理がしやすいです。
     ![スクリーンショット 2025-11-25 223058](https://github.com/user-attachments/assets/53f5fb74-69a2-4118-b9bb-95224294d803)
@@ -54,36 +91,13 @@
       ![スクリーンショット 2025-11-25 225912](https://github.com/user-attachments/assets/fa68f8fe-8cba-4deb-bbe4-76abfcfbb8df)
 
 
-    
-- **Ollama (Local LLMランタイム)**
-  - Ollamaが利用できる環境では、**病名病態等の推論機能**が利用できます
-  - 病名の推論では、`gemma3:12b`、`gpt-oss:20b` あたりが安定した出力でした。これらのモデルを動かすには、16GB以上のVRAMを積んだNvidia製GPUが必要です。当方では、**CPU Intel Corei9-9900、メモリ32GB、GeForce RTX5080 16GB/ Ubuntu24.04の環境**で安定動作を確認しました。
-  - Windows、Macでも動作するようですので、[ダウンロードサイト](https://ollama.com/download/windows) からインストールしてください。
-  - OllamaもLAN内のPCからアクセスできるよう設定が必要です。
-    
-- **ダイナミクス**  
-  ダイナミクスが本ソフトの必須環境です。v1の時と同じく、**薬剤・健診情報取得は、ダイナミクスクライアントが動作していないPCで行う**のが望ましいです。どうしてもダイナミクスクライアントが動いているPCで取得を行うときは、`設定②`の`ダイナミクスの場所`に**datadyna.mdbではなく、クライアントダイナミクス**を指定してください。
-- **RSBase**  
-  RSBaseがあればRSBaseの薬剤情報詳細を表示できます
+3. **OQSDrugのインストール**
 
-### 実行環境
-- .NET 4.8Frameworkが必要です。最近のWindows10以上ではデフォルトでインストールされていますが、起動できない場合、以下のリンクから **.NET Framework 4.8 ランタイム** をダウンロードしてください：  
-[公式ダウンロードページ](https://dotnet.microsoft.com/ja-jp/download/dotnet-framework/net48)
- 
-- **Accessデータベースエンジン**  
-  実行PCにAccessデータベースエンジンが必要です。
-  - **Access 32bit版** のインストール
-  - または **Access ランタイム 32bit版** のインストール
-   ( [公式ダウンロードページ](https://www.microsoft.com/ja-jp/download/details.aspx?id=50040) )
-    で導入されます。
-
----
-
-## 設置方法
-
-1. [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases)から**OQSDrug2_v2.xx.xx.xx.exe(インストーラになってます) をダウンロード**
-2. 実行するとインストールが始まります。
-3. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
+    [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases)から**OQSDrug2_v2.xx.xx.xx.exe(インストーラになってます) をダウンロード**
+   
+    これを実行するとインストールが始まります。
+   
+4. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
    
 ---
 
