@@ -891,7 +891,7 @@ namespace OQSDrug
                         }
 
                         // TopMost状態を設定
-                        formSGML_DI.TopMost = Properties.Settings.Default.ViewerTopmost;
+                        formSGML_DI.TopMost = this.TopMost;
 
                         // Form3が閉じるときに位置、サイズ、TopMost状態を保存
                         formSGML_DI.FormClosing += (s, args) =>

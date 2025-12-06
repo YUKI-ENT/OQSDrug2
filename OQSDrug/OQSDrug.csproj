@@ -213,12 +213,6 @@
     <Compile Include="FormSR.Designer.cs">
       <DependentUpon>FormSR.cs</DependentUpon>
     </Compile>
-    <Compile Include="FormSummary.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="FormSummary.Designer.cs">
-      <DependentUpon>FormSummary.cs</DependentUpon>
-    </Compile>
     <Compile Include="FormTKK.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -264,9 +258,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="FormSR.resx">
       <DependentUpon>FormSR.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="FormSummary.resx">
-      <DependentUpon>FormSummary.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormTKK.resx">
       <DependentUpon>FormTKK.cs</DependentUpon>

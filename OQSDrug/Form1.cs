@@ -86,8 +86,7 @@ namespace OQSDrug
         public FormTKK formTKKInstance = null;
         public FormDI formDIInstance = null;
         public FormSR formSRInstance = null;
-        public FormSummary formSummaryInstance = null;
-
+        
         // アイコンの配列を用意 (例: 3つのアイコン)
         private System.Windows.Forms.Timer animationTimer;
         private int currentFrame;
@@ -3430,76 +3429,7 @@ namespace OQSDrug
                 }
             }
         }
-
-        public async Task OpenSummary(long ptId, bool messagePopup = false, bool alwaysShow = false)
-        {
-            if (alwaysShow || await existHistory(ptId, "drug_history"))
-            {
-                tempId = ptId;
-                // UIスレッドで操作
-                Invoke((Action)(() =>
-                {
-                    // すでに開いているか確認
-                    if (formSummaryInstance == null || formSummaryInstance.IsDisposed)
-                    {
-                        formSummaryInstance = new FormSummary(this);
-
-                        // 前回の位置とサイズを復元
-                        if (Properties.Settings.Default.SummaryBounds != Rectangle.Empty)
-                        {
-                            formSummaryInstance.StartPosition = FormStartPosition.Manual;
-                            formSummaryInstance.Bounds = Properties.Settings.Default.SummaryBounds;
-
-                            // マージンと境界線を設定
-                            formSummaryInstance.Padding = new Padding(0);
-                            formSummaryInstance.Margin = new Padding(0);
-                            //form3Instance.FormBorderStyle = FormBorderStyle.None;
-                        }
-
-                        // TopMost状態を設定
-                        formSummaryInstance.TopMost = Properties.Settings.Default.ViewerTopmost;
-
-                        // Form3が閉じるときに位置、サイズ、TopMost状態を保存
-                        formSummaryInstance.FormClosing += (s, args) =>
-                        {
-                            SaveViewerSettings(formSummaryInstance, "SummaryBounds");
-                        };
-
-                        formSummaryInstance.Show(this);
-                    }
-                    else
-                    {
-                        // Formが開いている場合、LoadDataIntoComboBoxes()を実行
-                        Task.Run(async () =>
-                            await formSummaryInstance.LoadDataIntoComboBoxes()
-                        );
-                        // すでに開いている場合はアクティブにする
-                        formSummaryInstance.Activate();
-
-                    }
-                }));
-                AddLogAsync($"{ptId}のAIサマリーを開きます");
-            }
-            else
-            {
-                //なしの場合はViewerを閉じる
-                if (formSummaryInstance != null && !formSummaryInstance.IsDisposed)
-                {
-                    // UI スレッドで操作する必要があるため Invoke を使用
-                    formSummaryInstance.Invoke((Action)(() =>
-                    {
-                        formSummaryInstance.Close(); // 閉じる
-                        formSummaryInstance = null;
-                    }));
-                    AddLogAsync($"{ptId}は薬剤情報履歴がないのでサマリービュワーを閉じます");
-                }
-                if (messagePopup)
-                {
-                    MessageBox.Show($"{ptId}の薬剤情報履歴はありません");
-                }
-            }
-        }
-
+                
         private async Task<bool> existHistory(long PtIDmain, string tableName)
         {
             try
@@ -4463,24 +4393,6 @@ namespace OQSDrug
         private void toolStripButtonLog_Click(object sender, EventArgs e)
         {
             Process.Start(new ProcessStartInfo(LogFile) { UseShellExecute = true });
-        }
-
-        private async void toolStripButtonSummary_Click(object sender, EventArgs e)
-        {
-            string strPtIDmain = null;
-
-            toolStripVersion.Invoke(new Action(() =>
-                strPtIDmain = toolStripTextBoxPtIDmain.Text
-            ));
-
-            if (long.TryParse(strPtIDmain, out long idValue))
-            {
-                // 数値に変換できた場合
-                tempId = idValue;
-                //forceIdLink = true;
-            }
-
-            await OpenSummary(tempId, true, true);
         }
 
         private void toolStripTextBoxPtIDmain_KeyDown(object sender, KeyEventArgs e)

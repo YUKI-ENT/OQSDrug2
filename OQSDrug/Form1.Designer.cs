@@ -62,7 +62,6 @@
             this.toolStripButtonSinryo = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparatorDebug2 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripButtonPMDA = new System.Windows.Forms.ToolStripButton();
-            this.toolStripButtonSummary = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparatorDebug1 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripComboBoxDBProviders = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripComboBoxConnectionMode = new System.Windows.Forms.ToolStripComboBox();
@@ -314,7 +313,6 @@
             this.toolStripButtonSinryo,
             this.toolStripSeparatorDebug2,
             this.toolStripButtonPMDA,
-            this.toolStripButtonSummary,
             this.toolStripSeparatorDebug1,
             this.toolStripComboBoxDBProviders,
             this.toolStripComboBoxConnectionMode,
@@ -455,16 +453,6 @@
             this.toolStripButtonPMDA.Size = new System.Drawing.Size(104, 24);
             this.toolStripButtonPMDA.Text = "PMDA薬情";
             this.toolStripButtonPMDA.Click += new System.EventHandler(this.toolStripButtonPMDA_Click);
-            // 
-            // toolStripButtonSummary
-            // 
-            this.toolStripButtonSummary.Image = global::OQSDrug.Properties.Resources.ai32;
-            this.toolStripButtonSummary.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.toolStripButtonSummary.Name = "toolStripButtonSummary";
-            this.toolStripButtonSummary.Size = new System.Drawing.Size(88, 26);
-            this.toolStripButtonSummary.Text = "AIサマリ";
-            this.toolStripButtonSummary.Visible = false;
-            this.toolStripButtonSummary.Click += new System.EventHandler(this.toolStripButtonSummary_Click);
             // 
             // toolStripSeparatorDebug1
             // 
@@ -670,7 +658,6 @@
         private System.Windows.Forms.ToolStripButton toolStripButtonLog;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.ToolStripComboBox toolStripComboBoxConnectionMode;
-        private System.Windows.Forms.ToolStripButton toolStripButtonSummary;
         private System.Windows.Forms.Button buttonMDB;
         private System.Windows.Forms.Button buttonPG;
         private System.Windows.Forms.Button buttonDynamics;

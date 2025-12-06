@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormDI));
             this.webBrowser1 = new System.Windows.Forms.WebBrowser();
             this.dataGridViewFixed = new System.Windows.Forms.DataGridView();
@@ -53,10 +53,11 @@
             this.comboBoxLLMtemplates = new System.Windows.Forms.ComboBox();
             this.buttonDiseaseRemakePrompt = new System.Windows.Forms.Button();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.buttonCopySummary = new System.Windows.Forms.Button();
             this.labelStatus = new System.Windows.Forms.Label();
             this.comboBoxAIresults = new System.Windows.Forms.ComboBox();
-            this.buttonCopySummary = new System.Windows.Forms.Button();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.panel1 = new System.Windows.Forms.Panel();
             this.toolStrip1 = new OQSDrug.ClickThroughToolStrip();
             this.toolStripComboBoxPt = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -91,6 +92,7 @@
             this.tableLayoutPanel1.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
+            this.panel1.SuspendLayout();
             this.toolStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -100,7 +102,7 @@
             this.webBrowser1.Location = new System.Drawing.Point(0, 0);
             this.webBrowser1.MinimumSize = new System.Drawing.Size(20, 20);
             this.webBrowser1.Name = "webBrowser1";
-            this.webBrowser1.Size = new System.Drawing.Size(1223, 470);
+            this.webBrowser1.Size = new System.Drawing.Size(1258, 470);
             this.webBrowser1.TabIndex = 2;
             // 
             // dataGridViewFixed
@@ -128,7 +130,7 @@
             this.dataGridViewDH.Name = "dataGridViewDH";
             this.dataGridViewDH.RowTemplate.Height = 21;
             this.dataGridViewDH.ScrollBars = System.Windows.Forms.ScrollBars.None;
-            this.dataGridViewDH.Size = new System.Drawing.Size(743, 390);
+            this.dataGridViewDH.Size = new System.Drawing.Size(778, 390);
             this.dataGridViewDH.TabIndex = 5;
             // 
             // tabControl1
@@ -141,7 +143,7 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 27);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(1223, 443);
+            this.tabControl1.Size = new System.Drawing.Size(1258, 443);
             this.tabControl1.TabIndex = 6;
             // 
             // tabPage1
@@ -151,7 +153,7 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 26);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(1215, 413);
+            this.tabPage1.Size = new System.Drawing.Size(1250, 413);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "処方歴";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -176,7 +178,7 @@
             this.splitContainer1.Panel2.Controls.Add(this.dataGridViewDH);
             this.splitContainer1.Panel2.Controls.Add(this.hScrollBar1);
             this.splitContainer1.Panel2.Controls.Add(this.vScrollBar1);
-            this.splitContainer1.Size = new System.Drawing.Size(1209, 407);
+            this.splitContainer1.Size = new System.Drawing.Size(1244, 407);
             this.splitContainer1.SplitterDistance = 448;
             this.splitContainer1.SplitterWidth = 1;
             this.splitContainer1.TabIndex = 6;
@@ -194,13 +196,13 @@
             this.hScrollBar1.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.hScrollBar1.Location = new System.Drawing.Point(0, 390);
             this.hScrollBar1.Name = "hScrollBar1";
-            this.hScrollBar1.Size = new System.Drawing.Size(743, 17);
+            this.hScrollBar1.Size = new System.Drawing.Size(778, 17);
             this.hScrollBar1.TabIndex = 7;
             // 
             // vScrollBar1
             // 
             this.vScrollBar1.Dock = System.Windows.Forms.DockStyle.Right;
-            this.vScrollBar1.Location = new System.Drawing.Point(743, 0);
+            this.vScrollBar1.Location = new System.Drawing.Point(778, 0);
             this.vScrollBar1.Name = "vScrollBar1";
             this.vScrollBar1.Size = new System.Drawing.Size(17, 407);
             this.vScrollBar1.TabIndex = 6;
@@ -211,7 +213,7 @@
             this.tabPageInteraction.Location = new System.Drawing.Point(4, 26);
             this.tabPageInteraction.Name = "tabPageInteraction";
             this.tabPageInteraction.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageInteraction.Size = new System.Drawing.Size(1215, 413);
+            this.tabPageInteraction.Size = new System.Drawing.Size(1250, 413);
             this.tabPageInteraction.TabIndex = 1;
             this.tabPageInteraction.Text = "相互作用";
             this.tabPageInteraction.UseVisualStyleBackColor = true;
@@ -221,14 +223,14 @@
             this.dataGridViewInteraction.AllowUserToAddRows = false;
             this.dataGridViewInteraction.AllowUserToDeleteRows = false;
             this.dataGridViewInteraction.AllowUserToResizeRows = false;
-            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridViewInteraction.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridViewInteraction.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             this.dataGridViewInteraction.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             this.dataGridViewInteraction.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dataGridViewInteraction.Location = new System.Drawing.Point(3, 3);
@@ -239,7 +241,7 @@
             this.dataGridViewInteraction.RowHeadersWidthSizeMode = System.Windows.Forms.DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             this.dataGridViewInteraction.RowTemplate.Height = 21;
             this.dataGridViewInteraction.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridViewInteraction.Size = new System.Drawing.Size(1209, 407);
+            this.dataGridViewInteraction.Size = new System.Drawing.Size(1244, 407);
             this.dataGridViewInteraction.TabIndex = 0;
             this.dataGridViewInteraction.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewInteraction_CellDoubleClick);
             this.dataGridViewInteraction.CellMouseDown += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.dataGridViewInteraction_CellMouseDown);
@@ -250,7 +252,7 @@
             this.tabPageAIDisease.Controls.Add(this.tableLayoutPanel1);
             this.tabPageAIDisease.Location = new System.Drawing.Point(4, 26);
             this.tabPageAIDisease.Name = "tabPageAIDisease";
-            this.tabPageAIDisease.Size = new System.Drawing.Size(1215, 413);
+            this.tabPageAIDisease.Size = new System.Drawing.Size(1250, 413);
             this.tabPageAIDisease.TabIndex = 3;
             this.tabPageAIDisease.Text = "(AI)病態背景";
             this.tabPageAIDisease.UseVisualStyleBackColor = true;
@@ -272,7 +274,7 @@
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 83F));
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(1215, 413);
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(1250, 413);
             this.tableLayoutPanel1.TabIndex = 8;
             // 
             // textBoxDiseaseResponse
@@ -282,7 +284,7 @@
             this.textBoxDiseaseResponse.Multiline = true;
             this.textBoxDiseaseResponse.Name = "textBoxDiseaseResponse";
             this.textBoxDiseaseResponse.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBoxDiseaseResponse.Size = new System.Drawing.Size(903, 318);
+            this.textBoxDiseaseResponse.Size = new System.Drawing.Size(938, 318);
             this.textBoxDiseaseResponse.TabIndex = 1;
             // 
             // textBoxDiseasePrompt
@@ -323,9 +325,9 @@
             // buttonPromptTpl
             // 
             this.buttonPromptTpl.Image = global::OQSDrug.Properties.Resources.Modify;
-            this.buttonPromptTpl.Location = new System.Drawing.Point(3, 49);
+            this.buttonPromptTpl.Location = new System.Drawing.Point(3, 47);
             this.buttonPromptTpl.Name = "buttonPromptTpl";
-            this.buttonPromptTpl.Size = new System.Drawing.Size(28, 23);
+            this.buttonPromptTpl.Size = new System.Drawing.Size(27, 27);
             this.buttonPromptTpl.TabIndex = 9;
             this.toolTip1.SetToolTip(this.buttonPromptTpl, "プロンプトテンプレートの編集");
             this.buttonPromptTpl.UseVisualStyleBackColor = true;
@@ -357,9 +359,9 @@
             // buttonDiseaseRemakePrompt
             // 
             this.buttonDiseaseRemakePrompt.Image = global::OQSDrug.Properties.Resources.Refresh;
-            this.buttonDiseaseRemakePrompt.Location = new System.Drawing.Point(37, 49);
+            this.buttonDiseaseRemakePrompt.Location = new System.Drawing.Point(36, 47);
             this.buttonDiseaseRemakePrompt.Name = "buttonDiseaseRemakePrompt";
-            this.buttonDiseaseRemakePrompt.Size = new System.Drawing.Size(33, 25);
+            this.buttonDiseaseRemakePrompt.Size = new System.Drawing.Size(27, 27);
             this.buttonDiseaseRemakePrompt.TabIndex = 7;
             this.toolTip1.SetToolTip(this.buttonDiseaseRemakePrompt, "プロンプト作成");
             this.buttonDiseaseRemakePrompt.UseVisualStyleBackColor = true;
@@ -367,52 +369,61 @@
             // 
             // groupBox2
             // 
-            this.groupBox2.Controls.Add(this.buttonCopySummary);
-            this.groupBox2.Controls.Add(this.labelStatus);
+            this.groupBox2.Controls.Add(this.panel1);
             this.groupBox2.Controls.Add(this.comboBoxAIresults);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox2.Location = new System.Drawing.Point(306, 6);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(903, 77);
+            this.groupBox2.Size = new System.Drawing.Size(938, 77);
             this.groupBox2.TabIndex = 11;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "AI回答";
             // 
-            // labelStatus
-            // 
-            this.labelStatus.AutoSize = true;
-            this.labelStatus.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.labelStatus.Location = new System.Drawing.Point(6, 53);
-            this.labelStatus.Name = "labelStatus";
-            this.labelStatus.Size = new System.Drawing.Size(53, 15);
-            this.labelStatus.TabIndex = 4;
-            this.labelStatus.Text = "(Ready)";
-            // 
-            // comboBoxAIresults
-            // 
-            this.comboBoxAIresults.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.comboBoxAIresults.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBoxAIresults.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.comboBoxAIresults.FormattingEnabled = true;
-            this.comboBoxAIresults.Location = new System.Drawing.Point(6, 20);
-            this.comboBoxAIresults.Name = "comboBoxAIresults";
-            this.comboBoxAIresults.Size = new System.Drawing.Size(891, 23);
-            this.comboBoxAIresults.TabIndex = 5;
-            this.comboBoxAIresults.SelectedIndexChanged += new System.EventHandler(this.comboBoxAIresults_SelectedIndexChanged);
-            // 
             // buttonCopySummary
             // 
-            this.buttonCopySummary.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+            this.buttonCopySummary.Dock = System.Windows.Forms.DockStyle.Right;
             this.buttonCopySummary.Image = global::OQSDrug.Properties.Resources.Copy;
-            this.buttonCopySummary.Location = new System.Drawing.Point(864, 48);
+            this.buttonCopySummary.Location = new System.Drawing.Point(905, 0);
             this.buttonCopySummary.Name = "buttonCopySummary";
-            this.buttonCopySummary.Size = new System.Drawing.Size(33, 25);
+            this.buttonCopySummary.Size = new System.Drawing.Size(27, 27);
             this.buttonCopySummary.TabIndex = 8;
             this.toolTip1.SetToolTip(this.buttonCopySummary, "AI回答をクリップボードにコピー");
             this.buttonCopySummary.UseVisualStyleBackColor = true;
             this.buttonCopySummary.Click += new System.EventHandler(this.buttonCopySummary_Click);
+            // 
+            // labelStatus
+            // 
+            this.labelStatus.AutoEllipsis = true;
+            this.labelStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.labelStatus.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.labelStatus.Location = new System.Drawing.Point(0, 0);
+            this.labelStatus.Name = "labelStatus";
+            this.labelStatus.Size = new System.Drawing.Size(905, 27);
+            this.labelStatus.TabIndex = 4;
+            this.labelStatus.Text = "(Ready)";
+            this.labelStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // comboBoxAIresults
+            // 
+            this.comboBoxAIresults.Dock = System.Windows.Forms.DockStyle.Top;
+            this.comboBoxAIresults.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxAIresults.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.comboBoxAIresults.FormattingEnabled = true;
+            this.comboBoxAIresults.Location = new System.Drawing.Point(3, 20);
+            this.comboBoxAIresults.Name = "comboBoxAIresults";
+            this.comboBoxAIresults.Size = new System.Drawing.Size(932, 23);
+            this.comboBoxAIresults.TabIndex = 5;
+            this.comboBoxAIresults.SelectedIndexChanged += new System.EventHandler(this.comboBoxAIresults_SelectedIndexChanged);
+            // 
+            // panel1
+            // 
+            this.panel1.Controls.Add(this.labelStatus);
+            this.panel1.Controls.Add(this.buttonCopySummary);
+            this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panel1.Location = new System.Drawing.Point(3, 47);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(932, 27);
+            this.panel1.TabIndex = 9;
             // 
             // toolStrip1
             // 
@@ -439,7 +450,7 @@
             this.toolStripButtonSGMLDI});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(1223, 27);
+            this.toolStrip1.Size = new System.Drawing.Size(1258, 27);
             this.toolStrip1.TabIndex = 3;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -630,7 +641,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1223, 470);
+            this.ClientSize = new System.Drawing.Size(1258, 470);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.toolStrip1);
             this.Controls.Add(this.webBrowser1);
@@ -655,7 +666,7 @@
             this.tableLayoutPanel1.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
+            this.panel1.ResumeLayout(false);
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             this.ResumeLayout(false);
@@ -711,5 +722,6 @@
         private System.Windows.Forms.ToolStripButton toolStripButtonSGMLDI;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.Button buttonCopySummary;
+        private System.Windows.Forms.Panel panel1;
     }
 }
