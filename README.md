@@ -27,9 +27,13 @@
 ![スクリーンショット 2025-11-25 234411](https://github.com/user-attachments/assets/a1bcc6d3-1914-4806-ae53-895b4d817eb0)
 
 <<AI推論表示画面>>
+- プロンプト内容は自由に編集できます。こちらは投薬内容から疾患を推測させています。
 ![DI3](https://github.com/user-attachments/assets/a66d916c-3d1b-4d73-943d-30db991f9952)
 
- 
+ <<添付文書表示画面>>
+ - PMDAから取得したSGML(XML)ファイルをタブ形式で表示しています。**文書内検索、薬剤相互作用のリスト表示、ダイナミクスKorodataに含まれる禁忌リスト**も表示可能です。
+ ![y2](https://github.com/user-attachments/assets/8b5f7011-eaa3-4546-aa83-40ae7fe0d3c3)
+
 
 ---
 
@@ -160,12 +164,24 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
 
     ![DI22](https://github.com/user-attachments/assets/c83ecddf-64d8-4c0d-9b3d-5336f5b6bcd5)
 
-    こんな感じの薬剤情報が表示できます。
+    こんな感じの薬剤情報が表示できます。項目ごとにタブにしてあります。
 
-    ![DI23](https://github.com/user-attachments/assets/29d3b88d-42d4-44f1-8cfc-bae95d8cbfb8)
+    ![y2](https://github.com/user-attachments/assets/a3322a55-37bd-4049-885e-5a12ecf4d29a)
 
-    詳細は[こちら](https://github.com/YUKI-ENT/OQSDrug2/releases/tag/v2.25.9.3)。
+    ① 検索したい薬剤名を入れると、ファジー検索します。
+    
+    ② 文書内検索もできます。項目タブをまたいで全文検索できます。
+ 
+      ![y3 ](https://github.com/user-attachments/assets/ff5a1a6a-772c-4dd4-974f-520ee72da0f9)
 
+ 
+    ③ 相互作用薬のリスト表示はこちらでも可能です。
+ 
+      ![y4](https://github.com/user-attachments/assets/4f4b73f7-e780-42f0-b8df-39632e03bd45)
+ 
+      `禁忌リスト（厚労）` は、ダイナミクスのKOROdataに含まれる禁忌リストデータです。
+ 
+      ![y5](https://github.com/user-attachments/assets/bfe362ff-c204-4891-8e48-c2bb541fc6f1)
 
 
 - **AI推論表示**
