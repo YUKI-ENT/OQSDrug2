@@ -329,7 +329,7 @@ namespace OQSDrug
                                     "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                     return;
 
-                using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(true))
+                using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(false))
                 {
                     await conn.OpenAsync();
                     const string sql = "DELETE FROM public.ai_prompt_tpl WHERE id = @id;";

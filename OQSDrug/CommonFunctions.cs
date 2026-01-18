@@ -2062,7 +2062,7 @@ namespace OQSDrug
 
             try
             {
-                using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(true))
+                using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(false))
                 {
                     // 明示タイムアウト付きで接続
                     using (var cts = new CancellationTokenSource(openTimeoutMs))
@@ -2372,13 +2372,77 @@ namespace OQSDrug
                 CREATE INDEX IF NOT EXISTS idx_ai_prompt_tpl_name ON public.ai_prompt_tpl (tpl_name);
             ";
 
-            using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(true))
+            // 事前：テーブルが存在しているか＆識別子(relfilenode)を取得（存在しないならNULL）
+            const string preCheckSql = @"
+                SELECT c.relfilenode
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relname = 'ai_prompt_tpl'
+                LIMIT 1;
+            ";
+
+            // 事後：存在確認
+            const string existsSql = @"SELECT to_regclass('public.ai_prompt_tpl') IS NOT NULL;";
+
+            try
             {
-                await conn.OpenAsync();
-                using (var cmd = new NpgsqlCommand(sql, conn))
+                using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(false)) // ★ ReadOnly=false
                 {
-                    await cmd.ExecuteNonQueryAsync();
+                    await conn.OpenAsync();
+
+                    long? beforeRelFileNode = null;
+                    using (var cmdPre = new NpgsqlCommand(preCheckSql, conn))
+                    {
+                        var o = await cmdPre.ExecuteScalarAsync();
+                        if (o != null && o != DBNull.Value) beforeRelFileNode = Convert.ToInt64(o);
+                    }
+
+                    using (var cmd = new NpgsqlCommand(sql, conn))
+                    {
+                        cmd.CommandTimeout = 30;
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+
+                    bool exists;
+                    using (var cmdExists = new NpgsqlCommand(existsSql, conn))
+                    {
+                        var o = await cmdExists.ExecuteScalarAsync();
+                        exists = (o != null && o != DBNull.Value) && Convert.ToBoolean(o);
+                    }
+
+                    if (!exists)
+                    {
+                        await AddLogAsync("[EnsurePromptTplTableAsync] public.ai_prompt_tpl が作成されていません（exists=false）。権限/接続先/トランザクション(read-only)等を確認してください。");
+                        return;
+                    }
+
+                    // 作成前後で relfilenode を比較して「新規作成っぽい/既存」を判定
+                    long? afterRelFileNode = null;
+                    using (var cmdPost = new NpgsqlCommand(preCheckSql, conn))
+                    {
+                        var o = await cmdPost.ExecuteScalarAsync();
+                        if (o != null && o != DBNull.Value) afterRelFileNode = Convert.ToInt64(o);
+                    }
+
+                    string createdMsg;
+                    if (beforeRelFileNode == null && afterRelFileNode != null)
+                    {
+                        createdMsg = "新規作成しました";
+                    }
+                    else
+                    {
+                        createdMsg = "既に存在していました（必要なら更新のみ）";
+                    }
+
+                    await AddLogAsync($"[EnsurePromptTplTableAsync] public.ai_prompt_tpl の存在確認OK。{createdMsg}。relfilenode(before={beforeRelFileNode?.ToString() ?? "null"}, after={afterRelFileNode?.ToString() ?? "null"})");
                 }
+            }
+            catch (Exception ex)
+            {
+                // ここは MessageBox よりログ優先（起動時はUIがうるさくなるので）
+                await AddLogAsync($"[EnsurePromptTplTableAsync] 失敗: {ex}");
+                // 必要なら従来通り UI に出す
+                // MessageBox.Show($"EnsurePromptTplTableAsync でエラー: {ex.Message}");
             }
         }
 
@@ -2387,6 +2451,9 @@ namespace OQSDrug
         /// </summary>
         public static async Task<long?> InsertSampleTemplateIfEmptyAsync()
         {
+            // ここで必ず存在保証（DDLなので ReadOnly=false で動く Ensure にしておく）
+            await EnsurePromptTplTableAsync();
+
             const string countSql = @"SELECT COUNT(*) FROM public.ai_prompt_tpl;";
             const string insertSql = @"
                 INSERT INTO public.ai_prompt_tpl
@@ -2397,18 +2464,18 @@ namespace OQSDrug
 
             // サンプルの初期プロンプト
             string samplePrompt =
-        @"以下のJSONを基に患者の病態を1段落で要約してください。
+                    @"以下のJSONを基に患者の病態を1段落で要約してください。
 
-【要件】
-- 出力は日本語の文章のみ（JSON/箇条書きは禁止）。
-- 慢性：慢性疾患（chronic高 or rank_labelが継続）は薬効ごとにまとめて疾患名を類推し、「◯◯などの薬剤を処方されており、◯◯病(病名)で継続治療中と思われる」と出力。
-- 中断：慢性疾患でかつ（days_since_last>=60）は「◯はxx日以上中断している」。
-- 急性（acute高 or days_since_last<=30）は「◯が臨時処方」
-- 急性で14日以内に投薬があるときはあり→◯が◯日前に投与されており重複に注意」。
-- 疾患名は短縮（例：狭心症/心筋梗塞→虚血性心疾患、胃潰瘍/十二指腸潰瘍→消化性潰瘍）。
-- 疾患は最大2件、根拠薬は代表1–2剤のみ。1段落3–5文以内。
+            【要件】
+            - 出力は日本語の文章のみ（JSON/箇条書きは禁止）。
+            - 慢性：慢性疾患（chronic高 or rank_labelが継続）は薬効ごとにまとめて疾患名を類推し、「◯◯などの薬剤を処方されており、◯◯病(病名)で継続治療中と思われる」と出力。
+            - 中断：慢性疾患でかつ（days_since_last>=60）は「◯はxx日以上中断している」。
+            - 急性（acute高 or days_since_last<=30）は「◯が臨時処方」
+            - 急性で14日以内に投薬があるときはあり→◯が◯日前に投与されており重複に注意」。
+            - 疾患名は短縮（例：狭心症/心筋梗塞→虚血性心疾患、胃潰瘍/十二指腸潰瘍→消化性潰瘍）。
+            - 疾患は最大2件、根拠薬は代表1–2剤のみ。1段落3–5文以内。
 
-【入力】";
+            【入力】";
 
             string tplName = "病名病態推論データ付";
             string modelName = Properties.Settings.Default.LLMmodel ?? "";
@@ -2429,7 +2496,7 @@ namespace OQSDrug
 
             try
             {
-                using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(true))
+                using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(false))
                 {
                     await conn.OpenAsync();
 

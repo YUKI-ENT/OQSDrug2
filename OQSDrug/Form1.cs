@@ -1019,7 +1019,7 @@ namespace OQSDrug
             {
                 // EnsureAiResultsTableAsync は既存そのまま呼ぶ（接続を渡さない）
                 await TryRunAsync(() => EnsureAiResultsTableAsync(), 8000, "EnsureAiResultsTableAsync");
-                await TryRunAsync(() => EnsurePromptTplTableAsync(), 8000, "EnsurePromptTplTableAsync");
+                //await TryRunAsync(() => EnsurePromptTplTableAsync(), 8000, "EnsurePromptTplTableAsync");
                 await TryRunAsync(() => InsertSampleTemplateIfEmptyAsync(), 8000, "InsertSampleTemplateIfEmptyAsync");
             }
 
@@ -2908,7 +2908,7 @@ namespace OQSDrug
         {
             try
             {
-                using (IDbConnection connection = CommonFunctions.GetDbConnection())
+                using (IDbConnection connection = CommonFunctions.GetDbConnection(false))
                 {
                     await ((DbConnection)connection).OpenAsync();
 
@@ -3588,7 +3588,7 @@ namespace OQSDrug
         {
             try
             {
-                using (IDbConnection connection = CommonFunctions.GetDbConnection())
+                using (IDbConnection connection = CommonFunctions.GetDbConnection(false))
                 {
                     await ((DbConnection)connection).OpenAsync();
 
@@ -4527,7 +4527,7 @@ namespace OQSDrug
                     await AddLogAsync($"KOROdata 更新日: {koroVersion:yyyy-MM-dd HH:mm:ss}");
 
                     // === 2) ターゲットDBオープン＆テーブル準備 ===
-                    using (var conn = CommonFunctions.GetDbConnection())
+                    using (var conn = CommonFunctions.GetDbConnection(false))
                     {
                         await OpenAsync(conn);
                         await EnsureTablesAsync(conn); // なければ作成（Accessは失敗しても無視）
