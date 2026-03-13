@@ -529,7 +529,13 @@ namespace OQSDrug
                         // UI反映はスレッドセーフに
                         void UpdateUi()
                         {
-                            toolStripTextBoxTitle.Text = _currentDrugName ?? string.Empty;
+                            // 表示名にデータ更新日を付加する（yyyy-MM-dd）
+                            var title = string.IsNullOrWhiteSpace(_currentDrugName) ? "(薬剤名未設定)" : _currentDrugName;
+                            if (updatedAt.HasValue)
+                            {
+                                title += "  [更新: " + updatedAt.Value.ToString("yyyy-MM-dd") + "]";
+                            }
+                            toolStripTextBoxTitle.Text = title;
                         }
                         if (InvokeRequired) BeginInvoke((Action)UpdateUi); else UpdateUi();
 

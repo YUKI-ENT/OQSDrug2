@@ -57,9 +57,21 @@ namespace OQSDrug
 
             //PDFはやめる
             Properties.Settings.Default.DrugFileCategory = 4;
-            Properties.Settings.Default.YZspan = 24;
+            // YZspan: 初期値は既定で設定ファイル側に持たせる。ここではUIに選択肢を用意する。
             Properties.Settings.Default.KensinFileCategory = 0;
             Properties.Settings.Default.Save();
+
+            // YZspan 選択肢（12,24,36,48,60）を用意
+            comboBoxYZspan.Items.AddRange(new object[] { 12, 24, 36, 48, 60 });
+            int savedYZ = Properties.Settings.Default.YZspan;
+            if (comboBoxYZspan.Items.Contains(savedYZ))
+            {
+                comboBoxYZspan.SelectedItem = savedYZ;
+            }
+            else
+            {
+                comboBoxYZspan.SelectedItem = 24; // デフォルト
+            }
             
 
             textBoxTemprs.Text = Properties.Settings.Default.temprs;
@@ -233,6 +245,12 @@ namespace OQSDrug
             //Properties.Settings.Default.DynaTable = comboBoxDynaTable.SelectedItem.ToString();
 
             Properties.Settings.Default.ViewerSpan = Convert.ToInt16(comboBoxViewSpan.SelectedItem.ToString());
+
+            // 薬剤取得期間
+            if (comboBoxYZspan.SelectedItem != null)
+            {
+                Properties.Settings.Default.YZspan = Convert.ToInt16(comboBoxYZspan.SelectedItem.ToString());
+            }
 
             Properties.Settings.Default.OmitMyOrg = checkBoxOmitMyOrg.Checked;
 

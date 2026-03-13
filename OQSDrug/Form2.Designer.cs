@@ -87,11 +87,13 @@
             this.label18 = new System.Windows.Forms.Label();
             this.comboBoxViewSpan = new System.Windows.Forms.ComboBox();
             this.label19 = new System.Windows.Forms.Label();
-            this.checkBoxOmitMyOrg = new System.Windows.Forms.CheckBox();
             this.label3 = new System.Windows.Forms.Label();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPageMain = new System.Windows.Forms.TabPage();
             this.tabPageViewer = new System.Windows.Forms.TabPage();
+            this.checkBoxOmitMyOrg = new System.Windows.Forms.CheckBox();
+            this.labelYZspan = new System.Windows.Forms.Label();
+            this.comboBoxYZspan = new System.Windows.Forms.ComboBox();
             this.groupBox1.SuspendLayout();
             this.groupBoxDI.SuspendLayout();
             this.tabControl1.SuspendLayout();
@@ -667,16 +669,6 @@
             this.label19.TabIndex = 67;
             this.label19.Text = "(全期間は0)";
             // 
-            // checkBoxOmitMyOrg
-            // 
-            this.checkBoxOmitMyOrg.AutoSize = true;
-            this.checkBoxOmitMyOrg.Location = new System.Drawing.Point(20, 95);
-            this.checkBoxOmitMyOrg.Name = "checkBoxOmitMyOrg";
-            this.checkBoxOmitMyOrg.Size = new System.Drawing.Size(100, 16);
-            this.checkBoxOmitMyOrg.TabIndex = 69;
-            this.checkBoxOmitMyOrg.Text = "⑭ 自施設除外";
-            this.checkBoxOmitMyOrg.UseVisualStyleBackColor = true;
-            // 
             // label3
             // 
             this.label3.AutoSize = true;
@@ -698,6 +690,8 @@
             // 
             // tabPageMain
             // 
+            this.tabPageMain.Controls.Add(this.labelYZspan);
+            this.tabPageMain.Controls.Add(this.comboBoxYZspan);
             this.tabPageMain.Controls.Add(this.groupBox1);
             this.tabPageMain.Controls.Add(this.label3);
             this.tabPageMain.Controls.Add(this.textBoxDatadyna);
@@ -743,6 +737,33 @@
             this.tabPageViewer.TabIndex = 1;
             this.tabPageViewer.Text = "Viewer設定";
             this.tabPageViewer.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxOmitMyOrg
+            // 
+            this.checkBoxOmitMyOrg.AutoSize = true;
+            this.checkBoxOmitMyOrg.Location = new System.Drawing.Point(20, 95);
+            this.checkBoxOmitMyOrg.Name = "checkBoxOmitMyOrg";
+            this.checkBoxOmitMyOrg.Size = new System.Drawing.Size(100, 16);
+            this.checkBoxOmitMyOrg.TabIndex = 69;
+            this.checkBoxOmitMyOrg.Text = "⑭ 自施設除外";
+            this.checkBoxOmitMyOrg.UseVisualStyleBackColor = true;
+            // 
+            // labelYZspan
+            // 
+            this.labelYZspan.AutoSize = true;
+            this.labelYZspan.Location = new System.Drawing.Point(341, 271);
+            this.labelYZspan.Name = "labelYZspan";
+            this.labelYZspan.Size = new System.Drawing.Size(97, 12);
+            this.labelYZspan.TabIndex = 87;
+            this.labelYZspan.Text = "薬剤取得期間(月)";
+            // 
+            // comboBoxYZspan
+            // 
+            this.comboBoxYZspan.FormattingEnabled = true;
+            this.comboBoxYZspan.Location = new System.Drawing.Point(457, 268);
+            this.comboBoxYZspan.Name = "comboBoxYZspan";
+            this.comboBoxYZspan.Size = new System.Drawing.Size(65, 20);
+            this.comboBoxYZspan.TabIndex = 88;
             // 
             // Form2
             // 
@@ -802,7 +823,6 @@
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.ComboBox comboBoxViewSpan;
         private System.Windows.Forms.Label label19;
-        private System.Windows.Forms.CheckBox checkBoxOmitMyOrg;
         private System.Windows.Forms.CheckBox checkBoxAutoStart;
         private System.Windows.Forms.CheckBox checkBoxRSBreloadXml;
         private System.Windows.Forms.TextBox textBoxRSBxmlURL;
@@ -835,5 +855,8 @@
         private System.Windows.Forms.GroupBox groupBoxDI;
         private System.Windows.Forms.RadioButton radioButtonSGML;
         private System.Windows.Forms.RadioButton radioButtonRSB;
+        private System.Windows.Forms.Label labelYZspan;
+        private System.Windows.Forms.ComboBox comboBoxYZspan;
+        private System.Windows.Forms.CheckBox checkBoxOmitMyOrg;
     }
 }

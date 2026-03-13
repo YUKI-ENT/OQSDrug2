@@ -554,18 +554,23 @@ namespace OQSDrug
                         buttonImportSGML.Text = "インポート中";
                         buttonImportSGML.Enabled = false;
                         
-                        bool ok = await RunPgRestoreAsync(
+                        (bool ok, bool hadWarning) = await RunPgRestoreAsync(
                             backupPath: backupPath,
                             host: host, port: port, user: user, database: db, password: password,
-                            cancel: cts.Token).ConfigureAwait(true); 
+                            cancel: cts.Token).ConfigureAwait(true);
 
-                        string result = ok ? "[Restore] 完了" : "[Restore] 失敗"; 
+                        string result;
+                        if (ok && hadWarning)
+                            result = "[Restore] 完了（警告: 一部警告が出ていますが、データはインポートされました）";
+                        else
+                            result = ok ? "[Restore] 完了" : "[Restore] 失敗";
+
                         AddLog(result);
 
                         buttonImportSGML.Text = orgCaption;
                         buttonImportSGML.Enabled = true;
 
-                        MessageBox.Show(result);    
+                        MessageBox.Show(result);
 
                     }
                 }
@@ -578,7 +583,7 @@ namespace OQSDrug
         }
 
         // ▼ 実体：pg_restore を起動して出力をログへ反映
-        private async Task<bool> RunPgRestoreAsync(
+        private async Task<(bool ok, bool hadWarning)> RunPgRestoreAsync(
             string backupPath,
             string host, int port, string user, string database, string password,
             CancellationToken cancel,
@@ -596,12 +601,12 @@ namespace OQSDrug
                 if (!File.Exists(pgRestorePath))
                 {
                     AddLog($"[Restore] pg_restore が見つかりません: {pgRestorePath}");
-                    return false;
+                    return (false, false);
                 }
                 if (!File.Exists(backupPath))
                 {
                     AddLog($"[Restore] バックアップが見つかりません: {backupPath}");
-                    return false;
+                    return (false, false);
                 }
 
                 var sb = new StringBuilder();
@@ -635,17 +640,36 @@ namespace OQSDrug
                     psi.EnvironmentVariables["PGPASSWORD"] = password;
 
                 AddLog($"[Restore] 実行: {psi.FileName} {psi.Arguments}");
-                return await RunProcessWithLogsAsync(psi, cancel);
+
+                var (exitCode, output) = await RunProcessWithLogsCaptureAsync(psi, cancel).ConfigureAwait(false);
+
+                // exitCode == 0 : success
+                if (exitCode == 0)
+                {
+                    AddLog("[Restore] 終了コード: 0 (OK)");
+                    return (true, false);
+                }
+
+                // 非ゼロだが出力に ERROR/FATAL が含まれない場合は警告として扱う
+                var up = (output ?? "").ToUpperInvariant();
+                if (!up.Contains("ERROR") && !up.Contains("FATAL"))
+                {
+                    AddLog($"[Restore] 終了コード: {exitCode} (警告扱い)");
+                    return (true, true);
+                }
+
+                AddLog($"[Restore] 終了コード: {exitCode} (エラー)");
+                return (false, false);
             }
             catch (OperationCanceledException)
             {
                 AddLog("[Restore] キャンセルされました");
-                return false;
+                return (false, false);
             }
             catch (Exception ex)
             {
                 AddLog($"[Restore] 例外: {ex.GetType().Name} / {ex.Message}");
-                return false;
+                return (false, false);
             }
         }
 
@@ -668,6 +692,29 @@ namespace OQSDrug
                     int exit = await tcsExit.Task;
                     AddLog($"[Restore] 終了コード: {exit}");
                     return exit == 0;
+                }
+            }
+        }
+
+        // プロセス出力をキャプチャして終了コードと出力文字列を返す。呼び出し側でログ化する。
+        private async Task<(int exitCode, string output)> RunProcessWithLogsCaptureAsync(ProcessStartInfo psi, CancellationToken cancel)
+        {
+            using (var proc = new Process { StartInfo = psi, EnableRaisingEvents = true })
+            {
+                var tcsExit = new TaskCompletionSource<int>();
+                var sb = new StringBuilder();
+                proc.OutputDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) { sb.AppendLine(e.Data); AddLog(e.Data); } };
+                proc.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) { sb.AppendLine(e.Data); AddLog(e.Data); } };
+                proc.Exited += (_, __) => { try { tcsExit.TrySetResult(proc.ExitCode); } catch { } };
+
+                if (!proc.Start()) { AddLog("[Restore] プロセス起動に失敗"); return (-1, string.Empty); }
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+
+                using (cancel.Register(() => { try { if (!proc.HasExited) proc.Kill(); } catch { } }))
+                {
+                    int exit = await tcsExit.Task;
+                    return (exit, sb.ToString());
                 }
             }
         }

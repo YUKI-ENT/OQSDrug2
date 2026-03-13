@@ -35,9 +35,6 @@
     <Setting Name="YZinterval" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">1</Value>
     </Setting>
-    <Setting Name="YZspan" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">6</Value>
-    </Setting>
     <Setting Name="KSinterval" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">6</Value>
     </Setting>
@@ -157,6 +154,9 @@
     </Setting>
     <Setting Name="AutoPGDump" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="YZspan" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">6</Value>
     </Setting>
   </Settings>
 </SettingsFile>
