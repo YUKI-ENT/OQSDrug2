@@ -5,6 +5,7 @@ using NpgsqlTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Configuration;
 using System.Data;
 using System.Data.Common;
@@ -64,10 +65,24 @@ namespace OQSDrug
         private System.Threading.Timer backgroundTimer; //非同期タイマー
 
         private FileSystemWatcher fileWatcher;
+        private FileSystemWatcher resWatcher;
         string idFile = ""; //RSB連携
         int idStyle = 0;
         bool idChageCalled = false;
         int fileReadDelayms = 500;
+        // res folder watcher debounce and processing
+        private int resFileDelayms = 1000;
+        private bool resEventScheduled = false;
+        private readonly object resEventLock = new object();
+        private System.Threading.SemaphoreSlim resProcessingSemaphore = new System.Threading.SemaphoreSlim(1, 1);
+
+        // Plan B: lightweight queue + background consumer (non-invasive)
+        private ConcurrentQueue<string> resQueue = new ConcurrentQueue<string>();
+        private AutoResetEvent resQueueSignal = new AutoResetEvent(false);
+        private CancellationTokenSource resConsumerCts = new CancellationTokenSource();
+        private Task resConsumerTask = null;
+        // Plan C: bounded concurrency for LLM auto-queries
+        private System.Threading.SemaphoreSlim llmSemaphore = new System.Threading.SemaphoreSlim(1, 1); // 1 concurrent by default
 
         // PGDump
         private System.Threading.Timer _dumpTimer;
@@ -100,8 +115,102 @@ namespace OQSDrug
             CommonFunctions.UiSync = SynchronizationContext.Current; // WindowsFormsSynchronizationContext
             // UIログ表示のコールバック登録
             CommonFunctions.UiLogCallback = AddLogAsyncToUi;
-                        
+
+            // Initialize res-folder watcher helpers (Plan A preparatory fields)
+            this.resEventLock = new object();
+            this.resProcessingSemaphore = new System.Threading.SemaphoreSlim(1, 1);
+            this.resFileDelayms = 2000; // debounce delay (ms)
+
             //InitializeTimer();
+        }
+
+        // Background consumer loop for resQueue (Plan B)
+        private async Task ResQueueConsumerLoop(CancellationToken ct)
+        {
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    // Wait for signal or timeout
+                    resQueueSignal.WaitOne(5000);
+
+                    if (ct.IsCancellationRequested) break;
+
+                    // If processing is not running (StartStop unchecked), skip processing here
+                    if (!isOQSRunnnig)
+                    {
+                        // do not process while stopped; leave queue intact so items will be processed when started
+                        continue;
+                    }
+
+                    // Drain queue items (coalesce to single ProcessResAsync call to keep behavior similar)
+                    if (!resQueue.IsEmpty)
+                    {
+                        // Attempt to process; ProcessResAsync already handles DB locking and per-file logic
+                        try
+                        {
+                            await resProcessingSemaphore.WaitAsync(ct);
+                            try
+                            {
+                                await ProcessResAsync();
+                            }
+                            finally
+                            {
+                                resProcessingSemaphore.Release();
+                            }
+                        }
+                        catch (OperationCanceledException) { break; }
+                        catch (Exception ex)
+                        {
+                            AddLogAsync($"ResQueueConsumerLoopで処理中に例外: {ex.Message}");
+                        }
+                        finally
+                        {
+                            // clear queue best-effort
+                            while (resQueue.TryDequeue(out _)) { }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                AddLogAsync("ResQueueConsumerLoopを終了します");
+            }
+        }
+
+        // Plan C: enqueue AutoLLM operations with a simple bounded concurrency helper
+        private void QueueAutoLLM(long ptId)
+        {
+            // Run in background to avoid blocking UI thread
+            Task.Run(async () =>
+            {
+                // Take a semaphore slot bounded to prevent many parallel AutoLLM runs
+                if (!await llmSemaphore.WaitAsync(0))
+                {
+                    // If semaphore not available, skip scheduling to avoid overload (non-invasive)
+                    AddLogAsync("AutoLLMの同時実行上限に達したためスキップしました");
+                    return;
+                }
+
+                try
+                {
+                    await CommonFunctions.AutoLLMAsync(
+                        ptId: ptId,
+                        timeoutMsOverride: Properties.Settings.Default.LLMtimeout * 1000,
+                        minDaysBetween: 1,
+                        ct: CancellationToken.None);
+
+                    await AddLogAsync("LLM自動問い合わせを終了します");
+                }
+                catch (Exception ex)
+                {
+                    AddLogAsync($"AutoLLMでエラー: {ex.Message}");
+                }
+                finally
+                {
+                    llmSemaphore.Release();
+                }
+            });
         }
 
         private async Task RunTimerLogicAsync()
@@ -185,8 +294,20 @@ namespace OQSDrug
 
                         if (!isTimerRunning || !isOQSRunnnig) break;
 
-                        processCompleted = await ProcessResAsync();
-                        if (processCompleted) AddLogAsync("すべてのresファイルを処理しました");
+                        // Try to drain lightweight queue first (Plan B). If consumer is running, avoid duplicate full scans.
+                        bool drained = false;
+                        if (resQueueSignal != null && resConsumerTask != null && !resConsumerTask.IsCompleted)
+                        {
+                            // signal consumer to wake (it will call ProcessResAsync on items)
+                            resQueueSignal.Set();
+                            drained = true;
+                        }
+
+                        if (!drained)
+                        {
+                            processCompleted = await ProcessResAsync();
+                            if (processCompleted) AddLogAsync("すべてのresファイルを処理しました");
+                        }
 
                         isRemainRes = await RemainResTask();
 
@@ -1769,15 +1890,18 @@ namespace OQSDrug
                                                         messageContent = await ProcessDrugInfoAsync2(PtID, xmlDoc);
 
                                                         //LLM自動問い合わせ
-                                                        if (Properties.Settings.Default.DBtype == "pg" &&  messageContent.StartsWith("成功：") && Properties.Settings.Default.AIauto)
+                                                    if (Properties.Settings.Default.DBtype == "pg" &&  messageContent.StartsWith("成功：") && Properties.Settings.Default.AIauto)
+                                                    {
+                                                        // Schedule AutoLLM with bounded concurrency (Plan C)
+                                                        try
                                                         {
-                                                            await CommonFunctions.AutoLLMAsync(
-                                                                ptId: PtID / 10,
-                                                                timeoutMsOverride: Properties.Settings.Default.LLMtimeout * 1000,
-                                                                minDaysBetween: 1,                       // 直近1日以内に同タイトルがあれば再取得しない
-                                                                ct: CancellationToken.None);
-                                                            await AddLogAsync("LLM自動問い合わせを終了します");
+                                                            QueueAutoLLM(PtID / 10);
                                                         }
+                                                        catch (Exception ex)
+                                                        {
+                                                            AddLogAsync($"LLMスケジュールに失敗しました: {ex.Message}");
+                                                        }
+                                                    }
                                                     }
                                                     else if (resFileName.StartsWith("TKK"))
                                                     {
@@ -1879,22 +2003,25 @@ namespace OQSDrug
                             }
                         }
 
-                        if (Properties.Settings.Default.RSBReload && RSBreloadFlag)
+                        if (isOQSRunnnig)
                         {
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            if (Properties.Settings.Default.RSBReload && RSBreloadFlag)
                             {
-                                FileName = Properties.Settings.Default.RSBUrl,
-                                UseShellExecute = true
-                            });
-                        }
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                                {
+                                    FileName = Properties.Settings.Default.RSBUrl,
+                                    UseShellExecute = true
+                                });
+                            }
 
-                        if (RSBXMLreloadFlag)
-                        {
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            if (RSBXMLreloadFlag)
                             {
-                                FileName = Properties.Settings.Default.RSBXmlURL,
-                                UseShellExecute = true
-                            });
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                                {
+                                    FileName = Properties.Settings.Default.RSBXmlURL,
+                                    UseShellExecute = true
+                                });
+                            }
                         }
                     }
                 }
@@ -3000,9 +3127,12 @@ namespace OQSDrug
                     }
                 }
                 
-            } else
+            }
+            else
             {
                 stopFileWatcher();
+                // also stop res watcher/consumer when auto RSBase is turned off
+                try { StopResWatcher(); } catch { }
             }
         }
 
@@ -3014,6 +3144,39 @@ namespace OQSDrug
                 fileWatcher.Dispose();
             }
             AddLogAsync("RSB連携を終了しました");
+        }
+
+        private void StopResWatcher()
+        {
+            if (resWatcher != null)
+            {
+                try
+                {
+                    resWatcher.EnableRaisingEvents = false;
+                    resWatcher.Created -= ResWatcher_Changed;
+                    resWatcher.Changed -= ResWatcher_Changed;
+                    resWatcher.Dispose();
+                }
+                catch { }
+                resWatcher = null;
+            }
+            // stop consumer
+            try
+            {
+                if (resConsumerCts != null && !resConsumerCts.IsCancellationRequested)
+                {
+                    resConsumerCts.Cancel();
+                    resQueueSignal.Set();
+                    if (resConsumerTask != null)
+                    {
+                        resConsumerTask.Wait(2000);
+                        resConsumerTask = null;
+                    }
+                    resConsumerCts.Dispose();
+                    resConsumerCts = null;
+                }
+            }
+            catch { }
         }
 
         private void InitializeFileWatcher()
@@ -3096,6 +3259,45 @@ namespace OQSDrug
             {
                 AddLogAsync($"FileWatcherの初期化に失敗しました{ex.ToString()}");
             }
+
+            // Also initialize a minimal watcher for the `res` folder (Plan A)
+            try
+            {
+                string resFolder = Path.Combine(Properties.Settings.Default.OQSFolder, "res");
+                if (!Directory.Exists(resFolder)) Directory.CreateDirectory(resFolder);
+
+                resWatcher = new FileSystemWatcher
+                {
+                    Path = resFolder,
+                    Filter = "*.xml",
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                    EnableRaisingEvents = true
+                };
+
+                resWatcher.Created += ResWatcher_Changed;
+                resWatcher.Changed += ResWatcher_Changed;
+
+                AddLogAsync("resフォルダ監視を開始しました(PlanA)");
+            }
+            catch (Exception ex)
+            {
+                AddLogAsync($"resフォルダ監視の初期化に失敗しました: {ex.Message}");
+            }
+
+            // Start lightweight background consumer (Plan B) if not started
+            try
+            {
+                if (resConsumerTask == null || resConsumerTask.IsCompleted)
+                {
+                    resConsumerCts = new CancellationTokenSource();
+                    resConsumerTask = Task.Run(() => ResQueueConsumerLoop(resConsumerCts.Token));
+                    AddLogAsync("resフォルダバックグラウンドコンシューマを起動しました(PlanB)");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLogAsync($"resコンシューマ起動失敗: {ex.Message}");
+            }
         }
 
         // ファイルが変更されたときに呼ばれるイベントハンドラ
@@ -3116,6 +3318,54 @@ namespace OQSDrug
                 }
                 idChageCalled = false;
             }
+        }
+
+        // Minimal debounced handler for res folder events (Plan A)
+        private void ResWatcher_Changed(object sender, FileSystemEventArgs e)
+        {
+            // schedule a delayed processing to allow file to be written completely
+            lock (resEventLock)
+            {
+                if (resEventScheduled) return;
+                resEventScheduled = true;
+            }
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(resFileDelayms);
+
+                    // Try to enter semaphore briefly to avoid overlapping processing
+                    if (await resProcessingSemaphore.WaitAsync(0))
+                    {
+                        try
+                        {
+                            // Only enqueue when processing is running (StartStop checked)
+                            if (isOQSRunnnig)
+                            {
+                                try { resQueue.Enqueue(e.FullPath); } catch { }
+                                resQueueSignal.Set();
+                            }
+                        }
+                        finally
+                        {
+                            resProcessingSemaphore.Release();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLogAsync($"ResWatcher_Changed例外: {ex.Message}");
+                }
+                finally
+                {
+                    lock (resEventLock)
+                    {
+                        resEventScheduled = false;
+                    }
+                }
+            });
         }
 
         private async Task ReadIdAsync(string filePath, int style)
@@ -3773,6 +4023,13 @@ namespace OQSDrug
             //timer?.Stop();
             //timer?.Dispose();
             backgroundTimer?.Dispose();
+
+            // Stop and dispose res watcher if initialized
+            try
+            {
+                StopResWatcher();
+            }
+            catch { }
 
             notifyIcon1?.Dispose();
             animationTimer?.Stop();
