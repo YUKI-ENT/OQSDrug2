@@ -47,6 +47,14 @@
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.label1 = new System.Windows.Forms.Label();
+            this.buttonMDB = new System.Windows.Forms.Button();
+            this.buttonPG = new System.Windows.Forms.Button();
+            this.buttonDynamics = new System.Windows.Forms.Button();
+            this.buttonOQSFolder = new System.Windows.Forms.Button();
+            this.pictureBoxDB = new System.Windows.Forms.PictureBox();
+            this.pictureBoxDynamics = new System.Windows.Forms.PictureBox();
+            this.pictureBoxOQSFolder = new System.Windows.Forms.PictureBox();
+            this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.toolStripVersion = new OQSDrug.ClickThroughToolStrip();
             this.toolStripLabel1 = new System.Windows.Forms.ToolStripLabel();
             this.toolStripTextBoxPtIDmain = new System.Windows.Forms.ToolStripTextBox();
@@ -63,25 +71,18 @@
             this.toolStripSeparatorDebug2 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripButtonPMDA = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparatorDebug1 = new System.Windows.Forms.ToolStripSeparator();
+            this.toolStripButtonDynaViewer1 = new System.Windows.Forms.ToolStripButton();
             this.toolStripComboBoxDBProviders = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripComboBoxConnectionMode = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripTextBoxDebug = new System.Windows.Forms.ToolStripTextBox();
             this.toolStripButtonDebug = new System.Windows.Forms.ToolStripButton();
-            this.buttonMDB = new System.Windows.Forms.Button();
-            this.buttonPG = new System.Windows.Forms.Button();
-            this.buttonDynamics = new System.Windows.Forms.Button();
-            this.buttonOQSFolder = new System.Windows.Forms.Button();
-            this.pictureBoxDB = new System.Windows.Forms.PictureBox();
-            this.pictureBoxDynamics = new System.Windows.Forms.PictureBox();
-            this.pictureBoxOQSFolder = new System.Windows.Forms.PictureBox();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.groupBox1.SuspendLayout();
-            this.toolStripVersion.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxDB)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxDynamics)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOQSFolder)).BeginInit();
             this.groupBox2.SuspendLayout();
+            this.toolStripVersion.SuspendLayout();
             this.SuspendLayout();
             // 
             // dataGridView1
@@ -295,6 +296,96 @@
             this.label1.TabIndex = 31;
             this.label1.Text = "取込結果";
             // 
+            // buttonMDB
+            // 
+            this.buttonMDB.Enabled = false;
+            this.buttonMDB.Location = new System.Drawing.Point(8, 65);
+            this.buttonMDB.Margin = new System.Windows.Forms.Padding(0);
+            this.buttonMDB.Name = "buttonMDB";
+            this.buttonMDB.Size = new System.Drawing.Size(137, 23);
+            this.buttonMDB.TabIndex = 32;
+            this.buttonMDB.Text = "OQSDrug_data.mdb";
+            this.buttonMDB.UseVisualStyleBackColor = true;
+            // 
+            // buttonPG
+            // 
+            this.buttonPG.Enabled = false;
+            this.buttonPG.Location = new System.Drawing.Point(148, 65);
+            this.buttonPG.Margin = new System.Windows.Forms.Padding(0);
+            this.buttonPG.Name = "buttonPG";
+            this.buttonPG.Size = new System.Drawing.Size(140, 23);
+            this.buttonPG.TabIndex = 33;
+            this.buttonPG.Text = "PostgreSQL";
+            this.buttonPG.UseVisualStyleBackColor = true;
+            // 
+            // buttonDynamics
+            // 
+            this.buttonDynamics.Enabled = false;
+            this.buttonDynamics.Location = new System.Drawing.Point(7, 95);
+            this.buttonDynamics.Name = "buttonDynamics";
+            this.buttonDynamics.Size = new System.Drawing.Size(281, 23);
+            this.buttonDynamics.TabIndex = 34;
+            this.buttonDynamics.Text = "ダイナミクス";
+            this.buttonDynamics.UseVisualStyleBackColor = true;
+            // 
+            // buttonOQSFolder
+            // 
+            this.buttonOQSFolder.Enabled = false;
+            this.buttonOQSFolder.Location = new System.Drawing.Point(7, 124);
+            this.buttonOQSFolder.Name = "buttonOQSFolder";
+            this.buttonOQSFolder.Size = new System.Drawing.Size(281, 23);
+            this.buttonOQSFolder.TabIndex = 35;
+            this.buttonOQSFolder.Text = "OQSFolder";
+            this.buttonOQSFolder.UseVisualStyleBackColor = true;
+            // 
+            // pictureBoxDB
+            // 
+            this.pictureBoxDB.Image = global::OQSDrug.Properties.Resources.Hourglass;
+            this.pictureBoxDB.Location = new System.Drawing.Point(294, 67);
+            this.pictureBoxDB.Name = "pictureBoxDB";
+            this.pictureBoxDB.Size = new System.Drawing.Size(22, 22);
+            this.pictureBoxDB.TabIndex = 36;
+            this.pictureBoxDB.TabStop = false;
+            // 
+            // pictureBoxDynamics
+            // 
+            this.pictureBoxDynamics.Image = global::OQSDrug.Properties.Resources.Hourglass;
+            this.pictureBoxDynamics.Location = new System.Drawing.Point(294, 96);
+            this.pictureBoxDynamics.Name = "pictureBoxDynamics";
+            this.pictureBoxDynamics.Size = new System.Drawing.Size(22, 22);
+            this.pictureBoxDynamics.TabIndex = 37;
+            this.pictureBoxDynamics.TabStop = false;
+            // 
+            // pictureBoxOQSFolder
+            // 
+            this.pictureBoxOQSFolder.Image = global::OQSDrug.Properties.Resources.Hourglass;
+            this.pictureBoxOQSFolder.Location = new System.Drawing.Point(294, 125);
+            this.pictureBoxOQSFolder.Name = "pictureBoxOQSFolder";
+            this.pictureBoxOQSFolder.Size = new System.Drawing.Size(22, 22);
+            this.pictureBoxOQSFolder.TabIndex = 38;
+            this.pictureBoxOQSFolder.TabStop = false;
+            // 
+            // groupBox2
+            // 
+            this.groupBox2.Controls.Add(this.buttonPG);
+            this.groupBox2.Controls.Add(this.pictureBoxOQSFolder);
+            this.groupBox2.Controls.Add(this.buttonYZ);
+            this.groupBox2.Controls.Add(this.pictureBoxDynamics);
+            this.groupBox2.Controls.Add(this.buttonSR);
+            this.groupBox2.Controls.Add(this.pictureBoxDB);
+            this.groupBox2.Controls.Add(this.buttonYZXML);
+            this.groupBox2.Controls.Add(this.buttonOQSFolder);
+            this.groupBox2.Controls.Add(this.buttonKS);
+            this.groupBox2.Controls.Add(this.buttonDynamics);
+            this.groupBox2.Controls.Add(this.buttonKSXML);
+            this.groupBox2.Controls.Add(this.buttonMDB);
+            this.groupBox2.Location = new System.Drawing.Point(13, 81);
+            this.groupBox2.Name = "groupBox2";
+            this.groupBox2.Size = new System.Drawing.Size(362, 153);
+            this.groupBox2.TabIndex = 39;
+            this.groupBox2.TabStop = false;
+            this.groupBox2.Text = "Status";
+            // 
             // toolStripVersion
             // 
             this.toolStripVersion.Font = new System.Drawing.Font("游ゴシック", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
@@ -314,6 +405,7 @@
             this.toolStripSeparatorDebug2,
             this.toolStripButtonPMDA,
             this.toolStripSeparatorDebug1,
+            this.toolStripButtonDynaViewer1,
             this.toolStripComboBoxDBProviders,
             this.toolStripComboBoxConnectionMode,
             this.toolStripTextBoxDebug,
@@ -321,7 +413,7 @@
             this.toolStripVersion.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.HorizontalStackWithOverflow;
             this.toolStripVersion.Location = new System.Drawing.Point(0, 0);
             this.toolStripVersion.Name = "toolStripVersion";
-            this.toolStripVersion.Size = new System.Drawing.Size(973, 27);
+            this.toolStripVersion.Size = new System.Drawing.Size(973, 29);
             this.toolStripVersion.Stretch = true;
             this.toolStripVersion.TabIndex = 3;
             this.toolStripVersion.Text = "toolStrip1";
@@ -457,14 +549,24 @@
             // toolStripSeparatorDebug1
             // 
             this.toolStripSeparatorDebug1.Name = "toolStripSeparatorDebug1";
-            this.toolStripSeparatorDebug1.Size = new System.Drawing.Size(6, 27);
+            this.toolStripSeparatorDebug1.Size = new System.Drawing.Size(6, 29);
             this.toolStripSeparatorDebug1.Visible = false;
+            // 
+            // toolStripButtonDynaViewer1
+            // 
+            this.toolStripButtonDynaViewer1.Image = global::OQSDrug.Properties.Resources.Person;
+            this.toolStripButtonDynaViewer1.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButtonDynaViewer1.Name = "toolStripButtonDynaViewer1";
+            this.toolStripButtonDynaViewer1.Size = new System.Drawing.Size(119, 24);
+            this.toolStripButtonDynaViewer1.Text = "資格確認一覧";
+            this.toolStripButtonDynaViewer1.ToolTipText = "保存した資格確認データを表示します";
+            this.toolStripButtonDynaViewer1.Click += new System.EventHandler(this.toolStripButtonDynaViewer_Click);
             // 
             // toolStripComboBoxDBProviders
             // 
             this.toolStripComboBoxDBProviders.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.toolStripComboBoxDBProviders.Name = "toolStripComboBoxDBProviders";
-            this.toolStripComboBoxDBProviders.Size = new System.Drawing.Size(180, 27);
+            this.toolStripComboBoxDBProviders.Size = new System.Drawing.Size(180, 29);
             this.toolStripComboBoxDBProviders.ToolTipText = "OleDbプロバイダを設定します";
             this.toolStripComboBoxDBProviders.Visible = false;
             this.toolStripComboBoxDBProviders.SelectedIndexChanged += new System.EventHandler(this.toolStripComboBoxDBProviders_SelectedIndexChanged);
@@ -498,96 +600,6 @@
             this.toolStripButtonDebug.Visible = false;
             this.toolStripButtonDebug.Click += new System.EventHandler(this.toolStripButtonDebug_Click);
             // 
-            // buttonMDB
-            // 
-            this.buttonMDB.Enabled = false;
-            this.buttonMDB.Location = new System.Drawing.Point(8, 65);
-            this.buttonMDB.Margin = new System.Windows.Forms.Padding(0);
-            this.buttonMDB.Name = "buttonMDB";
-            this.buttonMDB.Size = new System.Drawing.Size(137, 23);
-            this.buttonMDB.TabIndex = 32;
-            this.buttonMDB.Text = "OQSDrug_data.mdb";
-            this.buttonMDB.UseVisualStyleBackColor = true;
-            // 
-            // buttonPG
-            // 
-            this.buttonPG.Enabled = false;
-            this.buttonPG.Location = new System.Drawing.Point(148, 65);
-            this.buttonPG.Margin = new System.Windows.Forms.Padding(0);
-            this.buttonPG.Name = "buttonPG";
-            this.buttonPG.Size = new System.Drawing.Size(140, 23);
-            this.buttonPG.TabIndex = 33;
-            this.buttonPG.Text = "PostgreSQL";
-            this.buttonPG.UseVisualStyleBackColor = true;
-            // 
-            // buttonDynamics
-            // 
-            this.buttonDynamics.Enabled = false;
-            this.buttonDynamics.Location = new System.Drawing.Point(7, 95);
-            this.buttonDynamics.Name = "buttonDynamics";
-            this.buttonDynamics.Size = new System.Drawing.Size(281, 23);
-            this.buttonDynamics.TabIndex = 34;
-            this.buttonDynamics.Text = "ダイナミクス";
-            this.buttonDynamics.UseVisualStyleBackColor = true;
-            // 
-            // buttonOQSFolder
-            // 
-            this.buttonOQSFolder.Enabled = false;
-            this.buttonOQSFolder.Location = new System.Drawing.Point(7, 124);
-            this.buttonOQSFolder.Name = "buttonOQSFolder";
-            this.buttonOQSFolder.Size = new System.Drawing.Size(281, 23);
-            this.buttonOQSFolder.TabIndex = 35;
-            this.buttonOQSFolder.Text = "OQSFolder";
-            this.buttonOQSFolder.UseVisualStyleBackColor = true;
-            // 
-            // pictureBoxDB
-            // 
-            this.pictureBoxDB.Image = global::OQSDrug.Properties.Resources.Hourglass;
-            this.pictureBoxDB.Location = new System.Drawing.Point(294, 67);
-            this.pictureBoxDB.Name = "pictureBoxDB";
-            this.pictureBoxDB.Size = new System.Drawing.Size(22, 22);
-            this.pictureBoxDB.TabIndex = 36;
-            this.pictureBoxDB.TabStop = false;
-            // 
-            // pictureBoxDynamics
-            // 
-            this.pictureBoxDynamics.Image = global::OQSDrug.Properties.Resources.Hourglass;
-            this.pictureBoxDynamics.Location = new System.Drawing.Point(294, 96);
-            this.pictureBoxDynamics.Name = "pictureBoxDynamics";
-            this.pictureBoxDynamics.Size = new System.Drawing.Size(22, 22);
-            this.pictureBoxDynamics.TabIndex = 37;
-            this.pictureBoxDynamics.TabStop = false;
-            // 
-            // pictureBoxOQSFolder
-            // 
-            this.pictureBoxOQSFolder.Image = global::OQSDrug.Properties.Resources.Hourglass;
-            this.pictureBoxOQSFolder.Location = new System.Drawing.Point(294, 125);
-            this.pictureBoxOQSFolder.Name = "pictureBoxOQSFolder";
-            this.pictureBoxOQSFolder.Size = new System.Drawing.Size(22, 22);
-            this.pictureBoxOQSFolder.TabIndex = 38;
-            this.pictureBoxOQSFolder.TabStop = false;
-            // 
-            // groupBox2
-            // 
-            this.groupBox2.Controls.Add(this.buttonPG);
-            this.groupBox2.Controls.Add(this.pictureBoxOQSFolder);
-            this.groupBox2.Controls.Add(this.buttonYZ);
-            this.groupBox2.Controls.Add(this.pictureBoxDynamics);
-            this.groupBox2.Controls.Add(this.buttonSR);
-            this.groupBox2.Controls.Add(this.pictureBoxDB);
-            this.groupBox2.Controls.Add(this.buttonYZXML);
-            this.groupBox2.Controls.Add(this.buttonOQSFolder);
-            this.groupBox2.Controls.Add(this.buttonKS);
-            this.groupBox2.Controls.Add(this.buttonDynamics);
-            this.groupBox2.Controls.Add(this.buttonKSXML);
-            this.groupBox2.Controls.Add(this.buttonMDB);
-            this.groupBox2.Location = new System.Drawing.Point(13, 81);
-            this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(362, 153);
-            this.groupBox2.TabIndex = 39;
-            this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "Status";
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -610,12 +622,12 @@
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
             this.groupBox1.ResumeLayout(false);
-            this.toolStripVersion.ResumeLayout(false);
-            this.toolStripVersion.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxDB)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxDynamics)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOQSFolder)).EndInit();
             this.groupBox2.ResumeLayout(false);
+            this.toolStripVersion.ResumeLayout(false);
+            this.toolStripVersion.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -667,6 +679,7 @@
         private System.Windows.Forms.PictureBox pictureBoxOQSFolder;
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.ToolStripButton toolStripButtonPMDA;
+        private System.Windows.Forms.ToolStripButton toolStripButtonDynaViewer1;
     }
 }
 

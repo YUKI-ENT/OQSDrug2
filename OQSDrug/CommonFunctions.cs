@@ -759,6 +759,75 @@ namespace OQSDrug
         }
 
         /// <summary>
+        /// 限度額適用認定証区分コードを画面表示用の証区分文字列に変換する。
+        /// 入力は文字列("1","2","3")または数値でも受け付ける。null/空/不正値は空文字を返す。
+        /// </summary>
+        public static string ConvertCertificateKindToDisplay(object code)
+        {
+            if (code == null) return string.Empty;
+
+            string s = code.ToString().Trim();
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+
+            // 文字列でも数値でも扱えるようにする
+            if (int.TryParse(s, out int n))
+            {
+                switch (n)
+                {
+                    case 1:
+                        return "限度額適用認定証";
+                    case 2:
+                        return "限度額適用・標準負担額減額認定証";
+                    case 3:
+                        return "標準負担額減額認定証";
+                    default:
+                        return string.Empty;
+                }
+            }
+
+            // 数値でない場合は厳密なマッチがない限り空文字
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// 限度額適用認定証適用区分コードを画面表示用の適用区分文字列に変換する。
+        /// 入力は前後の空白をtrimし大文字化して比較する。null/空/不正値は空文字を返す。
+        /// </summary>
+        public static string ConvertApplicationKindToDisplay(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return string.Empty;
+
+            string k = code.Trim().ToUpperInvariant();
+            if (string.IsNullOrEmpty(k)) return string.Empty;
+
+            switch (k)
+            {
+                // A系
+                case "A01": return "ア";
+                case "A02": return "イ";
+                case "A03": return "ウ";
+                case "A04": return "エ";
+                case "A05": return "オ";
+                case "A06": return "オ（境）";
+
+                // B系
+                case "B01": return "ア:現役並みⅢ";
+                case "B02": return "イ:現役並みⅡ";
+                case "B03": return "ウ:現役並みⅠ";
+                case "B04": return "エ:一般";
+                case "B05": return "オ:低所得Ⅱ";
+                case "B06": return "オ:低所得Ⅰ";
+                case "B07": return "オ:低所得Ⅰ（老福）";
+                case "B08": return "オ:低所得（境）";
+                case "B09": return "カ:一般Ⅱ";
+                case "B10": return "キ:一般Ⅰ";
+
+                default:
+                    return string.Empty;
+            }
+        }
+
+        /// <summary>
         /// 任意のDataTableをクロス集計（Pivot）する汎用関数
         /// </summary>
         /// <param name="source">元のDataTable</param>
@@ -2959,11 +3028,11 @@ namespace OQSDrug
                 "drug_contraindication",
                 "drug_medis_generic"
             };
-            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-            string pgDumpPath = Path.Combine(exeDir, "pgsql", "bin", "pg_dump.exe");
-            if (!File.Exists(pgDumpPath))
+            // サーバーのメジャーバージョンに合わせた実行ファイルを探す
+            string pgDumpPath = await FindPgExecutableAsync("pg_dump.exe", host, port, user, password).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(pgDumpPath) || !File.Exists(pgDumpPath))
             {
-                await AddLogAsync($"[Backup] pg_dump が見つかりません: {pgDumpPath}");
+                await AddLogAsync($"[Backup] pg_dump が見つかりません");
                 return false;
             }
 
@@ -3004,6 +3073,97 @@ namespace OQSDrug
                 await Task.Run(new Action(proc.WaitForExit), cancel);
                 return proc.ExitCode == 0;
             }
+        }
+
+        /// <summary>
+        /// 指定したホストの PostgreSQL サーバーからメジャーバージョンを取得します。失敗時は null を返します。
+        /// </summary>
+        public static async Task<int?> GetPgServerMajorVersionAsync(string host, int port, string user, string password, string database = "postgres", int timeoutSeconds = 5)
+        {
+            try
+            {
+                var csb = new NpgsqlConnectionStringBuilder()
+                {
+                    Host = host,
+                    Port = port,
+                    Username = user,
+                    Password = password,
+                    Database = database,
+                    Timeout = timeoutSeconds
+                };
+
+                using (var conn = new NpgsqlConnection(csb.ConnectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new NpgsqlCommand("SHOW server_version", conn))
+                    {
+                        var obj = await cmd.ExecuteScalarAsync();
+                        if (obj == null) return null;
+                        var ver = obj.ToString();
+                        // 先頭の数字列を取り出す（例: "13.3" -> "13", "10.12" -> "10"）
+                        var m = System.Text.RegularExpressions.Regex.Match(ver ?? "", "^(\\d+)");
+                        if (m.Success && int.TryParse(m.Groups[1].Value, out int major))
+                            return major;
+                        return null;
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// アプリ内の付属 pgsql フォルダ構成（例: pgsql\17\bin\foo.exe, pgsql\bin\foo.exe）を優先して実行ファイルを探します。
+        /// サーバーのメジャーバージョンが取得できればそれに対応するサブフォルダを最優先で試します。
+        /// 見つからなければ null を返します。
+        /// </summary>
+        public static async Task<string> FindPgExecutableAsync(string exeName, string host, int port, string user, string password)
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            int? major = await GetPgServerMajorVersionAsync(host, port, user, password).ConfigureAwait(false);
+
+            // マッピングルール：
+            // - 取得失敗 -> デフォルト 18
+            // - major >= 19 -> use 18
+            // - major <= 16 -> use 17
+            // - otherwise use reported major (17 or 18)
+            int mappedMajor;
+            if (!major.HasValue)
+            {
+                mappedMajor = 18;
+            }
+            else if (major.Value >= 19)
+            {
+                mappedMajor = 18;
+            }
+            else if (major.Value <= 16)
+            {
+                mappedMajor = 17;
+            }
+            else
+            {
+                mappedMajor = major.Value;
+            }
+
+            // まずマッピングしたメジャーバージョンのディレクトリを試す
+            var pMapped = Path.Combine(baseDir, "pgsql", mappedMajor.ToString(), "bin", exeName);
+            if (File.Exists(pMapped)) return pMapped;
+
+            // 次にサブフォルダに実際の major がある場合（安全策）を試す
+            if (major.HasValue)
+            {
+                var pActual = Path.Combine(baseDir, "pgsql", major.Value.ToString(), "bin", exeName);
+                if (File.Exists(pActual)) return pActual;
+            }
+
+            // 従来の既定パス（例: pgsql\bin）を最後に試す
+            var path2 = Path.Combine(baseDir, "pgsql", "bin", exeName);
+            if (File.Exists(path2)) return path2;
+
+            return null;
         }
 
 
@@ -3066,17 +3226,17 @@ namespace OQSDrug
                 (!File.Exists(backupPath) && !Directory.Exists(backupPath)))
                 throw new FileNotFoundException("バックアップファイル/ディレクトリが見つかりません。", backupPath);
 
-            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-            string pgRestorePath = Path.Combine(exeDir, "pgsql", "bin", "pg_restore.exe");
-            if (!File.Exists(pgRestorePath))
+            // 実行ファイルはサーバーのメジャーバージョンに合わせて探索
+            string exe = await FindPgExecutableAsync("pg_restore.exe", Properties.Settings.Default.PGaddress, Properties.Settings.Default.PGport, Properties.Settings.Default.PGuser, password).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
             {
-                await AddLogAsync($"[Restore] pg_restore が見つかりません: {pgRestorePath}");
+                await AddLogAsync($"[Restore] pg_restore が見つかりません");
                 return null;
             }
 
             var psi = new ProcessStartInfo
             {
-                FileName = pgRestorePath,
+                FileName = exe,
                 Arguments = $"-l \"{backupPath}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

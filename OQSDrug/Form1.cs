@@ -124,6 +124,248 @@ namespace OQSDrug
             //InitializeTimer();
         }
 
+        private void toolStripButtonDynaViewer_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var dlg = new FormDynaViewer();
+                dlg.Owner = this;
+                dlg.Show();
+            }
+            catch (Exception ex)
+            {
+                AddLogAsync($"DynaViewer起動エラー: {ex.Message}");
+            }
+        }
+
+        // Save the in-memory dynaTable to PostgreSQL table dyna_sikaku (create and upsert)
+        private async Task SaveDynaTableToPostgresAsync(DataTable dyna)
+        {
+            if (dyna == null || dyna.Rows.Count == 0) return;
+
+            // preserve column order from DataTable
+            var originalCols = dyna.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToList();
+
+            // Canonical set of fields we care about (common fields across environments)
+            var canonicalCols = new[] {
+                "処理実行日時","任意のファイル識別子","処理結果状況","処理結果コード","処理結果メッセージ","資格有効性","被保険者証区分","保険者番号","被保険者証記号","被保険者証番号","被保険者証枝番","本人家族の別","被保険者氏名(世帯主氏名)","氏名","氏名（その他）","氏名カナ","氏名カナ（その他）","性別１","性別２","生年月日","住所","郵便番号","被保険者証交付年月日","被保険者証有効開始年月日","被保険者証有効終了年月日","被保険者証一部負担金割合","未就学区分","資格喪失事由","保険者名称","高齢受給者証交付年月日","高齢受給者証有効開始年月日","高齢受給者証有効終了年月日","高齢受給者証一部負担金割合","限度額認定証情報変更有無","限度額適用認定証提供同意フラグ","限度額適用認定証提供同意日時","限度額適用認定証区分","限度額適用認定証適用区分","限度額適用認定証交付年月日","限度額適用認定証有効開始年月日","限度額適用認定証有効終了年月日","限度額適用認定証長期入院該当年月日","特定疾病療養受療証提供同意フラグ","特定疾病療養受療証提供同意日時","特定疾病療養受療証認定疾病区分","特定疾病療養受療証交付年月日","特定疾病療養受療証有効開始年月日","特定疾病療養受療証有効終了年月日","特定疾病療養受療証自己負担限度額","特定検診情報閲覧同意フラグ","特定検診情報閲覧同意日時","特定検診情報閲覧有効期限","薬剤情報閲覧同意フラグ","薬剤情報閲覧同意日時","薬剤情報閲覧有効期限","任意の識別子（医療機関固有項目）","照会番号","照会区分","処理件数（正常）","処理件数（エラー）","照会番号フラグ","記号","番号","患者マスター保険者番号","枝番","性別コード","カルテ番号","患者マスター照会番号","患者マスター氏名","受付送","生年月日西暦","生年月日和暦","非表示","照会区分表示","診療情報閲覧同意フラグ","診療情報閲覧同意日時","診療情報閲覧有効期限","処方箋発行形態","手術情報閲覧同意フラグ","手術情報閲覧同意日時","手術情報閲覧有効期限","特定健診表示","診療薬剤表示","特定健診ファイル名","診療薬剤ファイル名","資格取得年月日","資格喪失年月日","医療扶助資格確認結果リスト","公費負担者番号１","公費受給者番号１","公費有効開始年月日１","公費有効終了年月日１","公費負担者番号２","公費受給者番号２","公費有効開始年月日２","公費有効終了年月日２","医療扶助資格取得年月日","医療扶助資格喪失年月日","自治体福祉事務所名","カルテ枝番作成コメント"
+            };
+
+            // mapping from original Japanese header to safe column name (preserve canonical order)
+            var colMap = new List<KeyValuePair<string, string>>();
+
+            // Only include canonical fields that are present in this DataTable to ensure compatibility
+            var presentCanonical = canonicalCols.Where(c => originalCols.Contains(c)).ToList();
+
+            // If none of the canonical columns are present, fall back to saving all available columns
+            var finalCols = presentCanonical.Count > 0 ? presentCanonical : originalCols;
+
+            string ToSafeCol(string s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return "col_unnamed";
+                var sb = new System.Text.StringBuilder();
+                foreach (char c in s)
+                {
+                    if (char.IsLetterOrDigit(c)) sb.Append(c);
+                    else if (char.IsWhiteSpace(c) || c == '_') sb.Append('_');
+                }
+                var outS = sb.ToString();
+                if (outS.Length == 0) outS = "col_unnamed";
+                if (!char.IsLetter(outS[0])) outS = "c_" + outS;
+                if (outS.Length > 60) outS = outS.Substring(0, 60);
+                return outS.ToLowerInvariant();
+            }
+
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var oc in finalCols)
+            {
+                var safe = ToSafeCol(oc.Replace("（", "(").Replace("）", ")"));
+                var baseName = safe;
+                int i = 1;
+                while (used.Contains(safe))
+                {
+                    safe = baseName + "_" + i.ToString();
+                    i++;
+                }
+                used.Add(safe);
+                colMap.Add(new KeyValuePair<string, string>(oc, safe));
+            }
+
+            // column type mapping based on user's guidance
+            string GetPgType(string orig)
+            {
+                switch (orig)
+                {
+                    case "特定疾病療養受療証自己負担限度額":
+                        return "bigint"; // long
+                    case "性別コード":
+                        return "smallint"; // byte
+                    case "カルテ番号":
+                        return "bigint";
+                    case "受付送":
+                    case "非表示":
+                        return "boolean"; // Yes/No
+                    case "処理実行日時":
+                        return "timestamp without time zone";
+                    default:
+                        return "text";
+                }
+            }
+
+            bool hasProcessingDt = originalCols.Contains("処理実行日時");
+            bool hasFileId = originalCols.Contains("任意のファイル識別子");
+
+            using (var conn = CommonFunctions.GetDbConnection(false))
+            {
+                await OpenAsync(conn);
+
+                // build create table statement
+                string createSql;
+                if (hasProcessingDt && hasFileId)
+                {
+                    // composite primary key
+                    var colDefs = string.Join(", ", colMap.Select(kv => $"\"{kv.Value}\" {GetPgType(kv.Key)}"));
+                    var pk1 = colMap.First(kv => kv.Key == "処理実行日時").Value;
+                    var pk2 = colMap.First(kv => kv.Key == "任意のファイル識別子").Value;
+                    createSql = $"CREATE TABLE IF NOT EXISTS public.dyna_sikaku ({colDefs}, PRIMARY KEY (\"{pk1}\", \"{pk2}\"))";
+                }
+                else
+                {
+                    // fallback: add surrogate id if keys not present
+                    var colDefs = string.Join(", ", colMap.Select(kv => $"\"{kv.Value}\" {GetPgType(kv.Key)}"));
+                    createSql = $"CREATE TABLE IF NOT EXISTS public.dyna_sikaku (id text primary key, {colDefs})";
+                }
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = createSql;
+                    await ExecuteNonQueryAsync(cmd);
+                }
+
+                // upsert rows
+                foreach (DataRow row in dyna.Rows)
+                {
+                    // prepare parameter values and conversion
+                    var paramNames = new List<string>();
+                    int pi = 0;
+                    foreach (var kv in colMap)
+                    {
+                        paramNames.Add("@p" + pi);
+                        pi++;
+                    }
+
+                    string colsList = string.Join(", ", colMap.Select(kv => $"\"{kv.Value}\""));
+                    string paramsList = string.Join(", ", paramNames);
+
+                    string conflictTarget = null;
+                    if (hasProcessingDt && hasFileId)
+                    {
+                        var pk1 = colMap.First(kv => kv.Key == "処理実行日時").Value;
+                        var pk2 = colMap.First(kv => kv.Key == "任意のファイル識別子").Value;
+                        conflictTarget = $"(\"{pk1}\", \"{pk2}\")";
+                    }
+
+                    string updateList = string.Join(", ", colMap.Select(kv => $"\"{kv.Value}\" = EXCLUDED.\"{kv.Value}\""));
+
+                    string insertSql;
+                    if (conflictTarget != null)
+                    {
+                        insertSql = $"INSERT INTO public.dyna_sikaku ({colsList}) VALUES ({paramsList}) ON CONFLICT {conflictTarget} DO UPDATE SET {updateList}";
+                    }
+                    else
+                    {
+                        // fallback include id
+                        var colsWithId = "id, " + colsList;
+                        var paramsWithId = "@id, " + paramsList;
+                        insertSql = $"INSERT INTO public.dyna_sikaku ({colsWithId}) VALUES ({paramsWithId}) ON CONFLICT (id) DO UPDATE SET {updateList}";
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = insertSql;
+
+                        // add id param if fallback
+                        if (conflictTarget == null)
+                        {
+                            // compute md5 id from concatenation of key columns (or whole row)
+                            var allVals = colMap.Select(kv => (row[kv.Key] == null || row[kv.Key] is DBNull) ? "" : row[kv.Key].ToString()).ToArray();
+                            string concat = string.Join("|", allVals);
+                            string md5;
+                            using (var md5Alg = System.Security.Cryptography.MD5.Create())
+                            {
+                                var b = System.Text.Encoding.UTF8.GetBytes(concat);
+                                md5 = BitConverter.ToString(md5Alg.ComputeHash(b)).Replace("-", "").ToLowerInvariant();
+                            }
+                            CommonFunctions.AddDbParameter(cmd, "@id", md5);
+                        }
+
+                        // add column params with type conversion
+                        for (int i = 0; i < colMap.Count; i++)
+                        {
+                            var orig = colMap[i].Key;
+                            var pname = "@p" + i;
+                            object val = row[orig];
+
+                            if (val == null || val is DBNull)
+                            {
+                                CommonFunctions.AddDbParameter(cmd, pname, DBNull.Value);
+                                continue;
+                            }
+
+                            string pgType = GetPgType(orig);
+                            try
+                            {
+                                if (pgType.StartsWith("timestamp") && val is string sVal)
+                                {
+                                    // expect format like 20260407091022
+                                    if (DateTime.TryParseExact(sVal, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.None, out var dt))
+                                    {
+                                        CommonFunctions.AddDbParameter(cmd, pname, dt);
+                                    }
+                                    else if (DateTime.TryParse(sVal, out var dt2))
+                                    {
+                                        CommonFunctions.AddDbParameter(cmd, pname, dt2);
+                                    }
+                                    else
+                                    {
+                                        CommonFunctions.AddDbParameter(cmd, pname, sVal);
+                                    }
+                                }
+                                else if (pgType == "bigint")
+                                {
+                                    if (long.TryParse(val.ToString(), out var lv)) CommonFunctions.AddDbParameter(cmd, pname, lv);
+                                    else CommonFunctions.AddDbParameter(cmd, pname, DBNull.Value);
+                                }
+                                else if (pgType == "smallint")
+                                {
+                                    if (short.TryParse(val.ToString(), out var sv)) CommonFunctions.AddDbParameter(cmd, pname, sv);
+                                    else if (byte.TryParse(val.ToString(), out var bv)) CommonFunctions.AddDbParameter(cmd, pname, (short)bv);
+                                    else CommonFunctions.AddDbParameter(cmd, pname, DBNull.Value);
+                                }
+                                else if (pgType == "boolean")
+                                {
+                                    var s = val.ToString();
+                                    if (s == "1" || s.Equals("true", StringComparison.OrdinalIgnoreCase) || s.Equals("yes", StringComparison.OrdinalIgnoreCase)) CommonFunctions.AddDbParameter(cmd, pname, true);
+                                    else if (s == "0" || s.Equals("false", StringComparison.OrdinalIgnoreCase) || s.Equals("no", StringComparison.OrdinalIgnoreCase)) CommonFunctions.AddDbParameter(cmd, pname, false);
+                                    else CommonFunctions.AddDbParameter(cmd, pname, DBNull.Value);
+                                }
+                                else
+                                {
+                                    CommonFunctions.AddDbParameter(cmd, pname, val.ToString());
+                                }
+                            }
+                            catch
+                            {
+                                CommonFunctions.AddDbParameter(cmd, pname, DBNull.Value);
+                            }
+                        }
+
+                        await ExecuteNonQueryAsync(cmd);
+                    }
+                }
+            }
+        }
+
         // Background consumer loop for resQueue (Plan B)
         private async Task ResQueueConsumerLoop(CancellationToken ct)
         {
@@ -255,6 +497,20 @@ namespace OQSDrug
                     // Datadynaのデータ取得
                     dynaTable.Clear();
                     dynaTable = await LoadDataFromDatabaseAsync(Properties.Settings.Default.Datadyna);
+
+                    // Backup dynaTable into PostgreSQL when configured
+                    if (Properties.Settings.Default.DBtype == "pg" && dynaTable != null)
+                    {
+                        try
+                        {
+                            await SaveDynaTableToPostgresAsync(dynaTable);
+                            await AddLogAsync($"{DynaTable}をPostgreSQLに保存しました");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLogAsync($"dyna_sikaku保存でエラー: {ex.Message}");
+                        }
+                    }
 
                     if (dynaTable != null)
                     {
@@ -3912,6 +4168,7 @@ namespace OQSDrug
             contextMenu.Items.Add("健診", Properties.Resources.Heart, toolStripButtonTKK_Click);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add("PMDA薬情",Properties.Resources.PMDA, toolStripButtonPMDA_Click);
+            contextMenu.Items.Add("資格確認一覧", Properties.Resources.Person, toolStripButtonDynaViewer_Click);
             contextMenu.Items.Add("終了", Properties.Resources.Exit, ExitApplication);
 
             notifyIcon1.ContextMenuStrip = contextMenu;

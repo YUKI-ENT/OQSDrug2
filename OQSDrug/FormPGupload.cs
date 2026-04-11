@@ -66,6 +66,30 @@ namespace OQSDrug
                     buttonDump.Enabled = true;
 
                     dbExists = true;
+
+                    // サーバーバージョンと使用する pg_dump/pg_restore をログ出力
+                    try
+                    {
+                        string host = Properties.Settings.Default.PGaddress;
+                        int port = Properties.Settings.Default.PGport;
+                        string user = Properties.Settings.Default.PGuser;
+                        string pwd = decodePassword(Properties.Settings.Default.PGpass);
+
+                        var major = await CommonFunctions.GetPgServerMajorVersionAsync(host, port, user, pwd);
+                        if (major.HasValue)
+                            AddLog($"[PG] サーバー メジャーバージョン: {major.Value}");
+                        else
+                            AddLog("[PG] サーバー バージョン取得に失敗しました。");
+
+                        var dumpPath = await CommonFunctions.FindPgExecutableAsync("pg_dump.exe", host, port, user, pwd);
+                        var restorePath = await CommonFunctions.FindPgExecutableAsync("pg_restore.exe", host, port, user, pwd);
+                        AddLog($"[PG] 使用予定の pg_dump: {(string.IsNullOrEmpty(dumpPath) ? "見つかりません" : dumpPath)}");
+                        AddLog($"[PG] 使用予定の pg_restore: {(string.IsNullOrEmpty(restorePath) ? "見つかりません" : restorePath)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog("[PG] バージョン/バイナリ検出時に例外: " + ex.Message);
+                    }
                 }
                 else if (result == "No database")
                 {
@@ -85,6 +109,30 @@ namespace OQSDrug
                     buttonDump.Enabled = false;
 
                     dbExists = false;
+
+                    // データベースが無くてもサーバーには接続できているのでバージョンとバイナリ候補を表示
+                    try
+                    {
+                        string host = Properties.Settings.Default.PGaddress;
+                        int port = Properties.Settings.Default.PGport;
+                        string user = Properties.Settings.Default.PGuser;
+                        string pwd = decodePassword(Properties.Settings.Default.PGpass);
+
+                        var major = await CommonFunctions.GetPgServerMajorVersionAsync(host, port, user, pwd);
+                        if (major.HasValue)
+                            AddLog($"[PG] サーバー メジャーバージョン: {major.Value}");
+                        else
+                            AddLog("[PG] サーバー バージョン取得に失敗しました。");
+
+                        var dumpPath = await CommonFunctions.FindPgExecutableAsync("pg_dump.exe", host, port, user, pwd);
+                        var restorePath = await CommonFunctions.FindPgExecutableAsync("pg_restore.exe", host, port, user, pwd);
+                        AddLog($"[PG] 使用予定の pg_dump: {(string.IsNullOrEmpty(dumpPath) ? "見つかりません" : dumpPath)}");
+                        AddLog($"[PG] 使用予定の pg_restore: {(string.IsNullOrEmpty(restorePath) ? "見つかりません" : restorePath)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog("[PG] バージョン/バイナリ検出時に例外: " + ex.Message);
+                    }
                 }
                 else
                 {
@@ -596,11 +644,10 @@ namespace OQSDrug
         {
             try
             {
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string pgRestorePath = Path.Combine(exeDir, "pgsql", "bin", "pg_restore.exe");
-                if (!File.Exists(pgRestorePath))
+                string pgRestorePath = await CommonFunctions.FindPgExecutableAsync("pg_restore.exe", host, port, user, password).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(pgRestorePath) || !File.Exists(pgRestorePath))
                 {
-                    AddLog($"[Restore] pg_restore が見つかりません: {pgRestorePath}");
+                    AddLog($"[Restore] pg_restore が見つかりません");
                     return (false, false);
                 }
                 if (!File.Exists(backupPath))

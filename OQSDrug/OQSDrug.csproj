@@ -183,6 +183,12 @@
     <Compile Include="FormDI.Designer.cs">
       <DependentUpon>FormDI.cs</DependentUpon>
     </Compile>
+    <Compile Include="FormDynaViewer.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormDynaViewer.Designer.cs">
+      <DependentUpon>FormDynaViewer.cs</DependentUpon>
+    </Compile>
     <Compile Include="FormLLMsetteing.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -221,9 +227,12 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <None Include="pgsql\bin\libcurl.lib">
+    <None Include="pgsql\17\bin\libcurl.lib">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Content Include="pgsql\18\bin\libcurl.lib">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="Resources\PMDA.png" />
     <None Include="Resources\RSB.png" />
     <None Include="Resources\Notes.png" />
@@ -243,6 +252,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="FormDI.resx">
       <DependentUpon>FormDI.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormDynaViewer.resx">
+      <DependentUpon>FormDynaViewer.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormLLMsetteing.resx">
       <DependentUpon>FormLLMsetteing.cs</DependentUpon>
@@ -308,81 +320,178 @@
   <ItemGroup>
     <Content Include="BlueDrug.ico" />
     <Content Include="drugicon.ico" />
-    <Content Include="pgsql\bin\icudt77.dll">
+    <Content Include="pgsql\17\bin\icudt77.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\icuin77.dll">
+    <Content Include="pgsql\17\bin\icuin77.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\icuio77.dll">
+    <Content Include="pgsql\17\bin\icuio77.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\icutu77.dll">
+    <Content Include="pgsql\17\bin\icutu77.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\icuuc77.dll">
+    <Content Include="pgsql\17\bin\icuuc77.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libcrypto-3-x64.dll">
+    <Content Include="pgsql\17\bin\libcrypto-3-x64.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libcurl.dll">
+    <Content Include="pgsql\17\bin\libcurl.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libecpg.dll">
+    <Content Include="pgsql\17\bin\libecpg.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libecpg_compat.dll">
+    <Content Include="pgsql\17\bin\libecpg_compat.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libiconv-2.dll">
+    <Content Include="pgsql\17\bin\libiconv-2.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libintl-9.dll">
+    <Content Include="pgsql\17\bin\libintl-9.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\liblz4.dll">
+    <Content Include="pgsql\17\bin\liblz4.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libpgtypes.dll">
+    <Content Include="pgsql\17\bin\libpgtypes.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libpq.dll">
+    <Content Include="pgsql\17\bin\libpq.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libssl-3-x64.dll">
+    <Content Include="pgsql\17\bin\libssl-3-x64.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libwinpthread-1.dll">
+    <Content Include="pgsql\17\bin\libwinpthread-1.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libxml2.dll">
+    <Content Include="pgsql\17\bin\libxml2.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libxslt.dll">
+    <Content Include="pgsql\17\bin\libxslt.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\libzstd.dll">
+    <Content Include="pgsql\17\bin\libzstd.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\pg_dump.exe">
+    <Content Include="pgsql\17\bin\pg_dump.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\pg_restore.exe">
+    <Content Include="pgsql\17\bin\pg_restore.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\psql.exe">
+    <Content Include="pgsql\17\bin\psql.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\testplug.dll">
+    <Content Include="pgsql\17\bin\testplug.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="pgsql\bin\zlib1.dll">
+    <Content Include="pgsql\17\bin\zlib1.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\icudt77.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\icuin77.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\icuio77.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\icutu77.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\icuuc77.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libcrypto-3-x64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libcurl.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libecpg.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libecpg_compat.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libiconv-2.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libintl-9.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\liblz4.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libpgtypes.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libpq.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libssl-3-x64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libwinpthread-1.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libxml2.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libxslt.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\libzstd.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\pg_dump.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\pg_restore.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\psql.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\testplug.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxbase329u_net_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxbase329u_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxbase329u_xml_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxmsw329u_adv_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxmsw329u_aui_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxmsw329u_core_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxmsw329u_html_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\wxmsw329u_xrc_vc_x64_custom.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="pgsql\18\bin\zlib1.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\02_create_oqsdrug_data.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Resources\Person.png" />
     <None Include="Resources\Next.png" />
     <None Include="Resources\Previous.png" />
     <None Include="Resources\Back.png" />
