@@ -68,6 +68,7 @@
   - または **Access ランタイム 32bit版** のインストール
    ( [公式ダウンロードページ](https://www.microsoft.com/ja-jp/download/details.aspx?id=50040) )
     で導入されます。
+    ※ 2025年10月以降 サポート終了となり上記がリンク切れですので、[転載しておきます。](https://github.com/YUKI-ENT/OQSDrug2/releases/tag/Access_runtime)
 
 ---
 
