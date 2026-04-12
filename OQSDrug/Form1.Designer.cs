@@ -413,7 +413,7 @@
             this.toolStripVersion.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.HorizontalStackWithOverflow;
             this.toolStripVersion.Location = new System.Drawing.Point(0, 0);
             this.toolStripVersion.Name = "toolStripVersion";
-            this.toolStripVersion.Size = new System.Drawing.Size(973, 29);
+            this.toolStripVersion.Size = new System.Drawing.Size(973, 27);
             this.toolStripVersion.Stretch = true;
             this.toolStripVersion.TabIndex = 3;
             this.toolStripVersion.Text = "toolStrip1";

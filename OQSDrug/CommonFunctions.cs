@@ -221,73 +221,97 @@ namespace OQSDrug
 
             try
             {
-                using (OleDbConnection connection = new OleDbConnection(connectionReadOQSdata))
+                string query = "SELECT ItemCode, ItemName, CompairType, Limit1, Limit2, Sex FROM TKK_reference";
+
+                if (Properties.Settings.Default.DBtype == "pg")
                 {
-                    await connection.OpenAsync();
-                    string query = "SELECT ItemCode, ItemName, CompairType, Limit1, Limit2, Sex FROM TKK_reference";
-                    using (var command = new OleDbCommand(query, connection))
-                    using (var reader = await command.ExecuteReaderAsync())
+                    using (var connection = (NpgsqlConnection)GetDbConnection())
+                    using (var command = new NpgsqlCommand(query, connection))
                     {
-                        while (reader.Read())
+                        await connection.OpenAsync();
+                        using (var reader = await command.ExecuteReaderAsync())
                         {
-                            string itemCode = reader["ItemCode"].ToString();
-                            if (itemCode.Length > 3)
+                            while (reader.Read())
                             {
-                                itemCode = itemCode.Substring(0, 4);
-                                string itemName = reader["ItemName"].ToString();
-                                string compairType = reader["CompairType"].ToString();
-                                string limit1 = reader["Limit1"].ToString();
-                                string limit2 = reader["Limit2"].ToString();
-                                int? sex = reader["Sex"] == DBNull.Value ? 0 : (int?)Convert.ToInt32(reader["Sex"]);
-
-                                string itemCodeWithSex;
-
-                                if (sex == 0) // 男女共通
-                                {
-                                    itemCodeWithSex = $"1_{itemCode}";
-                                    dict[itemCodeWithSex] = new TKKReference
-                                    {
-                                        ItemCode = itemCode,
-                                        ItemName = itemName,
-                                        CompairType = compairType,
-                                        Limit1 = limit1,
-                                        Limit2 = limit2,
-                                        Sex = sex
-                                    };
-                                    itemCodeWithSex = $"2_{itemCode}";
-                                    dict[itemCodeWithSex] = new TKKReference
-                                    {
-                                        ItemCode = itemCode,
-                                        ItemName = itemName,
-                                        CompairType = compairType,
-                                        Limit1 = limit1,
-                                        Limit2 = limit2,
-                                        Sex = sex
-                                    };
-                                }
-                                else
-                                {
-                                    itemCodeWithSex = $"{sex}_{itemCode}";
-                                    dict[itemCodeWithSex] = new TKKReference
-                                    {
-                                        ItemCode = itemCode,
-                                        ItemName = itemName,
-                                        CompairType = compairType,
-                                        Limit1 = limit1,
-                                        Limit2 = limit2,
-                                        Sex = sex
-                                    };
-                                }
+                                AddTKKReferenceRow(dict, reader);
                             }
                         }
                     }
                 }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(connectionReadOQSdata))
+                    {
+                        throw new InvalidOperationException("OQSDrugData の接続文字列が未設定です。設定を確認してください。");
+                    }
+
+                    using (OleDbConnection connection = new OleDbConnection(connectionReadOQSdata))
+                    {
+                        await connection.OpenAsync();
+                        using (var command = new OleDbCommand(query, connection))
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                AddTKKReferenceRow(dict, reader);
+                            }
+                        }
+                    }
+                }
+
                 return dict;
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
                 return new Dictionary<string, TKKReference>();
+            }
+        }
+
+        private static void AddTKKReferenceRow(Dictionary<string, TKKReference> dict, IDataRecord record)
+        {
+            string itemCode = record["ItemCode"]?.ToString() ?? "";
+            if (itemCode.Length <= 3) return;
+
+            itemCode = itemCode.Substring(0, 4);
+            string itemName = record["ItemName"]?.ToString() ?? "";
+            string compairType = record["CompairType"]?.ToString() ?? "";
+            string limit1 = record["Limit1"]?.ToString() ?? "";
+            string limit2 = record["Limit2"]?.ToString() ?? "";
+            int? sex = record["Sex"] == DBNull.Value ? 0 : (int?)Convert.ToInt32(record["Sex"]);
+
+            if (sex == 0) // 男女共通
+            {
+                dict[$"1_{itemCode}"] = new TKKReference
+                {
+                    ItemCode = itemCode,
+                    ItemName = itemName,
+                    CompairType = compairType,
+                    Limit1 = limit1,
+                    Limit2 = limit2,
+                    Sex = sex
+                };
+                dict[$"2_{itemCode}"] = new TKKReference
+                {
+                    ItemCode = itemCode,
+                    ItemName = itemName,
+                    CompairType = compairType,
+                    Limit1 = limit1,
+                    Limit2 = limit2,
+                    Sex = sex
+                };
+            }
+            else
+            {
+                dict[$"{sex}_{itemCode}"] = new TKKReference
+                {
+                    ItemCode = itemCode,
+                    ItemName = itemName,
+                    CompairType = compairType,
+                    Limit1 = limit1,
+                    Limit2 = limit2,
+                    Sex = sex
+                };
             }
         }
 
@@ -3127,21 +3151,21 @@ namespace OQSDrug
 
             // マッピングルール：
             // - 取得失敗 -> デフォルト 18
-            // - major >= 19 -> use 18
-            // - major <= 16 -> use 17
-            // - otherwise use reported major (17 or 18)
+            // - major >= 18 -> use 18
+            // - major <= 16 -> use 16
+            // - otherwise use reported major (e.g. 17)
             int mappedMajor;
             if (!major.HasValue)
             {
                 mappedMajor = 18;
             }
-            else if (major.Value >= 19)
+            else if (major.Value >= 18)
             {
                 mappedMajor = 18;
             }
             else if (major.Value <= 16)
             {
-                mappedMajor = 17;
+                mappedMajor = 16;
             }
             else
             {

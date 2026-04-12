@@ -4943,71 +4943,21 @@ namespace OQSDrug
             await OpenSinryoHistory(tempId, true, true);
         }
 
-        public async Task LoadKoroDataAsync()
-        {
-            try
-            {
-                string koroPath = Path.Combine(Path.GetDirectoryName(Properties.Settings.Default.OQSDrugData), "KOROdata.mdb");
-
-                if (!File.Exists(koroPath))
-                {
-                    AddLogAsync("エラー: KOROdata.mdb が見つかりません。");
-                    return;
-                }
-
-                AddLogAsync("KOROdataが見つかりましたので薬品名コードを読み込みます");
-
-                string connectionKoroData = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode={DynaReadMode};";
-                string sql = "SELECT 医薬品コード AS ReceptCode, 薬価基準コード AS MedisCode " +
-                             " FROM TG医薬品マスター " +
-                             " WHERE (((薬価基準コード) IS NOT NULL));";
-                int count = 0;
-                var tempDictionary = new Dictionary<string, string>();
-
-                using (OleDbConnection connection = new OleDbConnection(connectionKoroData))
-                {
-                    await connection.OpenAsync();
-
-                    using (OleDbCommand command = new OleDbCommand(sql, connection))
-                    using (OleDbDataReader reader = (OleDbDataReader)await command.ExecuteReaderAsync())
-                    {
-                        // データを一時Dictionaryに格納（エラー時にデータを消さないようにする）
-                        while (await reader.ReadAsync())
-                        {
-                            string receptCode = reader["ReceptCode"].ToString();
-                            string medisCode = reader["MedisCode"].ToString();
-
-                            if (!tempDictionary.ContainsKey(receptCode))
-                            {
-                                tempDictionary.Add(receptCode, medisCode);
-                                count++;
-                            }
-                        }
-                    }
-                }
-
-                // 読み込み成功したらクリア＆更新
-                CommonFunctions.ReceptToMedisCodeMap.Clear();
-                foreach (var pair in tempDictionary)
-                {
-                    CommonFunctions.ReceptToMedisCodeMap.Add(pair.Key, pair.Value);
-                }
-
-                AddLogAsync($"KOROdataから{count}件のコードを読み込みました");
-            }
-            catch (Exception ex)
-            {
-                AddLogAsync($"エラー: {ex.Message}\n{ex.StackTrace}");
-            }
-        }
 
         public async Task LoadKoro2SQL()
         {
             try
             {
+                string Dynamics = Properties.Settings.Default.Datadyna;
+                if (string.IsNullOrWhiteSpace(Dynamics))
+                {
+                    await AddLogAsync("エラー: Datadyna が未設定です。");
+                    return;
+                }
+
                 // === 0) KOROdata.mdb パス確認 ===
                 string koroPath = Path.Combine(
-                    Path.GetDirectoryName(Properties.Settings.Default.OQSDrugData),
+                    Path.GetDirectoryName(Dynamics),
                     "KOROdata.mdb"
                 );
 
@@ -5791,6 +5741,13 @@ namespace OQSDrug
 
         private void loadConnectionString()
         {
+            if (Properties.Settings.Default.DBtype == "pg")
+            {
+                CommonFunctions.connectionOQSdata = "";
+                CommonFunctions.connectionReadOQSdata = "";
+                return;
+            }
+
             CommonFunctions.connectionOQSdata     = $"Provider={CommonFunctions.DBProvider};Data Source={Properties.Settings.Default.OQSDrugData};";
             CommonFunctions.connectionReadOQSdata = $"Provider={CommonFunctions.DBProvider};Data Source={Properties.Settings.Default.OQSDrugData};Mode={DataReadMode};";
         }
