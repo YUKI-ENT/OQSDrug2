@@ -94,28 +94,47 @@ namespace OQSDrug
 
                         CommonFunctions.DataDbLock = false;
 
-                        Invoke(new Action(() =>
+                        if (IsDisposed || Disposing || !IsHandleCreated) return;
+
+                        try
                         {
-                            toolStripComboBoxPt.SelectedIndexChanged -= toolStripComboBoxPt_SelectedIndexChanged;
-
-                            toolStripComboBoxPt.Items.Clear();
-                            toolStripComboBoxPt.SelectedIndex = -1;
-
-                            foreach (var item in ptData)
+                            Invoke(new Action(() =>
                             {
-                                toolStripComboBoxPt.Items.Add(new PtItem { PtID = item.PtID, DisplayText = item.PtName });
-                            }
+                                if (IsDisposed || Disposing) return;
 
-                            toolStripComboBoxPt.SelectedIndexChanged += toolStripComboBoxPt_SelectedIndexChanged;
+                                toolStripComboBoxPt.SelectedIndexChanged -= toolStripComboBoxPt_SelectedIndexChanged;
 
-                            if (_parentForm.autoTKK || _parentForm.forceIdLink)
-                            {
-                                _parentForm.forceIdLink = false;
+                                toolStripComboBoxPt.Items.Clear();
+                                toolStripComboBoxPt.SelectedIndex = -1;
 
-                                int index = ptData.FindIndex(p => p.PtID == _parentForm.tempId);
-                                toolStripComboBoxPt.SelectedIndex = index >= 0 ? index : -1;
-                            }
-                        }));
+                                foreach (var item in ptData)
+                                {
+                                    toolStripComboBoxPt.Items.Add(new PtItem { PtID = item.PtID, DisplayText = item.PtName });
+                                }
+
+                                toolStripComboBoxPt.SelectedIndexChanged += toolStripComboBoxPt_SelectedIndexChanged;
+
+                                if (_parentForm.autoTKK || _parentForm.forceIdLink)
+                                {
+                                    _parentForm.forceIdLink = false;
+
+                                    int index = ptData.FindIndex(p => p.PtID == _parentForm.tempId);
+                                    toolStripComboBoxPt.SelectedIndex = index >= 0 ? index : -1;
+                                }
+                            }));
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            return;
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            return;
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        return;
                     }
                     catch (Exception ex)
                     {
@@ -220,14 +239,33 @@ namespace OQSDrug
                                 }
                             );
 
-                            dataGridViewTKK.Invoke(new Action(() =>
+                            if (IsDisposed || Disposing || dataGridViewTKK.IsDisposed || !IsHandleCreated) return;
+
+                            try
                             {
-                                dataGridViewTKK.DataSource = pivot;
-                                ConfigureDataGridView(dataGridViewTKK);
-                            }));
+                                dataGridViewTKK.Invoke(new Action(() =>
+                                {
+                                    if (IsDisposed || Disposing || dataGridViewTKK.IsDisposed) return;
+
+                                    dataGridViewTKK.DataSource = pivot;
+                                    ConfigureDataGridView(dataGridViewTKK);
+                                }));
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                return;
+                            }
+                            catch (InvalidOperationException)
+                            {
+                                return;
+                            }
                         }
                     }
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
             }
             catch (Exception ex)
             {

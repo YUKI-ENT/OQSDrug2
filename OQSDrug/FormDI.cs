@@ -135,32 +135,51 @@ namespace OQSDrug
             {
                 ptData = localList;
 
-                toolStrip1.Invoke(new Action(() =>
+                if (IsDisposed || Disposing || !IsHandleCreated || toolStrip1.IsDisposed) return;
+
+                try
                 {
-                    toolStripComboBoxPt.SelectedIndexChanged -= toolStripComboBoxPt_SelectedIndexChanged;
-
-                    toolStripComboBoxPt.Items.Clear();
-                    toolStripComboBoxPt.SelectedIndex = -1;
-
-                    foreach (var item in ptData)
+                    toolStrip1.Invoke(new Action(() =>
                     {
-                        toolStripComboBoxPt.Items.Add(new PtItem
+                        if (IsDisposed || Disposing || toolStrip1.IsDisposed) return;
+
+                        toolStripComboBoxPt.SelectedIndexChanged -= toolStripComboBoxPt_SelectedIndexChanged;
+
+                        toolStripComboBoxPt.Items.Clear();
+                        toolStripComboBoxPt.SelectedIndex = -1;
+
+                        foreach (var item in ptData)
                         {
-                            PtID = item.PtID,
-                            DisplayText = item.PtName // ← 修正: DisplayNameではなくPtName
-                        });
-                    }
+                            toolStripComboBoxPt.Items.Add(new PtItem
+                            {
+                                PtID = item.PtID,
+                                DisplayText = item.PtName // ← 修正: DisplayNameではなくPtName
+                            });
+                        }
 
-                    toolStripComboBoxPt.SelectedIndexChanged += toolStripComboBoxPt_SelectedIndexChanged;
+                        toolStripComboBoxPt.SelectedIndexChanged += toolStripComboBoxPt_SelectedIndexChanged;
 
-                    if (_parentForm.autoRSB || _parentForm.forceIdLink)
-                    {
-                        _parentForm.forceIdLink = false;
+                        if (_parentForm.autoRSB || _parentForm.forceIdLink)
+                        {
+                            _parentForm.forceIdLink = false;
 
-                        int index = ptData.FindIndex(p => p.PtID == _parentForm.tempId);
-                        toolStripComboBoxPt.SelectedIndex = (index >= 0) ? index : -1;
-                    }
-                }));
+                            int index = ptData.FindIndex(p => p.PtID == _parentForm.tempId);
+                            toolStripComboBoxPt.SelectedIndex = (index >= 0) ? index : -1;
+                        }
+                    }));
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+                catch (InvalidOperationException)
+                {
+                    return;
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
             }
             catch (Exception ex)
             {
@@ -404,20 +423,39 @@ namespace OQSDrug
                             bsHistory = new BindingSource();
                         bsHistory.DataSource = DrugHistoryData;
 
-                        
-
                         // DataGridViewへ反映
-                        Invoke(new Action(() =>
+                        if (IsDisposed || Disposing || !IsHandleCreated ||
+                            dataGridViewFixed.IsDisposed || dataGridViewDH.IsDisposed) return;
+
+                        try
                         {
-                            InitializeDataGridView(dataGridViewFixed);
-                            InitializeDataGridView(dataGridViewDH);
-                            dataGridViewFixed.DataSource = bsHistory;
-                            dataGridViewDH.DataSource = bsHistory;
-                            ConfigureDataGridView(dataGridViewFixed);
-                            ConfigureDataGridView(dataGridViewDH);
-                        }));
+                            Invoke(new Action(() =>
+                            {
+                                if (IsDisposed || Disposing || dataGridViewFixed.IsDisposed || dataGridViewDH.IsDisposed) return;
+
+                                InitializeDataGridView(dataGridViewFixed);
+                                InitializeDataGridView(dataGridViewDH);
+                                dataGridViewFixed.DataSource = bsHistory;
+                                dataGridViewDH.DataSource = bsHistory;
+                                ConfigureDataGridView(dataGridViewFixed);
+                                ConfigureDataGridView(dataGridViewDH);
+                            }));
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            return;
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            return;
+                        }
                     }
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                CommonFunctions.DataDbLock = false;
+                return;
             }
             catch (Exception ex)
             {

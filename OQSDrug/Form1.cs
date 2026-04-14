@@ -946,7 +946,8 @@ namespace OQSDrug
                                                     InsurerNumber = DouiRow["保険者番号"].ToString(),
                                                     InsuranceCardSymbol = DouiRow["被保険者証記号"].ToString(),
                                                     InsuredPersonIdentificationNumber = DouiRow["被保険者証番号"].ToString(),
-                                                    BranchNumber = DouiRow["被保険者証枝番"].ToString()
+                                                    BranchNumber = DouiRow["被保険者証枝番"].ToString(),
+                                                    MedicalTreatmentFlag = GetMedicalTreatmentFlag(DouiRow)
                                                 };
 
                                                 reqXml = await Task.Run(() => GenerateXML(ptData, OQSpath, startDate, endDate, Properties.Settings.Default.MCode, category));
@@ -2036,7 +2037,7 @@ namespace OQSDrug
                     }
                     writer.WriteElementString("FileCategory", fileCategory.ToString());
                     writer.WriteElementString("PrDiInfClassification", "1");
-                    writer.WriteElementString("MedicalTreatmentFlag", "1");
+                    writer.WriteElementString("MedicalTreatmentFlag", ptData.MedicalTreatmentFlag);
                     writer.WriteEndElement(); // MessageBody
 
                     writer.WriteEndElement(); // XmlMsg
@@ -2051,6 +2052,24 @@ namespace OQSDrug
                 // エラー時は空文字列を返す
                 AddLogAsync($"Error: {ex.Message}");
                 return string.Empty;
+            }
+        }
+
+        private string GetMedicalTreatmentFlag(DataRow row)
+        {
+            if (row == null || !row.Table.Columns.Contains("照会区分") || row["照会区分"] == DBNull.Value)
+            {
+                return "1";
+            }
+
+            switch (row["照会区分"].ToString().Trim().ToUpperInvariant())
+            {
+                case "B":
+                    return "2";
+                case "C":
+                    return "3";
+                default:
+                    return "1";
             }
         }
 
@@ -3741,6 +3760,7 @@ namespace OQSDrug
                     if (formDIInstance == null || formDIInstance.IsDisposed)
                     {
                         formDIInstance = new FormDI(this);
+                        formDIInstance.FormClosed += (s, args) => { if (ReferenceEquals(formDIInstance, s)) formDIInstance = null; };
 
                         // 前回の位置とサイズを復元
                         if (Properties.Settings.Default.ViewerBounds != Rectangle.Empty)
@@ -3767,12 +3787,14 @@ namespace OQSDrug
                     }
                     else
                     {
+                        var currentForm = formDIInstance;
                         // Form3が開いている場合、LoadDataIntoComboBoxes()を実行
-                        Task.Run(async () =>
-                            await formDIInstance.LoadDataIntoComboBoxes()
-                        );
+                        if (currentForm != null && !currentForm.IsDisposed)
+                        {
+                            Task.Run(async () => await currentForm.LoadDataIntoComboBoxes());
+                        }
                         // すでに開いている場合はアクティブにする
-                        formDIInstance.Activate();
+                        currentForm?.Activate();
 
                     }
                 }));
@@ -3810,6 +3832,7 @@ namespace OQSDrug
                     if (formTKKInstance == null || formTKKInstance.IsDisposed)
                     {
                         formTKKInstance = new FormTKK(this);
+                        formTKKInstance.FormClosed += (s, args) => { if (ReferenceEquals(formTKKInstance, s)) formTKKInstance = null; };
 
                         // 前回の位置とサイズを復元
                         if (Properties.Settings.Default.TKKBounds != Rectangle.Empty)
@@ -3836,12 +3859,14 @@ namespace OQSDrug
                     }
                     else
                     {
+                        var currentForm = formTKKInstance;
                         // FormTKKが開いている場合、LoadDataIntoComboBoxes()を実行
-                        Task.Run(async () =>
-                            await formTKKInstance.LoadToolStripComboBox()
-                        );
+                        if (currentForm != null && !currentForm.IsDisposed)
+                        {
+                            Task.Run(async () => await currentForm.LoadToolStripComboBox());
+                        }
                         // すでに開いている場合はアクティブにする
-                        formTKKInstance.Activate();
+                        currentForm?.Activate();
 
                     }
                 }));
@@ -3879,6 +3904,7 @@ namespace OQSDrug
                     if (formSRInstance == null || formSRInstance.IsDisposed)
                     {
                         formSRInstance = new FormSR(this);
+                        formSRInstance.FormClosed += (s, args) => { if (ReferenceEquals(formSRInstance, s)) formSRInstance = null; };
 
                         // 前回の位置とサイズを復元
                         if (Properties.Settings.Default.SRBounds != Rectangle.Empty)
@@ -3905,12 +3931,14 @@ namespace OQSDrug
                     }
                     else
                     {
+                        var currentForm = formSRInstance;
                         // FormTKKが開いている場合、LoadDataIntoComboBoxes()を実行
-                        Task.Run(async () =>
-                            await formSRInstance.LoadDataIntoComboBoxes()
-                        );
+                        if (currentForm != null && !currentForm.IsDisposed)
+                        {
+                            Task.Run(async () => await currentForm.LoadDataIntoComboBoxes());
+                        }
                         // すでに開いている場合はアクティブにする
-                        formSRInstance.Activate();
+                        currentForm?.Activate();
 
                     }
                 }));
