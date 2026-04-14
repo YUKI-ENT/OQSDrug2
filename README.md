@@ -143,7 +143,7 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
  
      ![PG13](https://github.com/user-attachments/assets/ca058531-fa53-4306-b2fb-d4e8ea2dff50)
 
-   - **薬剤情報データベースをインポートします** [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases) から`DrugSGMLdatayyyymmdd.backup`(約200MBあります)をダウンロード後、`Backupデータのインポート`ボタンを押して、このファイルを選択してください。インポートには1-5分程度かかります。インポート中は以下のような表示になり、フリーズしたみたいに見えますが、完了するまで操作しないようお願いします。
+   - **薬剤情報データベースをインポートします** [Release一覧](https://github.com/YUKI-ENT/SGML2SQL/releases/) から`DrugSGMLdatayyyymmdd.backup`(約200MBあります)をダウンロード後、`Backupデータのインポート`ボタンを押して、このファイルを選択してください。インポートには1-5分程度かかります。インポート中は以下のような表示になり、フリーズしたみたいに見えますが、完了するまで操作しないようお願いします。
 
     ![PG14](https://github.com/user-attachments/assets/5a3096d1-61ec-460a-b180-0945279a154c)
 
