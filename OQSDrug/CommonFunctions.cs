@@ -2873,6 +2873,161 @@ namespace OQSDrug
             return finalResults;
         }
 
+        public static async Task<List<Tuple<string[], double>>> SearchSgmlCandidatesAsync(string drugName, string ingreN, string yjCode, double fuzzyCutoffThreshold = 0.2)
+        {
+            string normalizedDrugName = RemoveCampany(drugName ?? "").Trim();
+            string normalizedIngreN = RemoveCampany(string.IsNullOrWhiteSpace(ingreN) ? normalizedDrugName : ingreN).Trim();
+
+            if (string.IsNullOrWhiteSpace(normalizedDrugName) && string.IsNullOrWhiteSpace(normalizedIngreN))
+            {
+                return new List<Tuple<string[], double>>();
+            }
+
+            if (!string.IsNullOrWhiteSpace(yjCode))
+            {
+                var indexedResults = await FuzzySearchAsync(normalizedDrugName, normalizedIngreN, yjCode, SGMLDI, fuzzyCutoffThreshold).ConfigureAwait(false);
+                if (indexedResults.Count > 0)
+                {
+                    return indexedResults;
+                }
+            }
+
+            var directResults = await SearchSgmlRawdataAsync(normalizedDrugName, normalizedIngreN).ConfigureAwait(false);
+            if (directResults.Count > 0)
+            {
+                return directResults;
+            }
+
+            double fallbackCutoff = string.IsNullOrWhiteSpace(yjCode) ? 0.35 : fuzzyCutoffThreshold;
+            return await FuzzySearchAsync(normalizedDrugName, normalizedIngreN, yjCode ?? "", SGMLDI, fallbackCutoff).ConfigureAwait(false);
+        }
+
+        private static async Task<List<Tuple<string[], double>>> SearchSgmlRawdataAsync(string drugName, string ingreN)
+        {
+            string primary = !string.IsNullOrWhiteSpace(drugName) ? drugName.Trim() : "";
+            string secondary = !string.IsNullOrWhiteSpace(ingreN) ? ingreN.Trim() : "";
+            string exact = !string.IsNullOrWhiteSpace(primary) ? primary : secondary;
+            string prefix = exact + "%";
+            string contains = "%" + exact + "%";
+            string secondaryContains = string.IsNullOrWhiteSpace(secondary) ? contains : "%" + secondary + "%";
+
+            const string sql = @"
+                WITH s1 AS (
+                    SELECT DISTINCT ON (s.yj_code)
+                        s.yj_code,
+                        s.package_insert_no,
+                        s.brand_name_ja,
+                        s.generic_name_ja,
+                        s.updated_at
+                    FROM public.sgml_rawdata s
+                    WHERE s.yj_code IS NOT NULL
+                      AND s.yj_code <> ''
+                      AND (
+                            COALESCE(s.brand_name_ja, '') ILIKE @contains
+                         OR COALESCE(s.generic_name_ja, '') ILIKE @contains
+                         OR COALESCE(s.generic_name_ja, '') ILIKE @secondary_contains
+                      )
+                    ORDER BY s.yj_code, s.package_insert_no DESC
+                ),
+                d1 AS (
+                    SELECT DISTINCT ON (d.yj_code)
+                        d.yj_code,
+                        d.is_generic,
+                        d.price,
+                        d.updated_at
+                    FROM public.drug_code_map d
+                    WHERE d.yj_code IS NOT NULL AND d.yj_code <> ''
+                    ORDER BY d.yj_code, d.updated_at DESC NULLS LAST
+                ),
+                m1 AS (
+                    SELECT DISTINCT ON (m.yj_code)
+                        m.yj_code,
+                        m.is_generic,
+                        m.original_brand,
+                        m.updated_at
+                    FROM public.drug_medis_generic m
+                    WHERE m.yj_code IS NOT NULL AND m.yj_code <> ''
+                    ORDER BY m.yj_code, m.updated_at DESC NULLS LAST
+                )
+                SELECT
+                    s1.yj_code,
+                    s1.brand_name_ja,
+                    s1.generic_name_ja,
+                    CASE
+                        WHEN d1.is_generic = TRUE THEN ''
+                        WHEN d1.is_generic = FALSE THEN
+                            CASE
+                                WHEN m1.yj_code IS NULL THEN '先発'
+                                WHEN m1.is_generic = FALSE AND COALESCE(m1.original_brand, '') <> '' THEN m1.original_brand
+                                ELSE ''
+                            END
+                        ELSE ''
+                    END AS originator_flag,
+                    d1.price,
+                    s1.package_insert_no,
+                    CASE
+                        WHEN COALESCE(s1.brand_name_ja, '') = @exact THEN 1.00
+                        WHEN COALESCE(s1.generic_name_ja, '') = @exact THEN 0.98
+                        WHEN COALESCE(s1.brand_name_ja, '') ILIKE @prefix THEN 0.95
+                        WHEN COALESCE(s1.generic_name_ja, '') ILIKE @prefix THEN 0.93
+                        WHEN COALESCE(s1.brand_name_ja, '') ILIKE @contains THEN 0.88
+                        WHEN COALESCE(s1.generic_name_ja, '') ILIKE @contains THEN 0.86
+                        WHEN COALESCE(s1.generic_name_ja, '') ILIKE @secondary_contains THEN 0.82
+                        ELSE 0.0
+                    END AS match_score
+                FROM s1
+                LEFT JOIN d1 ON d1.yj_code = s1.yj_code
+                LEFT JOIN m1 ON m1.yj_code = s1.yj_code
+                ORDER BY match_score DESC, s1.updated_at DESC NULLS LAST, s1.yj_code
+                LIMIT 20;";
+
+            var results = new List<Tuple<string[], double>>();
+
+            try
+            {
+                using (var conn = GetDbConnection(true))
+                {
+                    if (conn is DbConnection dbc) await dbc.OpenAsync().ConfigureAwait(false); else conn.Open();
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = sql;
+                        AddDbParameter(cmd, "@exact", exact);
+                        AddDbParameter(cmd, "@prefix", prefix);
+                        AddDbParameter(cmd, "@contains", contains);
+                        AddDbParameter(cmd, "@secondary_contains", secondaryContains);
+
+                        if (cmd is DbCommand dbCmd)
+                        {
+                            using (var r = await dbCmd.ExecuteReaderAsync().ConfigureAwait(false))
+                            {
+                                while (await r.ReadAsync().ConfigureAwait(false))
+                                {
+                                    string yj = r.IsDBNull(0) ? "" : r.GetString(0);
+                                    string brand = r.IsDBNull(1) ? "" : r.GetString(1);
+                                    string generic = r.IsDBNull(2) ? "" : r.GetString(2);
+                                    string originator = r.IsDBNull(3) ? "" : r.GetString(3);
+                                    string price = r.IsDBNull(4) ? "" : Convert.ToDecimal(r.GetValue(4)).ToString("0.##");
+                                    string packageNo = r.IsDBNull(5) ? "" : r.GetString(5);
+                                    double score = r.IsDBNull(6) ? 0.0 : Convert.ToDouble(r.GetValue(6), CultureInfo.InvariantCulture);
+
+                                    results.Add(new Tuple<string[], double>(
+                                        new[] { brand, generic, yj, originator, price, packageNo },
+                                        score));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await AddLogAsync($"SGML直接検索エラー: {ex.Message}").ConfigureAwait(false);
+            }
+
+            return results;
+        }
+
         public static string RemoveCampany(string drugName)
         {
             if (string.IsNullOrWhiteSpace(drugName)) return drugName;

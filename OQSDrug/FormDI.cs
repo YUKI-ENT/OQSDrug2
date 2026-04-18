@@ -908,8 +908,7 @@ namespace OQSDrug
 
             try
             {
-                // ★ Interaction の場合も同じFuzzySearchを使い、不要パラメータは空で渡す
-                var topResults = await FuzzySearchAsync(drugName, ingreN, yjCode, CommonFunctions.SGMLDI, 0.2);
+                var topResults = await CommonFunctions.SearchSgmlCandidatesAsync(drugName, ingreN, yjCode, 0.2);
                 if (topResults != null && topResults.Count > 0)
                 {
                     if (formSGML_DI == null || formSGML_DI.IsDisposed)

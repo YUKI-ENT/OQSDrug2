@@ -249,7 +249,7 @@ namespace OQSDrug
                 {
                     // Access: read Datadyna table
                     string dynaFile = Properties.Settings.Default.Datadyna;
-                    string DynaTable = (dynaFile != null && dynaFile.IndexOf("datadyna.mdb", StringComparison.OrdinalIgnoreCase) >= 0) ? "T_資格確認結果表示" : "WKO資格確認結果表示";
+                    string DynaTable = await ResolveDynaTableAsync(dynaFile);
                     string connStr = $"Provider={CommonFunctions.DBProvider};Data Source={dynaFile};Mode=Read;Persist Security Info=False;";
                     string sql = $"SELECT * FROM [{DynaTable}]";
 
@@ -535,6 +535,27 @@ namespace OQSDrug
             {
                 AddLogSafe("LoadDataAsyncでエラー: " + ex.Message);
             }
+        }
+
+        private async Task<string> ResolveDynaTableAsync(string dbPath)
+        {
+            const string wkoTable = "WKO資格確認結果表示";
+            const string tTable = "T_資格確認結果表示";
+
+            string connStr = $"Provider={CommonFunctions.DBProvider};Data Source={dbPath};Mode=Read;";
+
+            using (var conn = new OleDbConnection(connStr))
+            {
+                await conn.OpenAsync();
+
+                DataTable wkoSchema = conn.GetSchema("Tables", new string[] { null, null, wkoTable, null });
+                if (wkoSchema.Rows.Count > 0) return wkoTable;
+
+                DataTable tSchema = conn.GetSchema("Tables", new string[] { null, null, tTable, null });
+                if (tSchema.Rows.Count > 0) return tTable;
+            }
+
+            return tTable;
         }
 
         private void DgvList_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)

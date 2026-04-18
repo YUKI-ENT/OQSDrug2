@@ -45,6 +45,11 @@ namespace OQSDrug
 
         string DynaTable = "T_資格確認結果表示";
         DataTable dynaTable = new DataTable();
+        private readonly SemaphoreSlim dynaTableResolveSemaphore = new SemaphoreSlim(1, 1);
+        private string cachedDynaPath = null;
+        private string cachedDynaTable = null;
+        private readonly SemaphoreSlim sgmlLoadSemaphore = new SemaphoreSlim(1, 1);
+        private bool initBackgroundLoadCompleted = false;
 
         DataTable reqResultsTable = new DataTable();
         //
@@ -495,8 +500,15 @@ namespace OQSDrug
                     await UpdateClientAsync();
 
                     // Datadynaのデータ取得
-                    dynaTable.Clear();
-                    dynaTable = await LoadDataFromDatabaseAsync(Properties.Settings.Default.Datadyna);
+                    var loadedDynaTable = await LoadDataFromDatabaseAsync(Properties.Settings.Default.Datadyna);
+                    if (loadedDynaTable != null)
+                    {
+                        dynaTable = loadedDynaTable;
+                    }
+                    else
+                    {
+                        AddLogAsync("ダイナミクスMDBが一時的に利用できないため、この周期の取り込みはスキップしました。");
+                    }
 
                     // Backup dynaTable into PostgreSQL when configured
                     if (Properties.Settings.Default.DBtype == "pg" && dynaTable != null)
@@ -593,8 +605,18 @@ namespace OQSDrug
                 if (!isTimerRunning)
                 {
                     isTimerRunning = true;
-                    await RunTimerLogicAsync();
-                    isTimerRunning = false;
+                    try
+                    {
+                        await RunTimerLogicAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLogAsync($"タイマー処理で予期しないエラー: {ex.Message}");
+                    }
+                    finally
+                    {
+                        isTimerRunning = false;
+                    }
                 }
             }, null, 0, Properties.Settings.Default.TimerInterval * 1000);
         }
@@ -700,6 +722,7 @@ namespace OQSDrug
 
         private async void toolStripButtonSettings_Click(object sender, EventArgs e)
         {
+            string previousDatadyna = Properties.Settings.Default.Datadyna;
             //動作中の場合は停止する
             if (isOQSRunnnig)
             {
@@ -718,6 +741,10 @@ namespace OQSDrug
 
             //Form2閉じたあと
 
+            if (!string.Equals(previousDatadyna, Properties.Settings.Default.Datadyna, StringComparison.OrdinalIgnoreCase))
+            {
+                InvalidateDynaTableCache();
+            }
             await initializeForm();
 
             forceSkipReload = false;
@@ -1006,6 +1033,7 @@ namespace OQSDrug
 
         private async Task<DataTable> LoadDataFromDatabaseAsync(string dynaPath)
         {
+            DynaTable = await ResolveCachedDynaTableAsync(dynaPath);
             string connectionString = $"Provider={CommonFunctions.DBProvider};Data Source={dynaPath};Mode={DynaReadMode};Persist Security Info=False;";
             string query = $"SELECT * FROM [{DynaTable}]"; // テーブル名をエスケープ
 
@@ -1030,21 +1058,170 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
-                AddLogAsync($"ダイナミクスの読み込みエラー: {ex.Message}\n{ex.StackTrace}");
+                if (IsTransientDynamicsLock(ex))
+                {
+                    AddLogAsync($"ダイナミクスMDBがロック中のため読み込みを延期します: {ex.Message}");
+                }
+                else
+                {
+                    AddLogAsync($"ダイナミクスの読み込みエラー: {ex.Message}\n{ex.StackTrace}");
+                }
                 return null;
             }
 
             return dataTable;
         }
 
-        public async Task<string> CheckDatabaseAsync(string dbPath, string tableName)
+        private bool IsTransientDynamicsLock(Exception ex)
         {
+            if (ex == null) return false;
+
+            string message = ex.Message ?? string.Empty;
+            return message.IndexOf("file already in use", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("could not use", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("使用中", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("ロック", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private async Task<string> ResolveDynaTableAsync(string dbPath, bool verboseLog = false)
+        {
+            string wkoTable = "WKO資格確認結果表示";
+            string tTable = "T_資格確認結果表示";
+
+            string wkoResult = await CheckDatabaseAsync(dbPath, wkoTable, verboseLog ? "Dynamics-WKO" : null, verboseLog);
+            if (wkoResult == "OK")
+            {
+                if (verboseLog) await AddLogAsync($"[DynamicsCheck] 判定テーブル: '{wkoTable}' を使用します");
+                return wkoTable;
+            }
+
+            string tResult = await CheckDatabaseAsync(dbPath, tTable, verboseLog ? "Dynamics-T" : null, verboseLog);
+            if (tResult == "OK")
+            {
+                if (verboseLog) await AddLogAsync($"[DynamicsCheck] 判定テーブル: '{tTable}' を使用します");
+                return tTable;
+            }
+
+            if (verboseLog)
+            {
+                await AddLogAsync($"[DynamicsCheck] 使用可能な資格確認テーブルが見つかりませんでした。WKO='{wkoResult}' / T='{tResult}'");
+            }
+
+            return tTable;
+        }
+
+        private async Task<string> ResolveCachedDynaTableAsync(string dbPath, bool verboseLog = false, bool forceRefresh = false)
+        {
+            string wkoTable = "WKO資格確認結果表示";
+            string tTable = "T_資格確認結果表示";
+
+            if (!forceRefresh
+                && !string.IsNullOrWhiteSpace(dbPath)
+                && string.Equals(cachedDynaPath, dbPath, StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(cachedDynaTable))
+            {
+                return cachedDynaTable;
+            }
+
+            await dynaTableResolveSemaphore.WaitAsync();
+            try
+            {
+                if (!forceRefresh
+                    && !string.IsNullOrWhiteSpace(dbPath)
+                    && string.Equals(cachedDynaPath, dbPath, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(cachedDynaTable))
+                {
+                    return cachedDynaTable;
+                }
+
+                string wkoResult = await CheckDatabaseAsync(dbPath, wkoTable, verboseLog ? "Dynamics-WKO" : null, verboseLog);
+                if (wkoResult == "OK")
+                {
+                    cachedDynaPath = dbPath;
+                    cachedDynaTable = wkoTable;
+                    if (verboseLog) await AddLogAsync($"[DynamicsCheck] 判定テーブル: '{wkoTable}' を使用します");
+                    return wkoTable;
+                }
+
+                string tResult = await CheckDatabaseAsync(dbPath, tTable, verboseLog ? "Dynamics-T" : null, verboseLog);
+                if (tResult == "OK")
+                {
+                    cachedDynaPath = dbPath;
+                    cachedDynaTable = tTable;
+                    if (verboseLog) await AddLogAsync($"[DynamicsCheck] 判定テーブル: '{tTable}' を使用します");
+                    return tTable;
+                }
+
+                if (verboseLog)
+                {
+                    await AddLogAsync($"[DynamicsCheck] 使用可能な資格確認テーブルが見つかりませんでした。WKO='{wkoResult}' / T='{tResult}'");
+                }
+
+                return tTable;
+            }
+            finally
+            {
+                dynaTableResolveSemaphore.Release();
+            }
+        }
+
+        private void InvalidateDynaTableCache()
+        {
+            cachedDynaPath = null;
+            cachedDynaTable = null;
+            DynaTable = "T_資格確認結果表示";
+        }
+
+        private async Task<string> CheckDynamicsAvailabilityAsync(string dbPath, bool verboseLog = false)
+        {
+            if (string.IsNullOrWhiteSpace(dbPath))
+            {
+                if (verboseLog) await AddLogAsync("[DynamicsCheck] エラー: Datadyna が未設定です。");
+                return "エラー: Datadyna が未設定です。";
+            }
+
+            bool fileExists = File.Exists(dbPath);
+            bool hasCachedTable = !string.IsNullOrWhiteSpace(cachedDynaTable)
+                && string.Equals(cachedDynaPath, dbPath, StringComparison.OrdinalIgnoreCase);
+
+            if (fileExists)
+            {
+                if (hasCachedTable)
+                {
+                    DynaTable = cachedDynaTable;
+                }
+                else
+                {
+                    DynaTable = await ResolveCachedDynaTableAsync(dbPath, verboseLog);
+                }
+            }
+            if (verboseLog)
+            {
+                if (fileExists)
+                {
+                    await AddLogAsync("[DynamicsCheck] ダイナミクスOK");
+                }
+                else
+                {
+                    await AddLogAsync($"[DynamicsCheck] ダイナミクスNG: ファイル '{dbPath}' が存在しません。");
+                }
+            }
+
+            return fileExists ? "OK" : $"エラー: ファイル '{dbPath}' が存在しません。";
+        }
+
+        public async Task<string> CheckDatabaseAsync(string dbPath, string tableName, string logLabel = null, bool verboseLog = false)
+        {
+            string prefix = string.IsNullOrWhiteSpace(logLabel) ? "[CheckDatabaseAsync]" : $"[CheckDatabaseAsync:{logLabel}]";
+
             if (string.IsNullOrEmpty(dbPath))
             {
+                if (verboseLog) await AddLogAsync($"{prefix} エラー: データベースパスが指定されていません。");
                 return "エラー: データベースパスが指定されていません。";
             }
             if (string.IsNullOrEmpty(tableName))
             {
+                if (verboseLog) await AddLogAsync($"{prefix} エラー: テーブル名が指定されていません。");
                 return "エラー: テーブル名が指定されていません。";
             }
 
@@ -1052,25 +1229,66 @@ namespace OQSDrug
 
             try
             {
+                if (verboseLog)
+                {
+                    string directoryPath = Path.GetDirectoryName(dbPath);
+                    bool fileExists = File.Exists(dbPath);
+                    bool directoryExists = !string.IsNullOrWhiteSpace(directoryPath) && Directory.Exists(directoryPath);
+                    string fileInfo = fileExists
+                        ? $"サイズ={new FileInfo(dbPath).Length} bytes, 更新日時={File.GetLastWriteTime(dbPath):yyyy-MM-dd HH:mm:ss}"
+                        : "ファイル情報なし";
+                    await AddLogAsync($"{prefix} 開始 path='{dbPath}', table='{tableName}', provider='{CommonFunctions.DBProvider}', mode='{DataReadMode}'");
+                    await AddLogAsync($"{prefix} ファイル存在={fileExists}, フォルダ存在={directoryExists}, {fileInfo}");
+                }
+
                 using (var connection = new OleDbConnection(connectionString))
                 {
                     await connection.OpenAsync(); // 非同期で接続を開く
+                    if (verboseLog) await AddLogAsync($"{prefix} MDB接続を開きました");
 
                     // GetSchema を使ってテーブルが存在するか確認
+                    DataTable allTables = connection.GetSchema("Tables");
                     DataTable schemaTable = connection.GetSchema("Tables", new string[] { null, null, tableName, null });
+                    if (verboseLog)
+                    {
+                        var allTableNames = allTables.Rows
+                            .Cast<DataRow>()
+                            .Select(r => Convert.ToString(r["TABLE_NAME"]))
+                            .Where(name => !string.IsNullOrWhiteSpace(name))
+                            .Distinct()
+                            .OrderBy(name => name)
+                            .ToList();
+
+                        var relatedTableNames = allTableNames
+                            .Where(name => name.IndexOf("資格確認", StringComparison.OrdinalIgnoreCase) >= 0
+                                        || name.IndexOf("WKO", StringComparison.OrdinalIgnoreCase) >= 0
+                                        || name.IndexOf("T_", StringComparison.OrdinalIgnoreCase) >= 0)
+                            .Take(20)
+                            .ToList();
+
+                        string tableListLog = relatedTableNames.Any()
+                            ? string.Join(", ", relatedTableNames)
+                            : string.Join(", ", allTableNames.Take(5));
+
+                        await AddLogAsync($"{prefix} GetSchema一致件数={schemaTable.Rows.Count}, 全テーブル数={allTableNames.Count}");
+                        await AddLogAsync($"{prefix} テーブル一覧候補: {tableListLog}");
+                    }
 
                     if (schemaTable.Rows.Count > 0)
                     {
+                        if (verboseLog) await AddLogAsync($"{prefix} 判定OK: テーブル '{tableName}' が存在します。");
                         return "OK"; // テーブルが存在
                     }
                     else
                     {
+                        if (verboseLog) await AddLogAsync($"{prefix} 判定NG: テーブル '{tableName}' が存在しません。");
                         return $"エラー: テーブル '{tableName}' が存在しません。";
                     }
                 }
             }
             catch (Exception ex)
             {
+                if (verboseLog) await AddLogAsync($"{prefix} 例外: {ex.GetType().Name}: {ex.Message}");
                 return $"エラー: {ex.Message}\n{ex.StackTrace}"; // 例外の詳細情報を含める
             }
         }
@@ -1114,7 +1332,7 @@ namespace OQSDrug
             byte resultCode = 0;
 
             //DynaTable
-            DynaTable = (Properties.Settings.Default.Datadyna.IndexOf("datadyna.mdb", StringComparison.OrdinalIgnoreCase) >= 0) ? "T_資格確認結果表示" : "WKO資格確認結果表示";
+            DynaTable = await ResolveCachedDynaTableAsync(Properties.Settings.Default.Datadyna, true);
 
             //設定初期値の確認
             if (Properties.Settings.Default.TimerInterval <= 0)
@@ -1130,14 +1348,14 @@ namespace OQSDrug
             if (Properties.Settings.Default.DBtype == "mdb")
             {
                 tasks.Add(CheckDatabaseAsync(Properties.Settings.Default.OQSDrugData, "reqResults"));
-                tasks.Add(CheckDatabaseAsync(Properties.Settings.Default.Datadyna, DynaTable));
+                tasks.Add(CheckDynamicsAvailabilityAsync(Properties.Settings.Default.Datadyna, true));
                 tasks.Add(CheckDirectoryExistsAsync(Properties.Settings.Default.OQSFolder));
                 //tasks.Add(CheckRSBaseSetting());
             }
             else // PG
             {
                 tasks.Add(CommonFunctions.CheckPGStatusAsync(CommonFunctions.PGdatabaseName));
-                tasks.Add(CheckDatabaseAsync(Properties.Settings.Default.Datadyna, DynaTable));   // ダイナは引き続きAccessならこのまま
+                tasks.Add(CheckDynamicsAvailabilityAsync(Properties.Settings.Default.Datadyna, true));   // ダイナは引き続きAccessならこのまま
                 tasks.Add(CheckDirectoryExistsAsync(Properties.Settings.Default.OQSFolder));
                 //tasks.Add(CheckRSBaseSetting());
             }
@@ -1160,7 +1378,6 @@ namespace OQSDrug
                     // 対応するインデックスを取得
                     int index = taskIndexMap[completedTask];
                     taskIndexMap.Remove(completedTask);
-
                     // UI を更新（インデックスに基づいて更新）
                     Invoke((Action)(() =>
                     {
@@ -1186,13 +1403,13 @@ namespace OQSDrug
                                 case 1: pictureBoxDynamics.Image = Properties.Resources.Error; break;
                                 case 2: pictureBoxOQSFolder.Image = Properties.Resources.Error; break;
                             }
-
                         }
                     }));
 
                 }
                 catch (Exception ex)
                 {
+                    await AddLogAsync($"[DynamicsCheck] UpdateStatus内で例外: {ex.GetType().Name}: {ex.Message}");
                     MessageBox.Show(ex.ToString());
                     resultCode = 0;
                 }
@@ -1292,6 +1509,7 @@ namespace OQSDrug
         private async Task initializeForm()
         {
             // 失敗メッセージをためる
+            initBackgroundLoadCompleted = false;
             var initErrors = new List<string>();
             bool needSettingsDialog = false;
 
@@ -1333,6 +1551,27 @@ namespace OQSDrug
                 }
             }
 
+            async Task<(bool Completed, T Result)> TryRunAsyncResult<T>(Func<Task<T>> op, int timeoutMs, string name, T fallback = default(T))
+            {
+                try
+                {
+                    var t = op();
+                    var done = await Task.WhenAny(t, Task.Delay(timeoutMs)).ConfigureAwait(false);
+                    if (done != t)
+                    {
+                        await AddLogAsync($"[{name}] タイムアウト（{timeoutMs}ms）").ConfigureAwait(false);
+                        return (false, fallback);
+                    }
+
+                    return (true, await t.ConfigureAwait(false));
+                }
+                catch (Exception ex)
+                {
+                    await AddLogAsync($"[{name}] 例外: {ex.GetType().Name} / {ex.Message}").ConfigureAwait(false);
+                    return (false, fallback);
+                }
+            }
+
             // DBプロバイダ・接続文字列（例外は握って継続）
             if (!await TryRunAsync(() => Task.Run(() =>
             {
@@ -1349,13 +1588,22 @@ namespace OQSDrug
             bool dbOk = await CheckDBVersionAsync(CommonFunctions.DBversion);
 
             // 設定やステータス更新（DBに触るならdbOkで分岐）
+            bool oqsDataReadyForInit = dbOk;
+
             if (dbOk)
             {
-                await TryRunAsync(async () =>
+                var statusResult = await TryRunAsyncResult(() => UpdateStatus(), 5000, "UpdateStatus", (byte)0).ConfigureAwait(false);
+                if (statusResult.Completed)
                 {
-                    okSettings = await UpdateStatus().ConfigureAwait(false);
-                    await setStatus().ConfigureAwait(false);
-                }, 5000, "UpdateStatus/setStatus");
+                    okSettings = statusResult.Result;
+                    await TryRunAsync(() => setStatus(), 5000, "setStatus").ConfigureAwait(false);
+                }
+                else
+                {
+                    // DB バージョン確認は通っているため、起動時の必須ロードは継続する。
+                    okSettings |= 0b001;
+                    await AddLogAsync("[Init] UpdateStatus がタイムアウトしたため、OQSDrugData 利用可として起動処理を継続します。").ConfigureAwait(false);
+                }
             }
             else
             {
@@ -1428,7 +1676,7 @@ namespace OQSDrug
         // ====== 重い並列タスク（KORO取込 / RSB読込 / Ollamaモデル） ======
         var tasks = new List<Task>();
 
-            if ((okSettings & (0b001)) == 1) // OQSDrugData OK
+            if (oqsDataReadyForInit) // OQSDrugData OK
             {
                 await AddLogAsync("特定健診基準値データを読み込みます").ConfigureAwait(false);
                 // ここはDB不要の想定：タイムアウト付きにしておく
@@ -1457,14 +1705,14 @@ namespace OQSDrug
 
             
             // Ollama モデル一覧
-            var ollamaTask = Task.Run(async () =>
+            var ollamaTask = TryRunAsync(async () =>
             {
                 if (Properties.Settings.Default.LLMserver.Length > 4 && Properties.Settings.Default.LLMport > 1)
                 {
                     string ollamaUrl = $"http://{Properties.Settings.Default.LLMserver.Trim()}:{Properties.Settings.Default.LLMport}";
                     await CommonFunctions.GetOllamaModelsAsync(ollamaUrl).ConfigureAwait(false);
                 }
-            });
+            }, 5000, "GetOllamaModelsAsync");
             tasks.Add(ollamaTask);
 
             // 並列の待機（失敗しても落とさずログだけ出す）
@@ -1486,6 +1734,12 @@ namespace OQSDrug
                     }
                 }
                 // ここで throw しない：アプリ継続
+            }
+
+            initBackgroundLoadCompleted = true;
+            if (!needSettingsDialog && (autoRSB || autoTKK || autoSR))
+            {
+                OnUI(() => checkBoxAutoview_CheckedChanged(this, EventArgs.Empty));
             }
         }
 
@@ -1569,7 +1823,8 @@ namespace OQSDrug
                     // TKK_reference table:
                     string TKKreference = "TKK_reference";
 
-                    if (await CheckDatabaseAsync(Properties.Settings.Default.OQSDrugData, TKKreference) != "OK")
+                    bool tkkReferenceExists = await CheckDatabaseAsync(Properties.Settings.Default.OQSDrugData, TKKreference) == "OK";
+                    if (!tkkReferenceExists)
                     {
                         await AddLogAsync($"{TKKreference}がないので、作成します");
                         string sql = $@"CREATE TABLE {TKKreference} (
@@ -1594,6 +1849,26 @@ namespace OQSDrug
                         else
                         {
                             await AddLogAsync($"{TKKreference}の作成に失敗しました");
+                        }
+                    }
+                    else
+                    {
+                        int? tkkReferenceCount = await GetTableRecordCountAsync(Properties.Settings.Default.OQSDrugData, TKKreference);
+                        if (tkkReferenceCount.HasValue)
+                        {
+                            await AddLogAsync($"{TKKreference} は既に存在します。件数={tkkReferenceCount.Value}");
+                            if (tkkReferenceCount.Value == 0)
+                            {
+                                await AddLogAsync($"{TKKreference} が0件のため、既定の基準値を再投入します");
+                                if (await setInitialReferenceAsync(Properties.Settings.Default.OQSDrugData))
+                                {
+                                    await AddLogAsync("特定健診基準初期値を設定しました");
+                                }
+                                else
+                                {
+                                    await AddLogAsync("特定健診基準初期値の設定に失敗しました");
+                                }
+                            }
                         }
                     }
 
@@ -1738,6 +2013,29 @@ namespace OQSDrug
                 AddLogAsync($"setInitialReferenceAsyncでエラー{ex.Message}");
             }
             return result;
+        }
+
+        private async Task<int?> GetTableRecordCountAsync(string databasePath, string tableName)
+        {
+            string connectionString = $"Provider={CommonFunctions.DBProvider};Data Source={databasePath};";
+
+            try
+            {
+                using (var connection = new OleDbConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new OleDbCommand($"SELECT COUNT(*) FROM [{tableName}]", connection))
+                    {
+                        object count = await command.ExecuteScalarAsync();
+                        return (count == null || count == DBNull.Value) ? (int?)0 : Convert.ToInt32(count);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await AddLogAsync($"[{tableName}] 件数取得でエラー: {ex.Message}");
+                return null;
+            }
         }
 
         private async Task<bool> CreateTableAsync(string databasePath, string createTableQuery)
@@ -3384,6 +3682,11 @@ namespace OQSDrug
 
             Properties.Settings.Default.Save();
 
+            if (!initBackgroundLoadCompleted)
+            {
+                return;
+            }
+
             if (autoRSB || autoTKK || autoSR)
             {
                 InitializeFileWatcher();
@@ -3528,7 +3831,7 @@ namespace OQSDrug
                 fileWatcher.Changed += FileWatcher_Changed;
                 //fileWatcher.Created += FileWatcher_Changed;
 
-                AddLogAsync("RSB連携を開始しました");
+                AddLogAsync("Dynamics/RSB連携を開始しました");
             }
             catch (Exception ex)
             {
@@ -4447,6 +4750,12 @@ namespace OQSDrug
         // sgml_rawdata ∩ drug_code_map を対象に SGMLDI を構築
         private async Task LoadSGMLDIAsync()
         {
+            if (!await sgmlLoadSemaphore.WaitAsync(0))
+            {
+                await CommonFunctions.AddLogAsync("SGML薬情インデックスの読み込みはすでに実行中のためスキップします。");
+                return;
+            }
+
             try
             {
                 await CommonFunctions.AddLogAsync("SGML薬情インデックス（sgml_rawdata×drug_code_map）の読み込みを開始します…");
@@ -4571,6 +4880,10 @@ namespace OQSDrug
             {
                 await CommonFunctions.AddLogAsync($"SGML薬情インデックスの読み込みエラー: {ex.Message}");
                 CommonFunctions._readySGML = false;
+            }
+            finally
+            {
+                sgmlLoadSemaphore.Release();
             }
         }
 
@@ -4974,6 +5287,8 @@ namespace OQSDrug
 
         public async Task LoadKoro2SQL()
         {
+            bool shouldLoadSgml = Properties.Settings.Default.DBtype == "pg";
+            bool sgmlLoadTriggered = false;
             try
             {
                 string Dynamics = Properties.Settings.Default.Datadyna;
@@ -5003,6 +5318,7 @@ namespace OQSDrug
                             await AddLogAsync("drug_code_mapをDBから更新しました。");
                         }
                         //SGML DIのロード
+                        sgmlLoadTriggered = true;
                         await LoadSGMLDIAsync();
                         await AddLogAsync("SGML薬剤情報インデックスをDBから更新しました。");
                     }
@@ -5063,6 +5379,7 @@ namespace OQSDrug
                         await RefreshDictionaryFromDbAsync(conn);
                         await AddLogAsync("drug_code_mapをDBから読み込みました。");
                         //SGML DIのロード
+                        sgmlLoadTriggered = true;
                         await LoadSGMLDIAsync();
                         await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
                     }
@@ -5076,6 +5393,19 @@ namespace OQSDrug
             catch (Exception ex)
             {
                 await AddLogAsync($"エラー: {ex.Message}\n{ex.StackTrace}");
+            }
+            if (shouldLoadSgml && !sgmlLoadTriggered)
+            {
+                try
+                {
+                    await AddLogAsync("SGML薬情インデックスの事後読み込みを試行します。");
+                    await LoadSGMLDIAsync();
+                    await AddLogAsync("SGML薬剤情報インデックスをDBから更新しました。");
+                }
+                catch (Exception ex)
+                {
+                    await AddLogAsync($"SGML薬情インデックスの事後読み込みエラー: {ex.Message}");
+                }
             }
         }
 

@@ -1,0 +1,14 @@
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.csproj.AssemblyReference.cache
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.Form1.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.Form2.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormVersion.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormDI.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormDynaViewer.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormLLMsetteing.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormPGupload.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormSearch.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormSGML_DI.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormSR.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.FormTKK.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.Properties.Resources.resources
+D:\Google ドライブ\VisualStudio\OQSDrug\OQSDrug\Output\objtmp\OQSDrug.csproj.GenerateResource.cache

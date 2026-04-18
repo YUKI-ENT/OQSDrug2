@@ -983,7 +983,7 @@ namespace OQSDrug
             {
                 string searchText = toolStripTextBoxSearch.Text;
 
-                List<Tuple<string[], double>> topResults = await CommonFunctions.FuzzySearchAsync(searchText, searchText,"", CommonFunctions.SGMLDI, 0.1, 0.4, 0);
+                List<Tuple<string[], double>> topResults = await CommonFunctions.SearchSgmlCandidatesAsync(searchText, searchText, "", 0.1);
                 if (topResults.Count > 0)
                 {
                     SetDrugLists(topResults);
