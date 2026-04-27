@@ -39,12 +39,13 @@ namespace OQSDrug
 
         public async Task LoadDataIntoComboBoxes()
         {
-            if (!await CommonFunctions.WaitForDbUnlock(2000))
+            if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
                 MessageBox.Show("データベースがロックされており、LoadDataIntoComboBoxes に失敗しました。もう一度やり直してください。");
                 return;
             }
 
+            bool dbGateTaken = true;
             ptData = new List<(long PtID, string DisplayText)>();
 
             string sql = @"
@@ -61,7 +62,6 @@ namespace OQSDrug
                 try
                 {
                     await ((DbConnection)connection).OpenAsync();
-                    CommonFunctions.DataDbLock = true;
 
                     using (IDbCommand command = connection.CreateCommand())
                     {
@@ -79,6 +79,9 @@ namespace OQSDrug
                             }
                         }
                     }
+
+                    CommonFunctions.ExitDataDb();
+                    dbGateTaken = false;
 
                     if (IsDisposed || Disposing || !IsHandleCreated || toolStrip1.IsDisposed) return;
 
@@ -129,11 +132,12 @@ namespace OQSDrug
                 }
                 catch (Exception ex)
                 {
+                    await CommonFunctions.AddLogAsync($"FormSR.LoadDataIntoComboBoxes エラー: {ex}");
                     MessageBox.Show($"データの取得中にエラーが発生しました: {ex.Message}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 finally
                 {
-                    CommonFunctions.DataDbLock = false;
+                    if (dbGateTaken) CommonFunctions.ExitDataDb();
                 }
             }
         }
@@ -176,11 +180,13 @@ namespace OQSDrug
 
         private async Task ShowSRData(long PtID)
         {
-            if (!await CommonFunctions.WaitForDbUnlock(2000))
+            if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
                 MessageBox.Show("データベースがロックされており、ShowSRDataに失敗しました。もう一度やり直してみてください。");
                 return;
             }
+
+            bool dbGateTaken = true;
 
             // pivotField を Sumボタンの状態で切り替え
             string pivotField = toolStripButtonSum.Checked ? "metrmonth" : "didate";
@@ -214,15 +220,14 @@ namespace OQSDrug
                         // パラメータ追加
                         CommonFunctions.AddDbParameter(command, "@ptidmain", PtID);
 
-                        CommonFunctions.DataDbLock = true;
-
                         DataTable rawTable = new DataTable();
                         using (var reader = await ((DbCommand)command).ExecuteReaderAsync())
                         {
                             rawTable.Load(reader);
                         }
 
-                        CommonFunctions.DataDbLock = false;
+                        CommonFunctions.ExitDataDb();
+                        dbGateTaken = false;
 
                         // ピボット変換
                         var pivotTable = CommonFunctions.ConvertPivotDataTable(
@@ -287,11 +292,12 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
+                await CommonFunctions.AddLogAsync($"FormSR.ShowSRData エラー PtID={PtID}: {ex}");
                 MessageBox.Show($"エラーが発生しました: {ex.Message}");
             }
             finally
             {
-                CommonFunctions.DataDbLock = false;
+                if (dbGateTaken) CommonFunctions.ExitDataDb();
             }
         }
 

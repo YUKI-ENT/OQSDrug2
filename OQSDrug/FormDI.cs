@@ -41,8 +41,7 @@ namespace OQSDrug
         private FormSearch formSearch = null;
         private FormSGML_DI formSGML_DI = null;
 
-        // 同期中フラグ（必要最小限）
-        private bool _syncingSelect = false;
+        private bool _initializingDrugClassButton = false;
 
         // 薬歴用
         private BindingSource bsHistory;
@@ -50,9 +49,6 @@ namespace OQSDrug
         // 相互作用
         private DataTable dtInteractions;
         private BindingSource bsInteractions;
-
-        // キャッシュ（同じ yj_code で無駄に再読込しない用）
-        private long? _lastPtIdForInteraction = null;
 
         // 優先表示しきい値（必要なら調整）
         private const double CHRONIC_PRIORITY_MIN = 0.55;
@@ -73,7 +69,7 @@ namespace OQSDrug
 
         public async Task LoadDataIntoComboBoxes()
         {
-            if (!await CommonFunctions.WaitForDbUnlock(2000))
+            if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
                 MessageBox.Show("データベースがロックされており、LoadDataIntoComboBoxes に失敗しました。もう一度やり直してみてください。");
                 return;
@@ -98,8 +94,6 @@ namespace OQSDrug
                 {
                     await ((DbConnection)connection).OpenAsync();
 
-                    CommonFunctions.DataDbLock = true;
-
                     using (IDbCommand command = connection.CreateCommand())
                     {
                         command.CommandText = sql;
@@ -121,12 +115,13 @@ namespace OQSDrug
                 }
                 catch (Exception ex)
                 {
+                    await CommonFunctions.AddLogAsync($"FormDI.LoadDataIntoComboBoxes エラー: {ex}");
                     MessageBox.Show("データの取得中にエラーが発生しました: " + ex.Message, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 finally
                 {
-                    CommonFunctions.DataDbLock = false;
+                    CommonFunctions.ExitDataDb();
                 }
             }
 
@@ -192,8 +187,10 @@ namespace OQSDrug
             SetSpanButtonState(ShowSpan);
             SettoolStripButtonSpanEvent();
 
+            _initializingDrugClassButton = true;
             toolStripButtonClass.Checked = Properties.Settings.Default.DrugClass;
-            toolStripButtonClass.Enabled = (CommonFunctions.ReceptToMedisCodeMap.Count > 0);
+            await UpdateDrugClassButtonAvailabilityAsync();
+            _initializingDrugClassButton = false;
 
             // Context menu
             InitializeContextMenu();
@@ -293,11 +290,13 @@ namespace OQSDrug
 
         private async Task ShowDrugData(long PtID)
         {
-            if (!await CommonFunctions.WaitForDbUnlock(2000))
+            if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
                 MessageBox.Show("データベースがロックされており、ShowDrugDataに失敗しました。もう一度やり直してみてください。");
                 return;
             }
+
+            bool dbGateTaken = true;
 
             // Sum 設定によって pivotField を切り替える
             string pivotField = Properties.Settings.Default.Sum ? "metrmonth" : "didate";
@@ -363,15 +362,14 @@ namespace OQSDrug
                         CommonFunctions.AddDbParameter(command, "@omitOff", omitOff ? 1 : 0);
                         CommonFunctions.AddDbParameter(command, "@ptidmain", PtID);
 
-                        CommonFunctions.DataDbLock = true;
-
                         DataTable rawTable = new DataTable();
                         using (var reader = await ((DbCommand)command).ExecuteReaderAsync())
                         {
                             rawTable.Load(reader);
                         }
 
-                        CommonFunctions.DataDbLock = false;
+                        CommonFunctions.ExitDataDb();
+                        dbGateTaken = false;
 
                         // ↓ここでC#側でPivot化（metrmonth列を列見出しに変換）
                         DataTable pivoted = CommonFunctions.ConvertPivotDataTable(rawTable,
@@ -406,12 +404,13 @@ namespace OQSDrug
 
                             // medisCodeマッピング
                             string receptCode = row["drugc"]?.ToString();
-                            if (CommonFunctions.ReceptToMedisCodeMap.TryGetValue(receptCode, out string medisCode))
+                            if (CommonFunctions.TryGetMedisCodeForRecept(receptCode, out string medisCode))
                                 row["medisCode"] = medisCode;
 
                             // 色
-                            if (Properties.Settings.Default.DrugClass && row["medisCode"] != DBNull.Value)
-                                row["Color"] = getDrugClassColor(row["medisCode"].ToString());
+                            string rowMedisCode = row["medisCode"]?.ToString();
+                            if (Properties.Settings.Default.DrugClass && !string.IsNullOrWhiteSpace(rowMedisCode))
+                                row["Color"] = getDrugClassColor(rowMedisCode);
                             else
                                 row["Color"] = RowColors[colorIndex];
                         }
@@ -454,13 +453,14 @@ namespace OQSDrug
             }
             catch (ObjectDisposedException)
             {
-                CommonFunctions.DataDbLock = false;
+                if (dbGateTaken) CommonFunctions.ExitDataDb();
                 return;
             }
             catch (Exception ex)
             {
+                await CommonFunctions.AddLogAsync($"FormDI.ShowDrugData エラー PtID={PtID}: {ex}");
                 MessageBox.Show($"エラーが発生しました: {ex.Message}");
-                CommonFunctions.DataDbLock = false;
+                if (dbGateTaken) CommonFunctions.ExitDataDb();
             }
         }
 
@@ -966,29 +966,6 @@ namespace OQSDrug
             return null;
         }
 
-        private string FirstExistingColumn(DataGridView dgv, params string[] candidates)
-        {
-            foreach (var name in candidates)
-            {
-                // 列の Name / DataPropertyName の両方を大小無視で照合
-                foreach (DataGridViewColumn c in dgv.Columns)
-                {
-                    if (string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(c.DataPropertyName, name, StringComparison.OrdinalIgnoreCase))
-                        return c.Name; // 実列名を返す
-                }
-            }
-            return null;
-        }
-
-        private string GetCellString(DataGridView dgv, int rowIndex, string colName)
-        {
-            if (string.IsNullOrEmpty(colName)) return null;
-            if (!dgv.Columns.Contains(colName)) return null;
-            var v = dgv.Rows[rowIndex].Cells[colName].Value;
-            return v == null ? null : v.ToString();
-        }
-                      
         private void toolStripButtonSum_CheckedChanged(object sender, EventArgs e)
         {
             Properties.Settings.Default.Sum = toolStripButtonSum.Checked;
@@ -1032,8 +1009,42 @@ namespace OQSDrug
             dataGridViewDH.FirstDisplayedScrollingRowIndex = newIndex;
         }
 
-        private void toolStripButtonClass_CheckStateChanged(object sender, EventArgs e)
+        private async Task UpdateDrugClassButtonAvailabilityAsync()
         {
+            if (CommonFunctions.ReceptToMedisCodeMap.Count == 0 && Properties.Settings.Default.DBtype == "pg")
+            {
+                try
+                {
+                    int count = await CommonFunctions.RefreshReceptToMedisCodeMapFromDbAsync();
+                    await CommonFunctions.AddLogAsync($"FormDI: drug_code_mapをDBから読み込みました。{count}件");
+                }
+                catch (Exception ex)
+                {
+                    await CommonFunctions.AddLogAsync($"FormDI: drug_code_mapの読み込みエラー: {ex.Message}");
+                }
+            }
+
+            toolStripButtonClass.Enabled = CommonFunctions.ReceptToMedisCodeMap.Count > 0;
+        }
+
+        private async void toolStripButtonClass_CheckStateChanged(object sender, EventArgs e)
+        {
+            if (_initializingDrugClassButton)
+            {
+                return;
+            }
+
+            if (toolStripButtonClass.Checked)
+            {
+                await UpdateDrugClassButtonAvailabilityAsync();
+                if (CommonFunctions.ReceptToMedisCodeMap.Count == 0)
+                {
+                    MessageBox.Show("薬効着色に必要な drug_code_map を読み込めませんでした。");
+                    toolStripButtonClass.Checked = false;
+                    return;
+                }
+            }
+
             Properties.Settings.Default.DrugClass = toolStripButtonClass.Checked;
             Properties.Settings.Default.Save();
 
@@ -1543,12 +1554,6 @@ namespace OQSDrug
                 Action uiErr = () => labelStatus.Text = ex.Message;
                 if (InvokeRequired) BeginInvoke(uiErr); else uiErr();
             }
-        }
-
-       
-        private void checkBoxLLMLocal_CheckedChanged(object sender, EventArgs e)
-        {
-            //buttonDiseaseQuery_Click(sender, e);
         }
 
         private async void buttonPromptTpl_Click(object sender, EventArgs e)

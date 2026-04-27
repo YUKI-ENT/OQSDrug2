@@ -50,8 +50,9 @@ namespace OQSDrug
 
         public async Task LoadToolStripComboBox()
         {
-            if (await CommonFunctions.WaitForDbUnlock(2000))
+            if (await CommonFunctions.TryEnterDataDbAsync(5000))
             {
+                bool dbGateTaken = true;
                 ptData = new List<(long PtID, string PtName)>();
 
                 string query = @"SELECT PtIDmain, PtName, Max(id) AS Maxid
@@ -73,8 +74,6 @@ namespace OQSDrug
                             connection.Open();
                         }
 
-                        CommonFunctions.DataDbLock = true;
-
                         using (IDbCommand command = connection.CreateCommand())
                         {
                             command.CommandText = query;
@@ -92,7 +91,8 @@ namespace OQSDrug
                             }
                         }
 
-                        CommonFunctions.DataDbLock = false;
+                        CommonFunctions.ExitDataDb();
+                        dbGateTaken = false;
 
                         if (IsDisposed || Disposing || !IsHandleCreated) return;
 
@@ -138,11 +138,12 @@ namespace OQSDrug
                     }
                     catch (Exception ex)
                     {
+                        await CommonFunctions.AddLogAsync($"FormTKK.LoadToolStripComboBox エラー: {ex}");
                         MessageBox.Show($"データの取得中にエラーが発生しました: {ex.Message}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     finally
                     {
-                        CommonFunctions.DataDbLock = false;
+                        if (dbGateTaken) CommonFunctions.ExitDataDb();
                     }
                 }
             }
@@ -181,13 +182,13 @@ namespace OQSDrug
 
         private async Task ShowTKKData(long ptID)
         {
-            if (!await CommonFunctions.WaitForDbUnlock(2000))
+            if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
                 MessageBox.Show("データベースがロックされており、ShowTKKData に失敗しました。もう一度やり直してください。");
                 return;
             }
 
-            CommonFunctions.DataDbLock = true;
+            bool dbGateTaken = true;
 
             // PG用のSQLをベースに統一（全て小文字）
             string query = @"
@@ -222,7 +223,8 @@ namespace OQSDrug
                         {
                             var raw = new DataTable();
                             raw.Load(reader);
-                            CommonFunctions.DataDbLock = false;
+                            CommonFunctions.ExitDataDb();
+                            dbGateTaken = false;
 
                             // pivot化
                             var pivot = CommonFunctions.ConvertPivotDataTable(
@@ -269,11 +271,12 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
+                await CommonFunctions.AddLogAsync($"FormTKK.ShowTKKData エラー PtID={ptID}: {ex}");
                 MessageBox.Show($"エラーが発生しました: {ex.Message}");
             }
             finally
             {
-                CommonFunctions.DataDbLock = false;
+                if (dbGateTaken) CommonFunctions.ExitDataDb();
             }
         }
 

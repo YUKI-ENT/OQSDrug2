@@ -123,6 +123,76 @@ namespace OQSDrug
 
             checkBoxAI.Checked = Properties.Settings.Default.AIauto;
 
+            checkBoxBulkHoumonAutoEnabled.Checked = Properties.Settings.Default.BulkHoumonAutoEnabled;
+            numericUpDownBulkHoumonConsentDaysBack.Value = ClampNumericValue(
+                numericUpDownBulkHoumonConsentDaysBack,
+                Properties.Settings.Default.BulkHoumonConsentDaysBack);
+            numericUpDownBulkHoumonConsentDaysForward.Value = ClampNumericValue(
+                numericUpDownBulkHoumonConsentDaysForward,
+                Properties.Settings.Default.BulkHoumonConsentDaysForward);
+            numericUpDownBulkHoumonPollIntervalSeconds.Value = ClampNumericValue(
+                numericUpDownBulkHoumonPollIntervalSeconds,
+                Properties.Settings.Default.BulkHoumonPollIntervalSeconds);
+            numericUpDownBulkHoumonAutoIntervalMinutes.Value = ClampNumericValue(
+                numericUpDownBulkHoumonAutoIntervalMinutes,
+                Properties.Settings.Default.BulkHoumonAutoIntervalMinutes);
+            numericUpDownBulkHoumonMaxRetryCount.Value = ClampNumericValue(
+                numericUpDownBulkHoumonMaxRetryCount,
+                Properties.Settings.Default.BulkHoumonMaxRetryCount);
+            checkBoxBulkOnlineAutoEnabled.Checked = Properties.Settings.Default.BulkOnlineAutoEnabled;
+            radioButtonBulkOnlineConsentDates.Checked = Properties.Settings.Default.BulkOnlineUseConsentDates;
+            radioButtonBulkOnlineExaminationDates.Checked = !Properties.Settings.Default.BulkOnlineUseConsentDates;
+            numericUpDownBulkOnlineConsentDaysBack.Value = ClampNumericValue(
+                numericUpDownBulkOnlineConsentDaysBack,
+                Properties.Settings.Default.BulkOnlineConsentDaysBack);
+            numericUpDownBulkOnlineConsentDaysForward.Value = ClampNumericValue(
+                numericUpDownBulkOnlineConsentDaysForward,
+                Properties.Settings.Default.BulkOnlineConsentDaysForward);
+            numericUpDownBulkOnlineExaminationDaysBack.Value = ClampNumericValue(
+                numericUpDownBulkOnlineExaminationDaysBack,
+                Properties.Settings.Default.BulkOnlineExaminationDaysBack);
+            numericUpDownBulkOnlineExaminationDaysForward.Value = ClampNumericValue(
+                numericUpDownBulkOnlineExaminationDaysForward,
+                Properties.Settings.Default.BulkOnlineExaminationDaysForward);
+            numericUpDownBulkOnlinePollIntervalSeconds.Value = ClampNumericValue(
+                numericUpDownBulkOnlinePollIntervalSeconds,
+                Properties.Settings.Default.BulkOnlinePollIntervalSeconds);
+            numericUpDownBulkOnlineAutoIntervalMinutes.Value = ClampNumericValue(
+                numericUpDownBulkOnlineAutoIntervalMinutes,
+                Properties.Settings.Default.BulkOnlineAutoIntervalMinutes);
+            numericUpDownBulkOnlineMaxRetryCount.Value = ClampNumericValue(
+                numericUpDownBulkOnlineMaxRetryCount,
+                Properties.Settings.Default.BulkOnlineMaxRetryCount);
+            checkBoxBulkMedicalAidAutoEnabled.Checked = Properties.Settings.Default.BulkMedicalAidAutoEnabled;
+            numericUpDownBulkMedicalAidMonthBack.Value = ClampNumericValue(
+                numericUpDownBulkMedicalAidMonthBack,
+                Properties.Settings.Default.BulkMedicalAidMonthBack);
+            numericUpDownBulkMedicalAidMonthForward.Value = ClampNumericValue(
+                numericUpDownBulkMedicalAidMonthForward,
+                Properties.Settings.Default.BulkMedicalAidMonthForward);
+            numericUpDownBulkMedicalAidPollIntervalSeconds.Value = ClampNumericValue(
+                numericUpDownBulkMedicalAidPollIntervalSeconds,
+                Properties.Settings.Default.BulkMedicalAidPollIntervalSeconds);
+            numericUpDownBulkMedicalAidAutoIntervalMinutes.Value = ClampNumericValue(
+                numericUpDownBulkMedicalAidAutoIntervalMinutes,
+                Properties.Settings.Default.BulkMedicalAidAutoIntervalMinutes);
+            numericUpDownBulkMedicalAidMaxRetryCount.Value = ClampNumericValue(
+                numericUpDownBulkMedicalAidMaxRetryCount,
+                Properties.Settings.Default.BulkMedicalAidMaxRetryCount);
+            comboBoxBulkStatusWindowMode.Items.Clear();
+            comboBoxBulkStatusWindowMode.Items.AddRange(new object[]
+            {
+                "表示しない",
+                "最小化で表示",
+                "通常表示"
+            });
+            int bulkStatusWindowMode = Properties.Settings.Default.BulkStatusWindowMode;
+            if (bulkStatusWindowMode < 0 || bulkStatusWindowMode >= comboBoxBulkStatusWindowMode.Items.Count)
+            {
+                bulkStatusWindowMode = 1;
+            }
+            comboBoxBulkStatusWindowMode.SelectedIndex = bulkStatusWindowMode;
+
 
             //LLM Model list
             // 設定から既定モデル名を取得
@@ -275,6 +345,31 @@ namespace OQSDrug
             Properties.Settings.Default.LLMport = Convert.ToInt16(textBoxLLMport.Text);
             //Properties.Settings.Default.LLMmodel = textBoxLLMmodel.Text;
             Properties.Settings.Default.LLMtimeout = Convert.ToInt16(textBoxLLMtimeout.Text);
+
+            Properties.Settings.Default.BulkHoumonAutoEnabled = checkBoxBulkHoumonAutoEnabled.Checked;
+            Properties.Settings.Default.BulkHoumonConsentDaysBack = Decimal.ToInt32(numericUpDownBulkHoumonConsentDaysBack.Value);
+            Properties.Settings.Default.BulkHoumonConsentDaysForward = Decimal.ToInt32(numericUpDownBulkHoumonConsentDaysForward.Value);
+            Properties.Settings.Default.BulkHoumonPollIntervalSeconds = Decimal.ToInt32(numericUpDownBulkHoumonPollIntervalSeconds.Value);
+            Properties.Settings.Default.BulkHoumonAutoIntervalMinutes = Decimal.ToInt32(numericUpDownBulkHoumonAutoIntervalMinutes.Value);
+            Properties.Settings.Default.BulkHoumonMaxRetryCount = Decimal.ToInt32(numericUpDownBulkHoumonMaxRetryCount.Value);
+            Properties.Settings.Default.BulkOnlineAutoEnabled = checkBoxBulkOnlineAutoEnabled.Checked;
+            Properties.Settings.Default.BulkOnlineUseConsentDates = radioButtonBulkOnlineConsentDates.Checked;
+            Properties.Settings.Default.BulkOnlineConsentDaysBack = Decimal.ToInt32(numericUpDownBulkOnlineConsentDaysBack.Value);
+            Properties.Settings.Default.BulkOnlineConsentDaysForward = Decimal.ToInt32(numericUpDownBulkOnlineConsentDaysForward.Value);
+            Properties.Settings.Default.BulkOnlineExaminationDaysBack = Decimal.ToInt32(numericUpDownBulkOnlineExaminationDaysBack.Value);
+            Properties.Settings.Default.BulkOnlineExaminationDaysForward = Decimal.ToInt32(numericUpDownBulkOnlineExaminationDaysForward.Value);
+            Properties.Settings.Default.BulkOnlinePollIntervalSeconds = Decimal.ToInt32(numericUpDownBulkOnlinePollIntervalSeconds.Value);
+            Properties.Settings.Default.BulkOnlineAutoIntervalMinutes = Decimal.ToInt32(numericUpDownBulkOnlineAutoIntervalMinutes.Value);
+            Properties.Settings.Default.BulkOnlineMaxRetryCount = Decimal.ToInt32(numericUpDownBulkOnlineMaxRetryCount.Value);
+            Properties.Settings.Default.BulkMedicalAidAutoEnabled = checkBoxBulkMedicalAidAutoEnabled.Checked;
+            Properties.Settings.Default.BulkMedicalAidMonthBack = Decimal.ToInt32(numericUpDownBulkMedicalAidMonthBack.Value);
+            Properties.Settings.Default.BulkMedicalAidMonthForward = Decimal.ToInt32(numericUpDownBulkMedicalAidMonthForward.Value);
+            Properties.Settings.Default.BulkMedicalAidPollIntervalSeconds = Decimal.ToInt32(numericUpDownBulkMedicalAidPollIntervalSeconds.Value);
+            Properties.Settings.Default.BulkMedicalAidAutoIntervalMinutes = Decimal.ToInt32(numericUpDownBulkMedicalAidAutoIntervalMinutes.Value);
+            Properties.Settings.Default.BulkMedicalAidMaxRetryCount = Decimal.ToInt32(numericUpDownBulkMedicalAidMaxRetryCount.Value);
+            Properties.Settings.Default.BulkStatusWindowMode = comboBoxBulkStatusWindowMode.SelectedIndex >= 0
+                ? comboBoxBulkStatusWindowMode.SelectedIndex
+                : 1;
 
             Properties.Settings.Default.DIviewer = (radioButtonRSB.Checked) ? "RSB" : "SGML"; 
 
@@ -604,6 +699,22 @@ namespace OQSDrug
                 Properties.Settings.Default.Save();
                 
             }
+        }
+
+        private static decimal ClampNumericValue(NumericUpDown control, int value)
+        {
+            decimal decimalValue = value;
+            if (decimalValue < control.Minimum)
+            {
+                return control.Minimum;
+            }
+
+            if (decimalValue > control.Maximum)
+            {
+                return control.Maximum;
+            }
+
+            return decimalValue;
         }
     }
 }

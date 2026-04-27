@@ -72,6 +72,7 @@
             this.toolStripButtonPMDA = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparatorDebug1 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripButtonDynaViewer1 = new System.Windows.Forms.ToolStripButton();
+            this.toolStripButtonBulkTool = new System.Windows.Forms.ToolStripButton();
             this.toolStripComboBoxDBProviders = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripComboBoxConnectionMode = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripTextBoxDebug = new System.Windows.Forms.ToolStripTextBox();
@@ -406,6 +407,7 @@
             this.toolStripButtonPMDA,
             this.toolStripSeparatorDebug1,
             this.toolStripButtonDynaViewer1,
+            this.toolStripButtonBulkTool,
             this.toolStripComboBoxDBProviders,
             this.toolStripComboBoxConnectionMode,
             this.toolStripTextBoxDebug,
@@ -557,16 +559,25 @@
             this.toolStripButtonDynaViewer1.Image = global::OQSDrug.Properties.Resources.Person;
             this.toolStripButtonDynaViewer1.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonDynaViewer1.Name = "toolStripButtonDynaViewer1";
-            this.toolStripButtonDynaViewer1.Size = new System.Drawing.Size(119, 24);
-            this.toolStripButtonDynaViewer1.Text = "資格確認一覧";
+            this.toolStripButtonDynaViewer1.Size = new System.Drawing.Size(89, 24);
+            this.toolStripButtonDynaViewer1.Text = "資格一覧";
             this.toolStripButtonDynaViewer1.ToolTipText = "保存した資格確認データを表示します";
             this.toolStripButtonDynaViewer1.Click += new System.EventHandler(this.toolStripButtonDynaViewer_Click);
+            // 
+            // toolStripButtonBulkTool
+            // 
+            this.toolStripButtonBulkTool.Image = global::OQSDrug.Properties.Resources.People;
+            this.toolStripButtonBulkTool.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButtonBulkTool.Name = "toolStripButtonBulkTool";
+            this.toolStripButtonBulkTool.Size = new System.Drawing.Size(87, 24);
+            this.toolStripButtonBulkTool.Text = "BulkTool";
+            this.toolStripButtonBulkTool.Click += new System.EventHandler(this.toolStripButtonBulkTool_Click);
             // 
             // toolStripComboBoxDBProviders
             // 
             this.toolStripComboBoxDBProviders.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.toolStripComboBoxDBProviders.Name = "toolStripComboBoxDBProviders";
-            this.toolStripComboBoxDBProviders.Size = new System.Drawing.Size(180, 29);
+            this.toolStripComboBoxDBProviders.Size = new System.Drawing.Size(180, 23);
             this.toolStripComboBoxDBProviders.ToolTipText = "OleDbプロバイダを設定します";
             this.toolStripComboBoxDBProviders.Visible = false;
             this.toolStripComboBoxDBProviders.SelectedIndexChanged += new System.EventHandler(this.toolStripComboBoxDBProviders_SelectedIndexChanged);
@@ -680,6 +691,7 @@
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.ToolStripButton toolStripButtonPMDA;
         private System.Windows.Forms.ToolStripButton toolStripButtonDynaViewer1;
+        private System.Windows.Forms.ToolStripButton toolStripButtonBulkTool;
     }
 }
 

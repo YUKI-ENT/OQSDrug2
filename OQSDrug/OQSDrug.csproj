@@ -3,7 +3,7 @@
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <ProjectGuid>{B5685555-8F31-41F2-A1BE-30A6DE31F6B1}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>OQSDrug</RootNamespace>
@@ -111,7 +111,11 @@
     <Reference Include="System.Collections.Immutable, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Collections.Immutable.8.0.0\lib\net462\System.Collections.Immutable.dll</HintPath>
     </Reference>
-    <Reference Include="System.Configuration" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Configuration">
+      <HintPath>C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8\System.Configuration.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Diagnostics.DiagnosticSource, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Diagnostics.DiagnosticSource.8.0.0\lib\net462\System.Diagnostics.DiagnosticSource.dll</HintPath>
@@ -157,8 +161,20 @@
     <Compile Include="ClickThroughToolStrip.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="BulkQualificationService.cs" />
+    <Compile Include="BulkQualificationAutomation.cs" />
+    <Compile Include="BulkExecutionProgressModels.cs" />
     <Compile Include="CommonFunctions.cs" />
     <Compile Include="CustomToolStripRenderer.cs" />
+    <Compile Include="MonthNumericUpDown.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="FormBulkExecutionStatus.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormBulkExecutionStatus.Designer.cs">
+      <DependentUpon>FormBulkExecutionStatus.cs</DependentUpon>
+    </Compile>
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -188,6 +204,12 @@
     </Compile>
     <Compile Include="FormDynaViewer.Designer.cs">
       <DependentUpon>FormDynaViewer.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FormQualificationImportViewer.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormQualificationImportViewer.Designer.cs">
+      <DependentUpon>FormQualificationImportViewer.cs</DependentUpon>
     </Compile>
     <Compile Include="FormLLMsetteing.cs">
       <SubType>Form</SubType>
@@ -227,6 +249,8 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="QualificationFaceExporter.cs" />
+    <Compile Include="QualificationImportModels.cs" />
     <None Include="pgsql\16\bin\libcurl.lib">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -246,6 +270,9 @@
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="FormBulkExecutionStatus.resx">
+      <DependentUpon>FormBulkExecutionStatus.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Form2.resx">
       <DependentUpon>Form2.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -258,6 +285,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="FormDynaViewer.resx">
       <DependentUpon>FormDynaViewer.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormQualificationImportViewer.resx">
+      <DependentUpon>FormQualificationImportViewer.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormLLMsetteing.resx">
       <DependentUpon>FormLLMsetteing.cs</DependentUpon>
@@ -518,6 +548,8 @@
     <Content Include="Resources\02_create_oqsdrug_data.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Resources\People.png" />
+    <None Include="Resources\Up-down.png" />
     <None Include="Resources\Person.png" />
     <None Include="Resources\Next.png" />
     <None Include="Resources\Previous.png" />

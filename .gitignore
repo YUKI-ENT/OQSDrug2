@@ -366,3 +366,5 @@ FodyWeavers.xsd
 /Output/*.exe
 build/*.ps1
 installer.iss
+
+docs/OnsiBulkTool/

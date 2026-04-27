@@ -42,13 +42,14 @@
             this.dgvList = new System.Windows.Forms.DataGridView();
             this.tabMain = new System.Windows.Forms.TabControl();
             this.tabSections = new System.Windows.Forms.TabPage();
-            this.tabSectionsInner = new System.Windows.Forms.TabControl();
+            this.splitContainerSections = new System.Windows.Forms.SplitContainer();
+            this.listBoxSections = new System.Windows.Forms.ListBox();
+            this.panelSectionDetail = new System.Windows.Forms.Panel();
             this.tabInter = new System.Windows.Forms.TabPage();
             this.dgvInter = new System.Windows.Forms.DataGridView();
             this.tabContra = new System.Windows.Forms.TabPage();
             this.dgvContra = new System.Windows.Forms.DataGridView();
             this.panelDocSearch = new System.Windows.Forms.Panel();
-            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.toolStrip2 = new System.Windows.Forms.ToolStrip();
             this.toolStripLabel2 = new System.Windows.Forms.ToolStripLabel();
             this.toolStriptextBoxDocSerach = new System.Windows.Forms.ToolStripTextBox();
@@ -57,10 +58,15 @@
             this.toolStripButtonDocNext = new System.Windows.Forms.ToolStripButton();
             this.toolStripLabel3 = new System.Windows.Forms.ToolStripLabel();
             this.labelMatches = new System.Windows.Forms.ToolStripLabel();
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvList)).BeginInit();
             this.tabMain.SuspendLayout();
             this.tabSections.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainerSections)).BeginInit();
+            this.splitContainerSections.Panel1.SuspendLayout();
+            this.splitContainerSections.Panel2.SuspendLayout();
+            this.splitContainerSections.SuspendLayout();
             this.tabInter.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvInter)).BeginInit();
             this.tabContra.SuspendLayout();
@@ -180,7 +186,7 @@
             // 
             // tabSections
             // 
-            this.tabSections.Controls.Add(this.tabSectionsInner);
+            this.tabSections.Controls.Add(this.splitContainerSections);
             this.tabSections.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.tabSections.Location = new System.Drawing.Point(4, 26);
             this.tabSections.Name = "tabSections";
@@ -190,16 +196,53 @@
             this.tabSections.Text = "添付文書";
             this.tabSections.UseVisualStyleBackColor = true;
             // 
-            // tabSectionsInner
+            // splitContainerSections
             // 
-            this.tabSectionsInner.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tabSectionsInner.Location = new System.Drawing.Point(3, 3);
-            this.tabSectionsInner.Multiline = true;
-            this.tabSectionsInner.Name = "tabSectionsInner";
-            this.tabSectionsInner.SelectedIndex = 0;
-            this.tabSectionsInner.Size = new System.Drawing.Size(786, 455);
-            this.tabSectionsInner.SizeMode = System.Windows.Forms.TabSizeMode.FillToRight;
-            this.tabSectionsInner.TabIndex = 0;
+            this.splitContainerSections.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainerSections.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
+            this.splitContainerSections.Location = new System.Drawing.Point(3, 3);
+            this.splitContainerSections.Name = "splitContainerSections";
+            this.splitContainerSections.BackColor = System.Drawing.Color.Gainsboro;
+            this.splitContainerSections.SplitterWidth = 6;
+            // 
+            // splitContainerSections.Panel1
+            // 
+            this.splitContainerSections.Panel1.Controls.Add(this.listBoxSections);
+            this.splitContainerSections.Panel1MinSize = 170;
+            // 
+            // splitContainerSections.Panel2
+            // 
+            this.splitContainerSections.Panel2.Controls.Add(this.panelSectionDetail);
+            this.splitContainerSections.Panel2MinSize = 300;
+            this.splitContainerSections.Size = new System.Drawing.Size(786, 455);
+            this.splitContainerSections.SplitterDistance = 210;
+            this.splitContainerSections.TabIndex = 0;
+            // 
+            // listBoxSections
+            // 
+            this.listBoxSections.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.listBoxSections.BackColor = System.Drawing.SystemColors.Window;
+            this.listBoxSections.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.listBoxSections.Font = new System.Drawing.Font("Meiryo UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.listBoxSections.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(32)))), ((int)(((byte)(38)))), ((int)(((byte)(46)))));
+            this.listBoxSections.FormattingEnabled = true;
+            this.listBoxSections.HorizontalScrollbar = true;
+            this.listBoxSections.ItemHeight = 19;
+            this.listBoxSections.Location = new System.Drawing.Point(0, 0);
+            this.listBoxSections.Name = "listBoxSections";
+            this.listBoxSections.Size = new System.Drawing.Size(210, 455);
+            this.listBoxSections.TabIndex = 0;
+            this.listBoxSections.SelectedIndexChanged += new System.EventHandler(this.listBoxSections_SelectedIndexChanged);
+            // 
+            // panelSectionDetail
+            // 
+            this.panelSectionDetail.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelSectionDetail.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(248)))));
+            this.panelSectionDetail.Location = new System.Drawing.Point(0, 0);
+            this.panelSectionDetail.Name = "panelSectionDetail";
+            this.panelSectionDetail.Padding = new System.Windows.Forms.Padding(8);
+            this.panelSectionDetail.Size = new System.Drawing.Size(572, 455);
+            this.panelSectionDetail.TabIndex = 0;
             // 
             // tabInter
             // 
@@ -208,7 +251,7 @@
             this.tabInter.Location = new System.Drawing.Point(4, 26);
             this.tabInter.Name = "tabInter";
             this.tabInter.Padding = new System.Windows.Forms.Padding(3);
-            this.tabInter.Size = new System.Drawing.Size(792, 451);
+            this.tabInter.Size = new System.Drawing.Size(792, 461);
             this.tabInter.TabIndex = 1;
             this.tabInter.Text = "相互作用リスト(PMDA)";
             this.tabInter.UseVisualStyleBackColor = true;
@@ -221,7 +264,7 @@
             this.dgvInter.Name = "dgvInter";
             this.dgvInter.RowHeadersVisible = false;
             this.dgvInter.RowTemplate.Height = 21;
-            this.dgvInter.Size = new System.Drawing.Size(786, 445);
+            this.dgvInter.Size = new System.Drawing.Size(786, 455);
             this.dgvInter.TabIndex = 0;
             this.dgvInter.DataBindingComplete += new System.Windows.Forms.DataGridViewBindingCompleteEventHandler(this.dgvInter_DataBindingComplete);
             // 
@@ -231,7 +274,7 @@
             this.tabContra.Location = new System.Drawing.Point(4, 26);
             this.tabContra.Name = "tabContra";
             this.tabContra.Padding = new System.Windows.Forms.Padding(3);
-            this.tabContra.Size = new System.Drawing.Size(792, 451);
+            this.tabContra.Size = new System.Drawing.Size(792, 461);
             this.tabContra.TabIndex = 3;
             this.tabContra.Text = "禁忌リスト(厚労)";
             this.tabContra.UseVisualStyleBackColor = true;
@@ -243,7 +286,7 @@
             this.dgvContra.Location = new System.Drawing.Point(3, 3);
             this.dgvContra.Name = "dgvContra";
             this.dgvContra.RowTemplate.Height = 21;
-            this.dgvContra.Size = new System.Drawing.Size(786, 445);
+            this.dgvContra.Size = new System.Drawing.Size(786, 455);
             this.dgvContra.TabIndex = 0;
             this.dgvContra.DataBindingComplete += new System.Windows.Forms.DataGridViewBindingCompleteEventHandler(this.dgvContra_DataBindingComplete);
             // 
@@ -352,6 +395,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.dgvList)).EndInit();
             this.tabMain.ResumeLayout(false);
             this.tabSections.ResumeLayout(false);
+            this.splitContainerSections.Panel1.ResumeLayout(false);
+            this.splitContainerSections.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainerSections)).EndInit();
+            this.splitContainerSections.ResumeLayout(false);
             this.tabInter.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dgvInter)).EndInit();
             this.tabContra.ResumeLayout(false);
@@ -374,7 +421,9 @@
         private System.Windows.Forms.TabPage tabInter;
         private System.Windows.Forms.DataGridView dgvInter;
         private System.Windows.Forms.TabPage tabSections;
-        private System.Windows.Forms.TabControl tabSectionsInner;
+        private System.Windows.Forms.SplitContainer splitContainerSections;
+        private System.Windows.Forms.ListBox listBoxSections;
+        private System.Windows.Forms.Panel panelSectionDetail;
         private System.Windows.Forms.ToolStripButton toolStripButtonClose;
         private System.Windows.Forms.ToolStripTextBox toolStripTextBoxSearch;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;

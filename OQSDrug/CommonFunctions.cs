@@ -57,6 +57,7 @@ namespace OQSDrug
         public static string connectionOQSdata = "";
         public static string connectionReadOQSdata = "";
         public static bool DataDbLock = false;
+        private static readonly SemaphoreSlim DataDbGate = new SemaphoreSlim(1, 1);
 
         // 成分判定に使うプレフィックス長（必要なら設定化）
         private const int YJ_ING_PREFIX_LEN = 7;
@@ -68,6 +69,87 @@ namespace OQSDrug
 
         // Korodata Dictionary
         public static Dictionary<string, string> ReceptToMedisCodeMap = new Dictionary<string, string>();
+
+        public static string NormalizeDrugCode(string drugCode)
+        {
+            if (string.IsNullOrWhiteSpace(drugCode)) return "";
+
+            string normalized = drugCode.Trim();
+            if (normalized.EndsWith(".0", StringComparison.Ordinal))
+            {
+                normalized = normalized.Substring(0, normalized.Length - 2);
+            }
+
+            return normalized;
+        }
+
+        public static bool TryGetMedisCodeForRecept(string receptCode, out string medisCode)
+        {
+            medisCode = "";
+            if (ReceptToMedisCodeMap == null || ReceptToMedisCodeMap.Count == 0)
+            {
+                return false;
+            }
+
+            string raw = receptCode?.Trim() ?? "";
+            if (!string.IsNullOrEmpty(raw) &&
+                ReceptToMedisCodeMap.TryGetValue(raw, out medisCode) &&
+                !string.IsNullOrWhiteSpace(medisCode))
+            {
+                return true;
+            }
+
+            string normalized = NormalizeDrugCode(receptCode);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return false;
+            }
+
+            return ReceptToMedisCodeMap.TryGetValue(normalized, out medisCode) && !string.IsNullOrWhiteSpace(medisCode);
+        }
+
+        public static async Task<int> RefreshReceptToMedisCodeMapFromDbAsync()
+        {
+            if (Properties.Settings.Default.DBtype != "pg")
+            {
+                return ReceptToMedisCodeMap?.Count ?? 0;
+            }
+
+            const string sql = "SELECT drugc, yj_code FROM public.drug_code_map WHERE drugc IS NOT NULL AND yj_code IS NOT NULL";
+            var temp = new Dictionary<string, string>();
+
+            using (var conn = GetDbConnection(true))
+            {
+                if (conn is DbConnection dbConn) await dbConn.OpenAsync().ConfigureAwait(false);
+                else conn.Open();
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = sql;
+                    using (var reader = await ((DbCommand)cmd).ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            string drugc = NormalizeDrugCode(reader["drugc"]?.ToString());
+                            string yj = reader["yj_code"]?.ToString()?.Trim() ?? "";
+
+                            if (!string.IsNullOrEmpty(drugc) && !string.IsNullOrEmpty(yj) && !temp.ContainsKey(drugc))
+                            {
+                                temp[drugc] = yj;
+                            }
+                        }
+                    }
+                }
+            }
+
+            ReceptToMedisCodeMap.Clear();
+            foreach (var kv in temp)
+            {
+                ReceptToMedisCodeMap[kv.Key] = kv.Value;
+            }
+
+            return ReceptToMedisCodeMap.Count;
+        }
 
         // 基準値を格納する辞書
         public static Dictionary<string, TKKReference> TKKreferenceDict = new Dictionary<string, TKKReference>();
@@ -212,6 +294,29 @@ namespace OQSDrug
                 }
             }
             return false;
+        }
+
+        public static async Task<bool> TryEnterDataDbAsync(int maxWaitms)
+        {
+            if (await DataDbGate.WaitAsync(maxWaitms).ConfigureAwait(false))
+            {
+                DataDbLock = true;
+                return true;
+            }
+
+            return false;
+        }
+
+        public static void ExitDataDb()
+        {
+            DataDbLock = false;
+            try
+            {
+                DataDbGate.Release();
+            }
+            catch (SemaphoreFullException)
+            {
+            }
         }
 
         // 基準値を取得して辞書に格納

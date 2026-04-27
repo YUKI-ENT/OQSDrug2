@@ -33,7 +33,6 @@ namespace OQSDrug
         private class SectionInfo
         {
             public string Title { get; set; } = "";
-            public TabPage Tab { get; set; } = null;
             public RichTextBox RichTextBox { get; set; } = null;
         }
         // 検索ヒット1件
@@ -281,8 +280,6 @@ namespace OQSDrug
 
         private readonly string _table;
 
-        private readonly string _initialYj;
-
         private const int SnapDistance = 16; // 吸着の距離（ピクセル）
         private int SnapCompPixel = 8;  //余白補正
 
@@ -343,7 +340,8 @@ namespace OQSDrug
             tabMain.SelectedIndex = 0;
 
             //詳細タブをすべてクリア
-            tabSectionsInner.TabPages.Clear();
+            listBoxSections.Items.Clear();
+            panelSectionDetail.Controls.Clear();
             toolStripTextBoxTitle.Text = "";
             
             _results = results ?? new List<Tuple<string[], double>>();
@@ -671,7 +669,9 @@ namespace OQSDrug
 
         private void BuildSectionTabs()
         {
-            tabSectionsInner.TabPages.Clear();
+            listBoxSections.SelectedIndexChanged -= listBoxSections_SelectedIndexChanged;
+            listBoxSections.Items.Clear();
+            panelSectionDetail.Controls.Clear();
 
             // 検索情報もリセット
             _sections.Clear();
@@ -693,97 +693,73 @@ namespace OQSDrug
             // ① 概要タブ（最初に追加）
             AddSummaryTab(_currentDrugName, _currentThera, _currentYj, _currentIndication, contraIndication, importantPrecaution, Warings);
 
-            if (_currentXml == null || _pi == null) return;
-
-            foreach (var sec in SectionDefs)
+            if (_currentXml != null && _pi != null)
             {
-                // 章（上位）
-                var chapter = GatherByNames(sec.Names);
-
-                // 小見出し（下位）
-                var sb = new StringBuilder();
-                if (!string.IsNullOrWhiteSpace(chapter))
-                    sb.AppendLine(chapter);
-
-                foreach (var sub in sec.Subs)
+                foreach (var sec in SectionDefs)
                 {
-                    var subText = GatherByNames(sub.Names);
-                    if (!string.IsNullOrWhiteSpace(subText))
+                    // 章（上位）
+                    var chapter = GatherByNames(sec.Names);
+
+                    // 小見出し（下位）
+                    var sb = new StringBuilder();
+                    if (!string.IsNullOrWhiteSpace(chapter))
+                        sb.AppendLine(chapter);
+
+                    foreach (var sub in sec.Subs)
                     {
-                        if (sb.Length > 0) sb.AppendLine().AppendLine();
-                        sb.AppendLine(sub.SubTitle);
-                        sb.AppendLine(new string('―', Math.Min(20, sub.SubTitle.Length)));
-                        sb.AppendLine(subText.Trim());
+                        var subText = GatherByNames(sub.Names);
+                        if (!string.IsNullOrWhiteSpace(subText))
+                        {
+                            if (sb.Length > 0) sb.AppendLine().AppendLine();
+                            sb.AppendLine(sub.SubTitle);
+                            sb.AppendLine(new string('―', Math.Min(20, sub.SubTitle.Length)));
+                            sb.AppendLine(subText.Trim());
+                        }
                     }
+
+                    var body = NormalizeBlankLines(sb.ToString().Trim());
+                    if (string.IsNullOrWhiteSpace(body)) continue; // ← 内容が無ければタブを作らない
+
+                    var rtb = CreateDocumentRichTextBox();
+
+                    // 見出し（章タイトル）を太字
+                    rtb.SelectionFont = new System.Drawing.Font(rtb.Font, System.Drawing.FontStyle.Bold);
+                    rtb.AppendText(sec.Title + Environment.NewLine + Environment.NewLine);
+                    rtb.SelectionFont = new System.Drawing.Font(rtb.Font, System.Drawing.FontStyle.Regular);
+                    rtb.AppendText(body);
+
+                    AddSectionToList(sec.Title, rtb);
+
+                    // ここでカーソルを先頭に戻す
+                    rtb.Select(0, 0);
+                    rtb.ScrollToCaret();
                 }
-
-                var body = NormalizeBlankLines(sb.ToString().Trim());
-                if (string.IsNullOrWhiteSpace(body)) continue; // ← 内容が無ければタブを作らない
-
-                var page = new TabPage(sec.Title);
-                var rtb = new RichTextBox
-                {
-                    Dock = DockStyle.Fill,
-                    ReadOnly = true,
-                    DetectUrls = true,
-                    WordWrap = true,
-                    BorderStyle = BorderStyle.Fixed3D,
-                    BackColor = Color.FloralWhite,
-                    HideSelection = false,
-                    Font = new System.Drawing.Font("Meiryo UI", 12F)
-                };
-
-                // 見出し（章タイトル）を太字
-                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, System.Drawing.FontStyle.Bold);
-                rtb.AppendText(sec.Title + Environment.NewLine + Environment.NewLine);
-                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, System.Drawing.FontStyle.Regular);
-                rtb.AppendText(body);
-
-                page.Controls.Add(rtb);
-                tabSectionsInner.TabPages.Add(page);
-
-                // ★ ここで SectionInfo を登録する ★
-                SectionInfo info = new SectionInfo();
-                info.Title = sec.Title;
-                info.Tab = page;
-                info.RichTextBox = rtb;
-                _sections.Add(info);
-
-                // ここでカーソルを先頭に戻す
-                rtb.Select(0, 0);
-                rtb.ScrollToCaret();
             }
 
-            if (tabSectionsInner.TabPages.Count == 0)
+            if (_sections.Count == 0)
             {
-                var empty = new TabPage("添付文書");
-                empty.Controls.Add(new Label
+                var empty = new Label
                 {
                     Dock = DockStyle.Fill,
                     TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
                     Text = "この文書では表示できる本文が見つかりませんでした。"
-                });
-                tabSectionsInner.TabPages.Add(empty);
+                };
+                panelSectionDetail.Controls.Add(empty);
             }
+            else
+            {
+                listBoxSections.SelectedIndex = 0;
+                ShowSection(0);
+            }
+
+            listBoxSections.SelectedIndexChanged += listBoxSections_SelectedIndexChanged;
         }
 
         // 概要タブを作るヘルパ
         private void AddSummaryTab(string drugName, string thera, string yj,
     string indicationText, string contraIndication, string importantPrecaution, string Warnings)
         {
-            var page = new TabPage("概要");
-
-            var rtb = new RichTextBox
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                DetectUrls = true,
-                WordWrap = true,
-                BorderStyle = BorderStyle.Fixed3D,
-                BackColor = Color.FloralWhite,
-                HideSelection = false,
-                Font = new System.Drawing.Font("Meiryo UI", 12F) // ←この値はベースなのでこのままでOK
-            };
+            var rtb = CreateDocumentRichTextBox();
 
             // ---- フォント定義 ----
             var fontTitleBold = new Font("Meiryo UI", 12F, FontStyle.Bold);    // 見出し・タイトル
@@ -858,19 +834,56 @@ namespace OQSDrug
                 rtb.AppendText(Environment.NewLine + "YJコード: " + yj + Environment.NewLine);
             }
 
-            page.Controls.Add(rtb);
-            tabSectionsInner.TabPages.Add(page);
-
-            // ★ ここで SectionInfo を登録する ★
-            SectionInfo info = new SectionInfo();
-            info.Title = "概要";
-            info.Tab = page;
-            info.RichTextBox = rtb;
-            _sections.Add(info);
-
             // 先頭へスクロール
             rtb.Select(0, 0);
             rtb.ScrollToCaret();
+
+            AddSectionToList("概要", rtb);
+        }
+
+        private void AddSectionToList(string title, RichTextBox rtb)
+        {
+            SectionInfo info = new SectionInfo();
+            info.Title = title;
+            info.RichTextBox = rtb;
+            _sections.Add(info);
+            listBoxSections.Items.Add(title);
+        }
+
+        private RichTextBox CreateDocumentRichTextBox()
+        {
+            return new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                DetectUrls = true,
+                WordWrap = true,
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 38, 46),
+                HideSelection = false,
+                Font = new System.Drawing.Font("Meiryo UI", 12F)
+            };
+        }
+
+        private void ShowSection(int index)
+        {
+            if (index < 0 || index >= _sections.Count) return;
+
+            panelSectionDetail.SuspendLayout();
+            panelSectionDetail.Controls.Clear();
+            var rtb = _sections[index].RichTextBox;
+            if (rtb != null)
+            {
+                rtb.Dock = DockStyle.Fill;
+                panelSectionDetail.Controls.Add(rtb);
+            }
+            panelSectionDetail.ResumeLayout();
+        }
+
+        private void listBoxSections_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ShowSection(listBoxSections.SelectedIndex);
         }
 
 
@@ -1272,7 +1285,14 @@ namespace OQSDrug
 
             // 添付文書タブを前面に
             tabMain.SelectedTab = tabSections;       // 外側タブ（名前に合わせて修正してください）
-            tabSectionsInner.SelectedTab = sec.Tab;  // 内側タブ
+            if (listBoxSections.SelectedIndex != hit.SectionIndex)
+            {
+                listBoxSections.SelectedIndex = hit.SectionIndex;
+            }
+            else
+            {
+                ShowSection(hit.SectionIndex);
+            }
 
             RichTextBox rtb = sec.RichTextBox;
             if (hit.CharIndex >= 0 && hit.CharIndex + hit.Length <= rtb.TextLength)

@@ -57,6 +57,7 @@ namespace OQSDrug
         // 最新の特定健診結果を保存しておく
         private static Dictionary<long, string> TKKdate = new Dictionary<long, string>();
 
+        private const byte BulkExecutionRequiredSettingsMask = 0b101;
         byte okSettings = 0;
 
         //private Timer timer;
@@ -73,7 +74,7 @@ namespace OQSDrug
         private FileSystemWatcher resWatcher;
         string idFile = ""; //RSB連携
         int idStyle = 0;
-        bool idChageCalled = false;
+        private readonly SemaphoreSlim idChangeSemaphore = new SemaphoreSlim(1, 1);
         int fileReadDelayms = 500;
         // res folder watcher debounce and processing
         private int resFileDelayms = 1000;
@@ -91,6 +92,11 @@ namespace OQSDrug
 
         // PGDump
         private System.Threading.Timer _dumpTimer;
+        private readonly SemaphoreSlim bulkHoumonAutoSemaphore = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim bulkOnlineAutoSemaphore = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim bulkMedicalAutoSemaphore = new SemaphoreSlim(1, 1);
+        private readonly object bulkExecutionCancellationLock = new object();
+        private readonly Dictionary<BulkQualificationKind, CancellationTokenSource> bulkExecutionCancellationSources = new Dictionary<BulkQualificationKind, CancellationTokenSource>();
 
         // バックアップ、ログファイル //CommonFunctionsに移行した
         //private static readonly string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
@@ -106,6 +112,8 @@ namespace OQSDrug
         public FormTKK formTKKInstance = null;
         public FormDI formDIInstance = null;
         public FormSR formSRInstance = null;
+        private QualificationImportSession lastQualificationImportSession = null;
+        private FormBulkExecutionStatus bulkExecutionStatusForm = null;
         
         // アイコンの配列を用意 (例: 3つのアイコン)
         private System.Windows.Forms.Timer animationTimer;
@@ -467,7 +475,11 @@ namespace OQSDrug
 
             // Status check
             okSettings = await UpdateStatus();
-            Invoke(new Action(() => this.StartStop.Enabled = (okSettings == 0b111)));
+            Invoke(new Action(() =>
+            {
+                this.StartStop.Enabled = (okSettings == 0b111);
+                UpdateBulkExecutionAvailability();
+            }));
 
             //AutoStartStop
             if (Properties.Settings.Default.AutoStart)
@@ -498,6 +510,27 @@ namespace OQSDrug
                 else
                 {
                     await UpdateClientAsync();
+
+                    var bulkTasks = new List<Task>();
+                    if (Properties.Settings.Default.BulkHoumonAutoEnabled)
+                    {
+                        bulkTasks.Add(RunBulkAutomationCycleAsync(BulkQualificationKind.Houmon, false, false));
+                    }
+
+                    if (Properties.Settings.Default.BulkOnlineAutoEnabled)
+                    {
+                        bulkTasks.Add(RunBulkAutomationCycleAsync(BulkQualificationKind.Online, false, false));
+                    }
+
+                    if (Properties.Settings.Default.BulkMedicalAidAutoEnabled)
+                    {
+                        bulkTasks.Add(RunBulkAutomationCycleAsync(BulkQualificationKind.MedicalAid, false, false));
+                    }
+
+                    if (bulkTasks.Count > 0)
+                    {
+                        await Task.WhenAll(bulkTasks);
+                    }
 
                     // Datadynaのデータ取得
                     var loadedDynaTable = await LoadDataFromDatabaseAsync(Properties.Settings.Default.Datadyna);
@@ -1216,12 +1249,12 @@ namespace OQSDrug
 
             if (string.IsNullOrEmpty(dbPath))
             {
-                if (verboseLog) await AddLogAsync($"{prefix} エラー: データベースパスが指定されていません。");
+                if (verboseLog) await AddLogAsync($"{prefix} データベースパスが指定されていません。");
                 return "エラー: データベースパスが指定されていません。";
             }
             if (string.IsNullOrEmpty(tableName))
             {
-                if (verboseLog) await AddLogAsync($"{prefix} エラー: テーブル名が指定されていません。");
+                if (verboseLog) await AddLogAsync($"{prefix} テーブル名が指定されていません。");
                 return "エラー: テーブル名が指定されていません。";
             }
 
@@ -1736,6 +1769,19 @@ namespace OQSDrug
                 // ここで throw しない：アプリ継続
             }
 
+            if (Properties.Settings.Default.DBtype == "pg" && dbOk && !CommonFunctions._readySGML)
+            {
+                try
+                {
+                    await AddLogAsync("SGML薬情インデックスが未読込のため、起動時フォールバック読み込みを実行します。").ConfigureAwait(false);
+                    await LoadSGMLDIAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    await AddLogAsync($"SGML薬情インデックスの起動時フォールバック読み込みエラー: {ex.Message}").ConfigureAwait(false);
+                }
+            }
+
             initBackgroundLoadCompleted = true;
             if (!needSettingsDialog && (autoRSB || autoTKK || autoSR))
             {
@@ -1919,15 +1965,18 @@ namespace OQSDrug
                                         Unit TEXT(50) NULL,
                                         ReceiveDate TEXT(10) NULL
                                     )";
-                        if (await CreateTableAsync(Properties.Settings.Default.OQSDrugData, sql))
-                        {
-                            await AddLogAsync($"{SinryoTable}を作成しました");
+                    if (await CreateTableAsync(Properties.Settings.Default.OQSDrugData, sql))
+                    {
+                        await AddLogAsync($"{SinryoTable}を作成しました");
                         }
                         else
                         {
                             await AddLogAsync($"{SinryoTable}の作成に失敗しました");
                         }
                     }
+
+                    await QualificationImportStore.EnsureStorageTableAsync(message => AddLogAsync(message));
+                    await BulkAutoExecutionStore.EnsureTableAsync(message => AddLogAsync(message));
                     await reloadDataAsync();
                 }
             }
@@ -1939,10 +1988,18 @@ namespace OQSDrug
                 //    AddLogAsync("特定健診基準初期値を設定しました");
 
                 //}
+                await QualificationImportStore.EnsureStorageTableAsync(message => AddLogAsync(message));
+                await BulkAutoExecutionStore.EnsureTableAsync(message => AddLogAsync(message));
                 if ((okSettings & (0b001)) == 1) await reloadDataAsync();
             }
 
-            Invoke(new Action(() => this.StartStop.Enabled = (okSettings == 0b111))); 
+            UpdateBulkAutomationMenuState();
+
+            Invoke(new Action(() =>
+            {
+                this.StartStop.Enabled = (okSettings == 0b111);
+                UpdateBulkExecutionAvailability();
+            })); 
 
 
         }
@@ -2369,6 +2426,1072 @@ namespace OQSDrug
                 default:
                     return "1";
             }
+        }
+
+        private BulkQualificationService CreateBulkQualificationService(Action<BulkExecutionProgressInfo> progressAction = null)
+        {
+            return new BulkQualificationService(
+                Properties.Settings.Default.OQSFolder,
+                Properties.Settings.Default.MCode,
+                message => AddLogAsync(message),
+                progressAction);
+        }
+
+        private void UpdateBulkAutomationMenuState()
+        {
+            OnUI(() =>
+            {
+                ConfigureBulkDashboardActions();
+            });
+        }
+
+        private BulkStatusWindowMode GetConfiguredBulkStatusWindowMode()
+        {
+            int raw = Properties.Settings.Default.BulkStatusWindowMode;
+            if (raw < (int)BulkStatusWindowMode.Hidden || raw > (int)BulkStatusWindowMode.Normal)
+            {
+                raw = (int)BulkStatusWindowMode.Minimized;
+            }
+
+            return (BulkStatusWindowMode)raw;
+        }
+
+        private Action<BulkExecutionProgressInfo> CreateBulkProgressReporter(string processName, BulkQualificationKind kind, BulkStatusWindowMode mode)
+        {
+            if (mode == BulkStatusWindowMode.Hidden)
+            {
+                return null;
+            }
+
+            return info =>
+            {
+                if (info == null)
+                {
+                    return;
+                }
+
+                info.Kind = info.Kind ?? kind;
+                info.ProcessName = string.IsNullOrWhiteSpace(info.ProcessName) ? processName : info.ProcessName;
+                UpdateBulkExecutionStatusWindow(info, mode);
+            };
+        }
+
+        private void UpdateBulkExecutionStatusWindow(BulkExecutionProgressInfo info, BulkStatusWindowMode mode)
+        {
+            if (mode == BulkStatusWindowMode.Hidden || info == null)
+            {
+                return;
+            }
+
+            OnUI(() =>
+            {
+                FormBulkExecutionStatus viewer = EnsureBulkExecutionStatusForm(info.ProcessName, mode);
+                viewer.AppendProgress(info);
+            });
+        }
+
+        private async Task ShowBulkExecutionResultsWindowAsync(string processName, QualificationImportSession session, BulkStatusWindowMode mode)
+        {
+            if (mode == BulkStatusWindowMode.Hidden || session == null)
+            {
+                return;
+            }
+
+            QualificationImportSession displaySession = await QualificationImportStore.LoadRecentSessionAsync(500, message => AddLogAsync(message)) ?? session;
+            OnUI(() =>
+            {
+                FormBulkExecutionStatus viewer = EnsureBulkExecutionStatusForm(processName, mode);
+                viewer.SetResults(displaySession);
+                viewer.AppendProgress(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = session.Kind,
+                    ProcessName = processName,
+                    StatusText = $"取得完了({session.Records.Count}件取得)",
+                    DetailText = $"{ImportedQualificationRecord.GetKindDisplayName(session.Kind)}: {session.Records.Count}件取得しました。下段は全種別の新着順です。",
+                    ImportedCount = displaySession.Records.Count,
+                    IsCompleted = true
+                });
+            });
+        }
+
+        private FormBulkExecutionStatus EnsureBulkExecutionStatusForm(string processName, BulkStatusWindowMode mode)
+        {
+            if (bulkExecutionStatusForm == null || bulkExecutionStatusForm.IsDisposed)
+            {
+                bulkExecutionStatusForm = new FormBulkExecutionStatus();
+                bulkExecutionStatusForm.ResultDetailRequested += BulkExecutionStatusForm_ResultDetailRequested;
+            }
+
+            ConfigureBulkDashboardActions();
+            bulkExecutionStatusForm.InitializeForProcess(processName);
+            bulkExecutionStatusForm.ApplyWindowMode(mode);
+
+            if (!bulkExecutionStatusForm.Visible)
+            {
+                bulkExecutionStatusForm.Show(this);
+            }
+
+            return bulkExecutionStatusForm;
+        }
+
+        private async void OpenBulkDashboard()
+        {
+            FormBulkExecutionStatus viewer = null;
+            OnUI(() =>
+            {
+                viewer = bulkExecutionStatusForm;
+                if (viewer == null || viewer.IsDisposed)
+                {
+                    viewer = EnsureBulkExecutionStatusForm("Bulk Console", BulkStatusWindowMode.Normal);
+                }
+                else
+                {
+                    ConfigureBulkDashboardActions();
+                    viewer.ApplyWindowMode(BulkStatusWindowMode.Normal);
+                    if (!viewer.Visible)
+                    {
+                        viewer.Show(this);
+                    }
+                }
+
+                if (viewer.WindowState == FormWindowState.Minimized)
+                {
+                    viewer.WindowState = FormWindowState.Normal;
+                }
+
+                viewer.BringToFront();
+                viewer.Activate();
+            });
+
+            await LoadBulkConsoleResultsAsync(viewer);
+        }
+
+        private async Task LoadBulkConsoleResultsAsync(FormBulkExecutionStatus viewer)
+        {
+            if (viewer == null || viewer.IsDisposed)
+            {
+                return;
+            }
+
+            try
+            {
+                QualificationImportSession session = await QualificationImportStore.LoadRecentSessionAsync(500, message => AddLogAsync(message));
+                if (session == null)
+                {
+                    return;
+                }
+
+                lastQualificationImportSession = session;
+                OnUI(() =>
+                {
+                    if (viewer.IsDisposed)
+                    {
+                        return;
+                    }
+
+                    viewer.SetResults(session);
+                    viewer.AppendProgress(new BulkExecutionProgressInfo
+                    {
+                        Timestamp = DateTime.Now,
+                        ProcessName = "Bulk Console",
+                        StatusText = "保存済み資格情報を表示中",
+                        DetailText = $"全種別の新着順: {session.Records.Count}件",
+                        ImportedCount = session.Records.Count,
+                        IsCompleted = true
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                AddLogAsync($"Bulk Console 保存済み資格表示でエラー: {ex.Message}");
+            }
+        }
+
+        private void ConfigureBulkDashboardActions()
+        {
+            if (bulkExecutionStatusForm == null || bulkExecutionStatusForm.IsDisposed)
+            {
+                return;
+            }
+
+            bulkExecutionStatusForm.ConfigureActions(
+                () => RunBulkDashboardOnceAsync(BulkQualificationKind.Houmon),
+                () => ToggleBulkAutoFromDashboardAsync(BulkQualificationKind.Houmon),
+                () => CancelBulkExecutionAsync(BulkQualificationKind.Houmon),
+                () => Properties.Settings.Default.BulkHoumonAutoEnabled,
+                () => RunBulkDashboardOnceAsync(BulkQualificationKind.Online),
+                () => ToggleBulkAutoFromDashboardAsync(BulkQualificationKind.Online),
+                () => CancelBulkExecutionAsync(BulkQualificationKind.Online),
+                () => Properties.Settings.Default.BulkOnlineAutoEnabled,
+                () => RunBulkDashboardOnceAsync(BulkQualificationKind.MedicalAid),
+                () => ToggleBulkAutoFromDashboardAsync(BulkQualificationKind.MedicalAid),
+                () => CancelBulkExecutionAsync(BulkQualificationKind.MedicalAid),
+                () => Properties.Settings.Default.BulkMedicalAidAutoEnabled,
+                () => LoadBulkConsoleResultsAsync(bulkExecutionStatusForm),
+                async records => await ExportImportedQualificationsToFaceAsync(records));
+
+            UpdateBulkExecutionAvailability();
+        }
+
+        private async Task RunBulkDashboardOnceAsync(BulkQualificationKind kind)
+        {
+            CancellationTokenSource cts = CreateBulkExecutionCancellationSource(kind);
+            try
+            {
+                await RunBulkAutomationCycleAsync(
+                    kind,
+                    true,
+                    true,
+                    bulkExecutionStatusForm?.GetExecutionOptions(kind),
+                    cts.Token);
+            }
+            finally
+            {
+                ClearBulkExecutionCancellationSource(kind, cts);
+            }
+        }
+
+        private CancellationTokenSource CreateBulkExecutionCancellationSource(BulkQualificationKind kind)
+        {
+            var cts = new CancellationTokenSource();
+            lock (bulkExecutionCancellationLock)
+            {
+                if (bulkExecutionCancellationSources.TryGetValue(kind, out CancellationTokenSource oldSource))
+                {
+                    oldSource.Dispose();
+                }
+
+                bulkExecutionCancellationSources[kind] = cts;
+            }
+
+            return cts;
+        }
+
+        private void ClearBulkExecutionCancellationSource(BulkQualificationKind kind, CancellationTokenSource source)
+        {
+            lock (bulkExecutionCancellationLock)
+            {
+                if (bulkExecutionCancellationSources.TryGetValue(kind, out CancellationTokenSource currentSource)
+                    && ReferenceEquals(currentSource, source))
+                {
+                    bulkExecutionCancellationSources.Remove(kind);
+                }
+            }
+
+            source.Dispose();
+        }
+
+        private Task CancelBulkExecutionAsync(BulkQualificationKind kind)
+        {
+            CancellationTokenSource source = null;
+            lock (bulkExecutionCancellationLock)
+            {
+                bulkExecutionCancellationSources.TryGetValue(kind, out source);
+            }
+
+            if (source != null && !source.IsCancellationRequested)
+            {
+                source.Cancel();
+                AddLogAsync($"{BulkQualificationService.GetDisplayName(kind)}実行の中止を要求しました");
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private bool CanRunBulkExecution()
+        {
+            return (okSettings & BulkExecutionRequiredSettingsMask) == BulkExecutionRequiredSettingsMask;
+        }
+
+        private string GetBulkExecutionDisabledReason()
+        {
+            List<string> missingSettings = new List<string>();
+
+            if ((okSettings & 0b001) == 0)
+            {
+                missingSettings.Add(string.Equals(Properties.Settings.Default.DBtype, "pg", StringComparison.OrdinalIgnoreCase)
+                    ? "PostgreSQL"
+                    : "OQSDrugData");
+            }
+
+            if ((okSettings & 0b100) == 0)
+            {
+                missingSettings.Add("設定 → 取込設定 → OQSフォルダの場所");
+            }
+
+            if (missingSettings.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return "Bulk実行には " + string.Join("、", missingSettings) + " の設定が必要です。";
+        }
+
+        private void UpdateBulkExecutionAvailability()
+        {
+            FormBulkExecutionStatus viewer = bulkExecutionStatusForm;
+            if (viewer == null || viewer.IsDisposed)
+            {
+                return;
+            }
+
+            bool available = CanRunBulkExecution();
+            string reason = available ? string.Empty : GetBulkExecutionDisabledReason();
+
+            try
+            {
+                if (viewer.InvokeRequired)
+                {
+                    viewer.BeginInvoke(new Action(() => viewer.SetBulkExecutionAvailability(available, reason)));
+                }
+                else
+                {
+                    viewer.SetBulkExecutionAvailability(available, reason);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        private async Task ToggleBulkAutoFromDashboardAsync(BulkQualificationKind kind)
+        {
+            bool enabled = !GetBulkAutoEnabled(kind);
+            SetBulkAutoEnabled(kind, enabled);
+            Properties.Settings.Default.Save();
+            UpdateBulkAutomationMenuState();
+
+            string displayName = BulkQualificationService.GetDisplayName(kind);
+            AddLogAsync($"{displayName}自動実行を{(enabled ? "有効" : "無効")}にしました");
+
+            if (enabled)
+            {
+                CancellationTokenSource cts = CreateBulkExecutionCancellationSource(kind);
+                try
+                {
+                    await RunBulkAutomationCycleAsync(kind, false, false, null, cts.Token);
+                }
+                finally
+                {
+                    ClearBulkExecutionCancellationSource(kind, cts);
+                }
+            }
+        }
+
+        private async void BulkExecutionStatusForm_ResultDetailRequested(object sender, FormBulkExecutionStatus.ImportedQualificationRecordEventArgs e)
+        {
+            if (e?.Record == null)
+            {
+                return;
+            }
+
+            var session = new QualificationImportSession
+            {
+                Kind = e.Record.Kind,
+                SourceFilePath = e.Record.SourceFilePath,
+                ImportedAt = e.Record.ImportedAt
+            };
+            session.Records.Add(e.Record);
+
+            await ShowQualificationImportViewerAsync(session);
+        }
+
+        private async Task RunBulkAutomationCycleAsync(
+            BulkQualificationKind kind,
+            bool allowCreateNewJob,
+            bool immediateMode,
+            BulkAutoExecutionOptions optionsOverride = null,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!string.Equals(Properties.Settings.Default.DBtype, "pg", StringComparison.OrdinalIgnoreCase))
+            {
+                if (immediateMode)
+                {
+                    throw new InvalidOperationException($"{BulkQualificationService.GetDisplayName(kind)}自動実行は PostgreSQL モードで使用してください。");
+                }
+
+                return;
+            }
+
+            if (!CanRunBulkExecution())
+            {
+                string reason = GetBulkExecutionDisabledReason();
+                if (immediateMode)
+                {
+                    throw new InvalidOperationException(reason);
+                }
+
+                await AddLogAsync($"{BulkQualificationService.GetDisplayName(kind)}自動実行をスキップしました: {reason}");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Properties.Settings.Default.OQSFolder))
+            {
+                if (immediateMode)
+                {
+                    throw new InvalidOperationException("OQSFolder が未設定です。");
+                }
+
+                await AddLogAsync($"{BulkQualificationService.GetDisplayName(kind)}自動実行をスキップしました: OQSFolder が未設定です。");
+                return;
+            }
+
+            if (!Directory.Exists(Properties.Settings.Default.OQSFolder))
+            {
+                if (immediateMode)
+                {
+                    throw new InvalidOperationException("OQSFolder が存在しません。設定を確認してください。");
+                }
+
+                await AddLogAsync($"{BulkQualificationService.GetDisplayName(kind)}自動実行をスキップしました: OQSFolder が存在しません。設定を確認してください。");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Properties.Settings.Default.MCode))
+            {
+                if (immediateMode)
+                {
+                    throw new InvalidOperationException("医療機関コードが未設定です。");
+                }
+
+                await AddLogAsync($"{BulkQualificationService.GetDisplayName(kind)}自動実行をスキップしました: 医療機関コードが未設定です。");
+                return;
+            }
+
+            SemaphoreSlim semaphore = GetBulkAutoSemaphore(kind);
+            if (!await semaphore.WaitAsync(0))
+            {
+                if (immediateMode)
+                {
+                    AddLogAsync($"{BulkQualificationService.GetDisplayName(kind)}自動実行はすでに実行中です");
+                }
+
+                return;
+            }
+
+            string processName = BulkQualificationService.GetDisplayName(kind);
+            Action<BulkExecutionProgressInfo> progressAction = null;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                BulkAutoExecutionOptions options = optionsOverride ?? BulkAutoExecutionOptions.FromSettings(kind);
+                BulkStatusWindowMode windowMode = immediateMode ? BulkStatusWindowMode.Normal : GetConfiguredBulkStatusWindowMode();
+                progressAction = CreateBulkProgressReporter(processName, kind, windowMode);
+
+                if (windowMode != BulkStatusWindowMode.Hidden && allowCreateNewJob)
+                {
+                    OnUI(() =>
+                    {
+                        FormBulkExecutionStatus viewer = EnsureBulkExecutionStatusForm(processName, windowMode);
+                        viewer.ResetDisplay(processName);
+                    });
+                }
+
+                await BulkAutoExecutionStore.EnsureTableAsync(message => AddLogAsync(message));
+                cancellationToken.ThrowIfCancellationRequested();
+                await QualificationImportStore.EnsureStorageTableAsync(message => AddLogAsync(message));
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string jobKind = GetBulkJobKind(kind);
+                BulkAutoExecutionJob job = await BulkAutoExecutionStore.GetActiveJobAsync(jobKind);
+                if (job == null && (allowCreateNewJob || options.Enabled))
+                {
+                    job = await CreateBulkAutomationJobAsync(kind, options, allowCreateNewJob, progressAction);
+                }
+
+                int maxLoops = immediateMode ? Math.Max(3, options.MaxRetryCount + 2) : 1;
+                for (int i = 0; i < maxLoops; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    job = await BulkAutoExecutionStore.GetActiveJobAsync(jobKind);
+                    if (job == null)
+                    {
+                        return;
+                    }
+
+                    bool terminal = await ProcessBulkAutomationJobAsync(kind, job, options, immediateMode, progressAction, windowMode, cancellationToken);
+                    if (terminal || !immediateMode)
+                    {
+                        return;
+                    }
+
+                    await Task.Delay(1000, cancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "中止しました",
+                    DetailText = "ユーザー操作により実行を中止しました。",
+                    IsCompleted = true
+                });
+                await AddLogAsync($"{processName}実行を中止しました");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        private async Task<BulkAutoExecutionJob> CreateBulkAutomationJobAsync(
+            BulkQualificationKind kind,
+            BulkAutoExecutionOptions options,
+            bool allowCreateNewJob,
+            Action<BulkExecutionProgressInfo> progressAction)
+        {
+            string jobKind = GetBulkJobKind(kind);
+            DateTime threshold = DateTime.Now.AddMinutes(-options.AutoIntervalMinutes);
+            if (!allowCreateNewJob && await BulkAutoExecutionStore.HasRecentJobAsync(jobKind, threshold))
+            {
+                return null;
+            }
+
+            string processName = BulkQualificationService.GetDisplayName(kind);
+            BulkAutoExecutionJob created = null;
+
+            if (kind == BulkQualificationKind.Houmon)
+            {
+                DateTime from = options.GetConsentDateFrom(DateTime.Today);
+                DateTime to = options.GetConsentDateTo(DateTime.Today);
+                if (to < from)
+                {
+                    to = from;
+                }
+
+                created = await BulkAutoExecutionStore.CreateHoumonJobAsync(from, to, options.MaxRetryCount);
+                AddLogAsync($"{processName}ジョブを作成しました: JobId={created.Id}, From={from:yyyy-MM-dd}, To={to:yyyy-MM-dd}");
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "処理番号取得中",
+                    DetailText = $"JobId={created.Id}, 同意日: {from:yyyy/MM/dd} - {to:yyyy/MM/dd}"
+                });
+                return created;
+            }
+
+            if (kind == BulkQualificationKind.Online)
+            {
+                DateTime from = options.GetDateFrom(DateTime.Today);
+                DateTime to = options.GetDateTo(DateTime.Today);
+                if (to < from)
+                {
+                    to = from;
+                }
+
+                created = await BulkAutoExecutionStore.CreateOnlineJobAsync(options.UseConsentDates, from, to, options.MaxRetryCount);
+                AddLogAsync($"{processName}ジョブを作成しました: JobId={created.Id}, Mode={(options.UseConsentDates ? "consent" : "examination")}, From={from:yyyy-MM-dd}, To={to:yyyy-MM-dd}");
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "処理番号取得中",
+                    DetailText = $"JobId={created.Id}, {options.GetSpanText(DateTime.Today)}"
+                });
+                return created;
+            }
+
+            foreach (DateTime month in options.EnumerateMedicalTreatmentMonths(DateTime.Today))
+            {
+                BulkAutoExecutionJob job = await BulkAutoExecutionStore.CreateMedicalAidJobAsync(month, options.MaxRetryCount);
+                if (created == null)
+                {
+                    created = job;
+                }
+
+                AddLogAsync($"{processName}ジョブを作成しました: JobId={job.Id}, Month={month:yyyyMM}");
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "処理番号取得中",
+                    DetailText = $"JobId={job.Id}, 診療年月: {month:yyyy/MM}"
+                });
+            }
+
+            return created;
+        }
+
+        private async Task<bool> ProcessBulkAutomationJobAsync(
+            BulkQualificationKind kind,
+            BulkAutoExecutionJob job,
+            BulkAutoExecutionOptions options,
+            bool immediateMode,
+            Action<BulkExecutionProgressInfo> progressAction,
+            BulkStatusWindowMode windowMode,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string processName = BulkQualificationService.GetDisplayName(kind);
+            BulkQualificationService service = CreateBulkQualificationService(progressAction);
+
+            if (job.NextRetryAt.HasValue && job.NextRetryAt.Value > DateTime.Now)
+            {
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = $"資格情報取得中（リトライ{Math.Min(job.RetryCount + 1, job.MaxRetryCount)}/{job.MaxRetryCount}）",
+                    DetailText = "次回問い合わせ: " + job.NextRetryAt.Value.ToString("yyyy/MM/dd HH:mm:ss"),
+                    ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                });
+
+                if (!immediateMode)
+                {
+                    return false;
+                }
+
+                TimeSpan delay = job.NextRetryAt.Value - DateTime.Now;
+                if (delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(delay, cancellationToken);
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(job.UploadRequestFilePath))
+            {
+                string requestFilePath = await CreateBulkUploadRequestAsync(kind, job, options, service);
+                await BulkAutoExecutionStore.UpdateAfterUploadRequestAsync(job.Id, requestFilePath);
+                AddLogAsync($"{processName}要求を作成しました: JobId={job.Id}, File={requestFilePath}");
+                job.UploadRequestFilePath = requestFilePath;
+
+                if (!immediateMode)
+                {
+                    return false;
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(job.UploadResultFilePath))
+            {
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "処理番号取得中",
+                    DetailText = "受付結果XMLを待機しています"
+                });
+
+                string uploadResultPath = await service.WaitForExpectedResultFileAsync(
+                    job.UploadRequestFilePath,
+                    immediateMode ? Math.Max(10, options.PollIntervalSeconds) : 0,
+                    options.PollIntervalSeconds,
+                    false,
+                    cancellationToken);
+
+                if (string.IsNullOrWhiteSpace(uploadResultPath))
+                {
+                    return false;
+                }
+
+                BulkQualificationUploadResult uploadResult = await service.ReadUploadResultAsync(uploadResultPath);
+                await BulkAutoExecutionStore.UpdateAfterUploadResultAsync(job.Id, uploadResult, uploadResultPath);
+                AddLogAsync($"{processName}受付結果を取得しました: JobId={job.Id}, ReceptionNumber={uploadResult.ReceptionNumber}, Segment={uploadResult.SegmentOfResult}");
+
+                if (string.IsNullOrWhiteSpace(uploadResult.ReceptionNumber))
+                {
+                    await BulkAutoExecutionStore.MarkFailedAsync(
+                        job.Id,
+                        "受付番号を取得できませんでした。",
+                        uploadResult.ProcessingResultCode,
+                        uploadResult.ProcessingResultStatus,
+                        uploadResult.SegmentOfResult);
+                    return true;
+                }
+
+                job.UploadResultFilePath = uploadResultPath;
+                job.ReceptionNumber = uploadResult.ReceptionNumber;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(job.DownloadRequestFilePath))
+            {
+                string downloadRequestPath = await service.CreateDownloadRequestAsync(kind, job.ReceptionNumber);
+                await BulkAutoExecutionStore.UpdateAfterDownloadRequestAsync(job.Id, downloadRequestPath);
+                AddLogAsync($"{processName}結果取得要求を作成しました: JobId={job.Id}, ReceptionNumber={job.ReceptionNumber}");
+                job.DownloadRequestFilePath = downloadRequestPath;
+
+                if (!immediateMode)
+                {
+                    return false;
+                }
+            }
+
+            progressAction?.Invoke(new BulkExecutionProgressInfo
+            {
+                Timestamp = DateTime.Now,
+                Kind = kind,
+                ProcessName = processName,
+                StatusText = $"資格情報取得中（リトライ{Math.Min(job.RetryCount + 1, job.MaxRetryCount)}/{job.MaxRetryCount}）",
+                DetailText = "結果ZIP/XMLを待機しています",
+                ReceptionNumber = job.ReceptionNumber ?? string.Empty
+            });
+
+            string downloadResultPath = await service.WaitForExpectedResultFileAsync(
+                job.DownloadRequestFilePath,
+                immediateMode ? Math.Max(30, options.PollIntervalSeconds) : 0,
+                options.PollIntervalSeconds,
+                true,
+                cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(downloadResultPath))
+            {
+                return false;
+            }
+
+            BulkQualificationImportResult importResult = null;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                importResult = await service.ImportResultAsync(kind, downloadResultPath);
+                AddLogAsync($"{processName}結果を取得しました: JobId={job.Id}, Segment={importResult.SegmentOfResult}, Status={importResult.ProcessingResultStatus}");
+
+                if (string.Equals(importResult.SegmentOfResult, "2", StringComparison.OrdinalIgnoreCase))
+                {
+                    int nextRetryCount = job.RetryCount + 1;
+                    if (nextRetryCount >= job.MaxRetryCount)
+                    {
+                        await BulkAutoExecutionStore.MarkFailedAsync(
+                            job.Id,
+                            $"照会結果が完了せず、最大再試行回数に達しました。ReceptionNumber={job.ReceptionNumber}",
+                            importResult.ProcessingResultCode,
+                            importResult.ProcessingResultStatus,
+                            importResult.SegmentOfResult);
+                        return true;
+                    }
+
+                    await BulkAutoExecutionStore.UpdateForRetryAsync(
+                        job.Id,
+                        nextRetryCount,
+                        options.PollIntervalSeconds,
+                        importResult,
+                        downloadResultPath);
+
+                    progressAction?.Invoke(new BulkExecutionProgressInfo
+                    {
+                        Timestamp = DateTime.Now,
+                        Kind = kind,
+                        ProcessName = processName,
+                        StatusText = $"資格情報取得中（リトライ{nextRetryCount}/{job.MaxRetryCount}）",
+                        DetailText = "資格情報が未完了のため再問い合わせします",
+                        ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                    });
+                    AddLogAsync($"{processName}結果は再問い合わせ待ちです: JobId={job.Id}, Retry={nextRetryCount}/{job.MaxRetryCount}, ReceptionNumber={job.ReceptionNumber}");
+                    return false;
+                }
+
+                if (string.Equals(importResult.SegmentOfResult, "9", StringComparison.OrdinalIgnoreCase))
+                {
+                    await BulkAutoExecutionStore.MarkFailedAsync(
+                        job.Id,
+                        importResult.ProcessingResultMessage,
+                        importResult.ProcessingResultCode,
+                        importResult.ProcessingResultStatus,
+                        importResult.SegmentOfResult);
+                    return true;
+                }
+
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "資格情報解析中",
+                    DetailText = importResult.ExtractedXmlPath ?? string.Empty,
+                    ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                });
+
+                cancellationToken.ThrowIfCancellationRequested();
+                QualificationImportSession session = QualificationImportParser.Parse(kind, importResult);
+
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "患者照合中",
+                    DetailText = $"対象件数: {session.Records.Count}",
+                    ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                });
+                cancellationToken.ThrowIfCancellationRequested();
+                await EnsureQualificationMatchesAsync(session);
+
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "SQL保存中",
+                    DetailText = $"対象件数: {session.Records.Count}",
+                    ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                });
+                cancellationToken.ThrowIfCancellationRequested();
+                await QualificationImportStore.SaveSessionAsync(session, message => AddLogAsync(message));
+                lastQualificationImportSession = session;
+
+                await BulkAutoExecutionStore.MarkCompletedAsync(job.Id, importResult, downloadResultPath);
+                AddLogAsync($"{processName}取込を完了しました: JobId={job.Id}, Records={session.Records.Count}");
+                await ShowBulkExecutionResultsWindowAsync(processName, session, windowMode);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "中止しました",
+                    DetailText = "ユーザー操作により実行を中止しました。",
+                    ReceptionNumber = job.ReceptionNumber ?? string.Empty,
+                    IsCompleted = true
+                });
+                await BulkAutoExecutionStore.MarkFailedAsync(job.Id, "ユーザー操作により中止しました。");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                progressAction?.Invoke(new BulkExecutionProgressInfo
+                {
+                    Timestamp = DateTime.Now,
+                    Kind = kind,
+                    ProcessName = processName,
+                    StatusText = "エラー",
+                    DetailText = ex.Message,
+                    ReceptionNumber = job.ReceptionNumber ?? string.Empty,
+                    HasError = true
+                });
+                await BulkAutoExecutionStore.MarkFailedAsync(job.Id, ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (importResult != null)
+                {
+                    await service.CleanupImportResultAsync(importResult);
+                }
+            }
+        }
+
+        private async Task<string> CreateBulkUploadRequestAsync(
+            BulkQualificationKind kind,
+            BulkAutoExecutionJob job,
+            BulkAutoExecutionOptions options,
+            BulkQualificationService service)
+        {
+            switch (kind)
+            {
+                case BulkQualificationKind.Houmon:
+                    {
+                        DateTime from = job.ConsentDateFrom ?? options.GetConsentDateFrom(DateTime.Today);
+                        DateTime to = job.ConsentDateTo ?? options.GetConsentDateTo(DateTime.Today);
+                        if (to < from)
+                        {
+                            to = from;
+                        }
+
+                        return await service.CreateHoumonRequestAsync(from, to);
+                    }
+                case BulkQualificationKind.Online:
+                    {
+                        bool useConsentDates = string.Equals(job.RequestMode, "consent", StringComparison.OrdinalIgnoreCase);
+                        DateTime from = useConsentDates
+                            ? (job.ConsentDateFrom ?? options.GetDateFrom(DateTime.Today))
+                            : (job.ExaminationDateFrom ?? options.GetDateFrom(DateTime.Today));
+                        DateTime to = useConsentDates
+                            ? (job.ConsentDateTo ?? options.GetDateTo(DateTime.Today))
+                            : (job.ExaminationDateTo ?? options.GetDateTo(DateTime.Today));
+                        if (to < from)
+                        {
+                            to = from;
+                        }
+
+                        return await service.CreateOnlineRequestAsync(from, to, useConsentDates);
+                    }
+                default:
+                    {
+                        DateTime month = ParseMedicalTreatmentMonth(job.MedicalTreatmentMonth);
+                        return await service.CreateMedicalAidRequestAsync(month);
+                    }
+            }
+        }
+
+        private SemaphoreSlim GetBulkAutoSemaphore(BulkQualificationKind kind)
+        {
+            switch (kind)
+            {
+                case BulkQualificationKind.Houmon:
+                    return bulkHoumonAutoSemaphore;
+                case BulkQualificationKind.Online:
+                    return bulkOnlineAutoSemaphore;
+                default:
+                    return bulkMedicalAutoSemaphore;
+            }
+        }
+
+        private static string GetBulkJobKind(BulkQualificationKind kind)
+        {
+            switch (kind)
+            {
+                case BulkQualificationKind.Houmon:
+                    return "houmon";
+                case BulkQualificationKind.Online:
+                    return "online";
+                default:
+                    return "medicalaid";
+            }
+        }
+
+        private static bool GetBulkAutoEnabled(BulkQualificationKind kind)
+        {
+            switch (kind)
+            {
+                case BulkQualificationKind.Houmon:
+                    return Properties.Settings.Default.BulkHoumonAutoEnabled;
+                case BulkQualificationKind.Online:
+                    return Properties.Settings.Default.BulkOnlineAutoEnabled;
+                default:
+                    return Properties.Settings.Default.BulkMedicalAidAutoEnabled;
+            }
+        }
+
+        private static void SetBulkAutoEnabled(BulkQualificationKind kind, bool enabled)
+        {
+            switch (kind)
+            {
+                case BulkQualificationKind.Houmon:
+                    Properties.Settings.Default.BulkHoumonAutoEnabled = enabled;
+                    break;
+                case BulkQualificationKind.Online:
+                    Properties.Settings.Default.BulkOnlineAutoEnabled = enabled;
+                    break;
+                default:
+                    Properties.Settings.Default.BulkMedicalAidAutoEnabled = enabled;
+                    break;
+            }
+        }
+
+        private static DateTime ParseMedicalTreatmentMonth(string value)
+        {
+            if (!string.IsNullOrWhiteSpace(value)
+                && value.Length >= 6
+                && int.TryParse(value.Substring(0, 4), out int year)
+                && int.TryParse(value.Substring(4, 2), out int month)
+                && month >= 1
+                && month <= 12)
+            {
+                return new DateTime(year, month, 1);
+            }
+
+            return new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        }
+
+        private async Task ShowQualificationImportViewerAsync(BulkQualificationKind kind, BulkQualificationImportResult result)
+        {
+            QualificationImportSession session = QualificationImportParser.Parse(kind, result);
+            await EnsureQualificationMatchesAsync(session);
+            await QualificationImportStore.SaveSessionAsync(session, message => AddLogAsync(message));
+            lastQualificationImportSession = session;
+
+            await ShowQualificationImportViewerAsync(session);
+        }
+
+        private Task ShowQualificationImportViewerAsync(QualificationImportSession session)
+        {
+            if (session == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            using (var viewer = new FormQualificationImportViewer(
+                session,
+                async records => await ExportImportedQualificationsToFaceAsync(records)))
+            {
+                viewer.ShowDialog(this);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private async Task EnsureQualificationMatchesAsync(QualificationImportSession session)
+        {
+            if (session == null || session.Records.Count == 0)
+            {
+                return;
+            }
+
+            string dynaPath = Properties.Settings.Default.Datadyna;
+            if (string.IsNullOrWhiteSpace(dynaPath) || !File.Exists(dynaPath))
+            {
+                foreach (ImportedQualificationRecord record in session.Records)
+                {
+                    record.MatchStatus = "Datadyna未設定";
+                    record.LastSendMessage = "Datadynaが未設定です";
+                }
+                return;
+            }
+
+            DataTable table = dynaTable;
+            if (table == null || table.Rows.Count == 0)
+            {
+                table = await LoadDataFromDatabaseAsync(dynaPath);
+            }
+
+            if (table == null || table.Rows.Count == 0)
+            {
+                foreach (ImportedQualificationRecord record in session.Records)
+                {
+                    record.MatchStatus = "患者マスター未読込";
+                }
+                return;
+            }
+
+            QualificationDynamicsSender.ResolvePatientMatches(session.Records, table);
+        }
+
+        private async Task<QualificationSendSummary> ExportImportedQualificationsToFaceAsync(IReadOnlyList<ImportedQualificationRecord> records)
+        {
+            if (records == null || records.Count == 0)
+            {
+                return new QualificationSendSummary();
+            }
+
+            if (string.IsNullOrWhiteSpace(Properties.Settings.Default.OQSFolder))
+            {
+                throw new InvalidOperationException("OQSFolder が未設定です。");
+            }
+
+            DataTable table = dynaTable;
+            string dynaPath = Properties.Settings.Default.Datadyna;
+            if (!string.IsNullOrWhiteSpace(dynaPath) && File.Exists(dynaPath) && (table == null || table.Rows.Count == 0))
+            {
+                table = await LoadDataFromDatabaseAsync(dynaPath);
+            }
+
+            if (table != null)
+            {
+                QualificationDynamicsSender.ResolvePatientMatches(records.ToList(), table);
+            }
+
+            var exporter = new QualificationFaceExporter(Properties.Settings.Default.OQSFolder, message => AddLogAsync(message));
+            QualificationSendSummary summary = await exporter.ExportAsync(records);
+            await QualificationImportStore.UpdateSendResultsAsync(records, message => AddLogAsync(message));
+            return summary;
         }
 
         private async Task<bool> ProcessResAsync()
@@ -3714,14 +4837,23 @@ namespace OQSDrug
             }
         }
 
-        private void stopFileWatcher()
+        private void stopFileWatcher(bool writeLog = true)
         {
             if (fileWatcher != null)
             {
-                fileWatcher.EnableRaisingEvents = false;
-                fileWatcher.Dispose();
+                try
+                {
+                    fileWatcher.EnableRaisingEvents = false;
+                    fileWatcher.Changed -= FileWatcher_Changed;
+                    fileWatcher.Dispose();
+                }
+                catch { }
+                finally
+                {
+                    fileWatcher = null;
+                }
             }
-            AddLogAsync("RSB連携を終了しました");
+            if (writeLog) AddLogAsync("RSB連携を終了しました");
         }
 
         private void StopResWatcher()
@@ -3759,6 +4891,9 @@ namespace OQSDrug
 
         private void InitializeFileWatcher()
         {
+            stopFileWatcher(false);
+            try { StopResWatcher(); } catch { }
+
             switch (Properties.Settings.Default.RSBID)
             {
                 case 0:
@@ -3881,20 +5016,54 @@ namespace OQSDrug
         // ファイルが変更されたときに呼ばれるイベントハンドラ
         private async void FileWatcher_Changed(object sender, FileSystemEventArgs e)
         {
-            if (!idChageCalled)
+            var activeWatcher = fileWatcher;
+            if (activeWatcher == null || !ReferenceEquals(sender, activeWatcher) || IsDisposed || Disposing)
             {
-                idChageCalled = true; //二重起動を避ける
+                return;
+            }
 
+            if (!await idChangeSemaphore.WaitAsync(0))
+            {
+                return;
+            }
+
+            try
+            {
                 await Task.Delay(fileReadDelayms); // 読み込み遅延
 
-                if ((idStyle < 3 && e.FullPath == idFile) || (idStyle == 3 && e.FullPath.StartsWith(idFile, StringComparison.OrdinalIgnoreCase)))
+                if (activeWatcher != fileWatcher || IsDisposed || Disposing)
+                {
+                    return;
+                }
+
+                string currentIdFile = idFile;
+                int currentIdStyle = idStyle;
+
+                if ((currentIdStyle < 3 && string.Equals(e.FullPath, currentIdFile, StringComparison.OrdinalIgnoreCase)) ||
+                    (currentIdStyle == 3 && e.FullPath.StartsWith(currentIdFile, StringComparison.OrdinalIgnoreCase)))
                 {
                     // ファイル内容の読み取り
-                    await ReadIdAsync(e.FullPath, idStyle);
-
+                    await ReadIdAsync(e.FullPath, currentIdStyle);
+                    if (IsDisposed || Disposing) return;
                     await reloadDataAsync();
                 }
-                idChageCalled = false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+            catch (InvalidOperationException)
+            {
+                if (IsDisposed || Disposing) return;
+                AddLogAsync("FileWatcher処理でUI更新タイミングの競合が発生しました");
+            }
+            catch (Exception ex)
+            {
+                AddLogAsync($"FileWatcher処理でエラー: {ex.Message}");
+            }
+            finally
+            {
+                idChangeSemaphore.Release();
             }
         }
 
@@ -4003,7 +5172,41 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"FileWatcherエラー: {ex.Message}");
+                if (ex is ObjectDisposedException || ex is InvalidOperationException && (IsDisposed || Disposing || !IsHandleCreated))
+                {
+                    return;
+                }
+
+                if (!TryInvokeOnUi(() => MessageBox.Show($"FileWatcherエラー: {ex.Message}")))
+                {
+                    AddLogAsync($"FileWatcherエラー: {ex.Message}");
+                }
+            }
+        }
+
+        private bool TryInvokeOnUi(Action action)
+        {
+            if (action == null || IsDisposed || Disposing || !IsHandleCreated) return false;
+
+            try
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(action);
+                }
+                else
+                {
+                    action();
+                }
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
             }
         }
 
@@ -4129,7 +5332,7 @@ namespace OQSDrug
             {
                 tempId = ptId;
                 // UIスレッドで操作
-                Invoke((Action)(() =>
+                TryInvokeOnUi(() =>
                 {
                     // FormTKKがすでに開いているか確認
                     if (formTKKInstance == null || formTKKInstance.IsDisposed)
@@ -4155,7 +5358,7 @@ namespace OQSDrug
                         // Form3が閉じるときに位置、サイズ、TopMost状態を保存
                         formTKKInstance.FormClosing += (s, args) =>
                         {
-                            SaveViewerSettings(formTKKInstance, "TKKBounds");
+                            if (s is Form form) SaveViewerSettings(form, "TKKBounds");
                         };
 
                         formTKKInstance.Show(this);
@@ -4172,26 +5375,59 @@ namespace OQSDrug
                         currentForm?.Activate();
 
                     }
-                }));
+                });
                 AddLogAsync($"{ptId}の健診結果を開きます");
             }
             else
             {
                 //健診歴なしの場合はViewerを閉じる
-                if (formTKKInstance != null && !formTKKInstance.IsDisposed)
+                var currentForm = formTKKInstance;
+                if (currentForm != null && !currentForm.IsDisposed)
                 {
                     // UI スレッドで操作する必要があるため Invoke を使用
-                    formTKKInstance.Invoke((Action)(() =>
+                    SafeCloseViewer(currentForm, () =>
                     {
-                        formTKKInstance.Close(); // Form3 を閉じる
-                        formTKKInstance = null;
-                    }));
+                        if (ReferenceEquals(formTKKInstance, currentForm)) formTKKInstance = null;
+                    });
                     AddLogAsync($"{ptId}は健診歴がないので健診ビュワーを閉じます");
                 }
                 if (messagePopup)
                 {
                     MessageBox.Show($"{ptId}の健診歴はありません");
                 }
+            }
+        }
+
+        private bool SafeCloseViewer(Form form, Action afterClose = null)
+        {
+            if (form == null || form.IsDisposed) return false;
+
+            try
+            {
+                Action closeAction = () =>
+                {
+                    if (form.IsDisposed) return;
+                    form.Close();
+                    afterClose?.Invoke();
+                };
+
+                if (form.InvokeRequired)
+                {
+                    form.Invoke(closeAction);
+                }
+                else
+                {
+                    closeAction();
+                }
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
             }
         }
 
@@ -4500,6 +5736,7 @@ namespace OQSDrug
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add("PMDA薬情",Properties.Resources.PMDA, toolStripButtonPMDA_Click);
             contextMenu.Items.Add("資格確認一覧", Properties.Resources.Person, toolStripButtonDynaViewer_Click);
+            contextMenu.Items.Add("Bulk Tool", Properties.Resources.People, toolStripButtonBulkTool_Click);
             contextMenu.Items.Add("終了", Properties.Resources.Exit, ExitApplication);
 
             notifyIcon1.ContextMenuStrip = contextMenu;
@@ -5295,6 +6532,15 @@ namespace OQSDrug
                 if (string.IsNullOrWhiteSpace(Dynamics))
                 {
                     await AddLogAsync("エラー: Datadyna が未設定です。");
+                    if (shouldLoadSgml)
+                    {
+                        int mapCount = await CommonFunctions.RefreshReceptToMedisCodeMapFromDbAsync();
+                        await AddLogAsync($"drug_code_mapをDBから読み込みました。{mapCount}件");
+
+                        sgmlLoadTriggered = true;
+                        await LoadSGMLDIAsync();
+                        await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
+                    }
                     return;
                 }
 
@@ -5320,7 +6566,7 @@ namespace OQSDrug
                         //SGML DIのロード
                         sgmlLoadTriggered = true;
                         await LoadSGMLDIAsync();
-                        await AddLogAsync("SGML薬剤情報インデックスをDBから更新しました。");
+                        await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
                     }
                 }
                 else if (Properties.Settings.Default.DBtype == "pg")
@@ -5330,6 +6576,9 @@ namespace OQSDrug
                     if (koroVersion == null)
                     {
                         await AddLogAsync("エラー: KOROdataの更新日が取得できません。");
+                        sgmlLoadTriggered = true;
+                        await LoadSGMLDIAsync();
+                        await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
                         return;
                     }
                     await AddLogAsync($"KOROdata 更新日: {koroVersion:yyyy-MM-dd HH:mm:ss}");
@@ -5400,7 +6649,7 @@ namespace OQSDrug
                 {
                     await AddLogAsync("SGML薬情インデックスの事後読み込みを試行します。");
                     await LoadSGMLDIAsync();
-                    await AddLogAsync("SGML薬剤情報インデックスをDBから更新しました。");
+                    await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
                 }
                 catch (Exception ex)
                 {
@@ -5480,7 +6729,7 @@ namespace OQSDrug
 
                         while (await r.ReadAsync())
                         {
-                            string recept = r["ReceptCode"]?.ToString() ?? "";
+                            string recept = CommonFunctions.NormalizeDrugCode(r["ReceptCode"]?.ToString());
                             string yj = r["MedisCode"]?.ToString() ?? "";
                             string yj7 = (yj.Length >= 7) ? yj.Substring(0, 7) : yj;
                             string drugn = r["drugn"]?.ToString() ?? "";
@@ -5939,7 +7188,7 @@ namespace OQSDrug
                 {
                     while (await r.ReadAsync())
                     {
-                        string rc = r["ReceptCode"]?.ToString();
+                        string rc = CommonFunctions.NormalizeDrugCode(r["ReceptCode"]?.ToString());
                         string yj = r["MedisCode"]?.ToString();
                         if (!string.IsNullOrEmpty(rc) && !map.ContainsKey(rc))
                             map[rc] = yj ?? "";
@@ -6009,11 +7258,12 @@ namespace OQSDrug
                     var temp = new Dictionary<string, string>();
                     while (await r.ReadAsync())
                     {
-                        string rc = r["drugc"]?.ToString();
+                        string rc = CommonFunctions.NormalizeDrugCode(r["drugc"]?.ToString());
                         string yj = r["yj_code"]?.ToString();
                         if (!string.IsNullOrEmpty(rc) && !temp.ContainsKey(rc))
                             temp[rc] = yj ?? "";
                     }
+
                     // 置換（エラー時の巻き込みを避けるため一時Dictを使用）
                     CommonFunctions.ReceptToMedisCodeMap.Clear();
                     foreach (var kv in temp) CommonFunctions.ReceptToMedisCodeMap[kv.Key] = kv.Value;
@@ -6096,6 +7346,10 @@ namespace OQSDrug
             throw new NotSupportedException("ExecuteReaderAsync is only supported for DbCommand.");
         }
 
+        private void toolStripButtonBulkTool_Click(object sender, EventArgs e)
+        {
+            OpenBulkDashboard();
+        }
 
         private void loadConnectionString()
         {

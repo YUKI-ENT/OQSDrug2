@@ -720,29 +720,6 @@ namespace OQSDrug
             }
         }
 
-        // 共通のプロセス実行（ログ取りつつ終了コード判定）
-        private async Task<bool> RunProcessWithLogsAsync(ProcessStartInfo psi, CancellationToken cancel)
-        {
-            using (var proc = new Process { StartInfo = psi, EnableRaisingEvents = true })
-            {
-                var tcsExit = new TaskCompletionSource<int>();
-                proc.OutputDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) AddLog(e.Data); };
-                proc.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) AddLog(e.Data); };
-                proc.Exited += (_, __) => { try { tcsExit.TrySetResult(proc.ExitCode); } catch { } };
-
-                if (!proc.Start()) { AddLog("[Restore] プロセス起動に失敗"); return false; }
-                proc.BeginOutputReadLine();
-                proc.BeginErrorReadLine();
-
-                using (cancel.Register(() => { try { if (!proc.HasExited) proc.Kill(); } catch { } }))
-                {
-                    int exit = await tcsExit.Task;
-                    AddLog($"[Restore] 終了コード: {exit}");
-                    return exit == 0;
-                }
-            }
-        }
-
         // プロセス出力をキャプチャして終了コードと出力文字列を返す。呼び出し側でログ化する。
         private async Task<(int exitCode, string output)> RunProcessWithLogsCaptureAsync(ProcessStartInfo psi, CancellationToken cancel)
         {

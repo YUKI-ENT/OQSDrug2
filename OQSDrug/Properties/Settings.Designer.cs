@@ -646,5 +646,269 @@ namespace OQSDrug.Properties {
                 this["YZspan"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool BulkHoumonAutoEnabled {
+            get {
+                return ((bool)(this["BulkHoumonAutoEnabled"]));
+            }
+            set {
+                this["BulkHoumonAutoEnabled"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public int BulkHoumonConsentDaysBack {
+            get {
+                return ((int)(this["BulkHoumonConsentDaysBack"]));
+            }
+            set {
+                this["BulkHoumonConsentDaysBack"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int BulkHoumonConsentDaysForward {
+            get {
+                return ((int)(this["BulkHoumonConsentDaysForward"]));
+            }
+            set {
+                this["BulkHoumonConsentDaysForward"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("10")]
+        public int BulkHoumonPollIntervalSeconds {
+            get {
+                return ((int)(this["BulkHoumonPollIntervalSeconds"]));
+            }
+            set {
+                this["BulkHoumonPollIntervalSeconds"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public int BulkHoumonAutoIntervalMinutes {
+            get {
+                return ((int)(this["BulkHoumonAutoIntervalMinutes"]));
+            }
+            set {
+                this["BulkHoumonAutoIntervalMinutes"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("3")]
+        public int BulkHoumonMaxRetryCount {
+            get {
+                return ((int)(this["BulkHoumonMaxRetryCount"]));
+            }
+            set {
+                this["BulkHoumonMaxRetryCount"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool BulkOnlineAutoEnabled {
+            get {
+                return ((bool)(this["BulkOnlineAutoEnabled"]));
+            }
+            set {
+                this["BulkOnlineAutoEnabled"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool BulkOnlineUseConsentDates {
+            get {
+                return ((bool)(this["BulkOnlineUseConsentDates"]));
+            }
+            set {
+                this["BulkOnlineUseConsentDates"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public int BulkOnlineConsentDaysBack {
+            get {
+                return ((int)(this["BulkOnlineConsentDaysBack"]));
+            }
+            set {
+                this["BulkOnlineConsentDaysBack"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int BulkOnlineConsentDaysForward {
+            get {
+                return ((int)(this["BulkOnlineConsentDaysForward"]));
+            }
+            set {
+                this["BulkOnlineConsentDaysForward"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public int BulkOnlineExaminationDaysBack {
+            get {
+                return ((int)(this["BulkOnlineExaminationDaysBack"]));
+            }
+            set {
+                this["BulkOnlineExaminationDaysBack"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int BulkOnlineExaminationDaysForward {
+            get {
+                return ((int)(this["BulkOnlineExaminationDaysForward"]));
+            }
+            set {
+                this["BulkOnlineExaminationDaysForward"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("10")]
+        public int BulkOnlinePollIntervalSeconds {
+            get {
+                return ((int)(this["BulkOnlinePollIntervalSeconds"]));
+            }
+            set {
+                this["BulkOnlinePollIntervalSeconds"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public int BulkOnlineAutoIntervalMinutes {
+            get {
+                return ((int)(this["BulkOnlineAutoIntervalMinutes"]));
+            }
+            set {
+                this["BulkOnlineAutoIntervalMinutes"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("3")]
+        public int BulkOnlineMaxRetryCount {
+            get {
+                return ((int)(this["BulkOnlineMaxRetryCount"]));
+            }
+            set {
+                this["BulkOnlineMaxRetryCount"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool BulkMedicalAidAutoEnabled {
+            get {
+                return ((bool)(this["BulkMedicalAidAutoEnabled"]));
+            }
+            set {
+                this["BulkMedicalAidAutoEnabled"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int BulkMedicalAidMonthBack {
+            get {
+                return ((int)(this["BulkMedicalAidMonthBack"]));
+            }
+            set {
+                this["BulkMedicalAidMonthBack"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int BulkMedicalAidMonthForward {
+            get {
+                return ((int)(this["BulkMedicalAidMonthForward"]));
+            }
+            set {
+                this["BulkMedicalAidMonthForward"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("10")]
+        public int BulkMedicalAidPollIntervalSeconds {
+            get {
+                return ((int)(this["BulkMedicalAidPollIntervalSeconds"]));
+            }
+            set {
+                this["BulkMedicalAidPollIntervalSeconds"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public int BulkMedicalAidAutoIntervalMinutes {
+            get {
+                return ((int)(this["BulkMedicalAidAutoIntervalMinutes"]));
+            }
+            set {
+                this["BulkMedicalAidAutoIntervalMinutes"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("3")]
+        public int BulkMedicalAidMaxRetryCount {
+            get {
+                return ((int)(this["BulkMedicalAidMaxRetryCount"]));
+            }
+            set {
+                this["BulkMedicalAidMaxRetryCount"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public int BulkStatusWindowMode {
+            get {
+                return ((int)(this["BulkStatusWindowMode"]));
+            }
+            set {
+                this["BulkStatusWindowMode"] = value;
+            }
+        }
     }
 }
