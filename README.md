@@ -120,41 +120,59 @@
 PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](https://github.com/YUKI-ENT/OQSDrug?tab=readme-ov-file#%E8%A8%AD%E5%AE%9A%E3%81%A8%E5%8B%95%E4%BD%9C%E3%81%AE%E8%AA%AC%E6%98%8E)と同じですので、新機能の部分のみ説明します。
 
 - **初期設定**
-   
-   - 左側のStatusインジケータ部分に現在の状態が表示されます。設定でデータベース形式を変更すると、mdb/PostgreSQLの表示が変わります。
      ![top2](https://github.com/user-attachments/assets/35b5e62e-cfa8-4851-8dac-891a1cff562c)
-   - 右上の「`設定`」を開きます
-   - OQSDrug version1の設定ファイルも読み込めますので、まずversion1で設定の`エクスポート`をしてから、そのconfigファイルをインポートすると、医療機関コード等の設定がそのまま移行できます。
-   - `①データベース形式`で、`PostgreSQL`を選択後、 `サーバーアドレス`、`Port`(デフォルト5432推奨)、`ユーザー名`(デフォルトpostgres推奨)、`パスワード`(PostgreSQLインストール時に設定してください) を設定
-   - 「象のマークのついた`設定`」ボタンを押す
-
-     ![settings11](https://github.com/user-attachments/assets/194cfbd0-7852-48ce-89f4-40413183760a)
-
-   - PostgreSQLの設定画面になります。左上の部分が接続状況を示します。初期状態では以下のようになるはずです。
-
-     ![PG11](https://github.com/user-attachments/assets/b226eac0-df0f-4319-9767-aba804834dcf)
-
-   - 「`データベース/テーブル新規作成`」ボタンを押します。
-   - 成功すると以下のように、`OQSDrug_data:Ready`が点灯します。
+     - 右上の「`設定`」を開きます
+     - `設定`は`共通設定`、`取込設定`、`Viewer設定`、`Bulk Tool設定`に分かれています。
+     - 取込機能を使うときは、`共通設定`、`取込設定`が必須で、Viewerとして使うときは、`共通設定`、`Viewer設定`が必須です。
+     - **共通設定**
+       <img width="617" height="553" alt="setting1" src="https://github.com/user-attachments/assets/6a8d9bd3-5ab4-4b18-a794-5ea84840f6af" />
  
-     ![PG12](https://github.com/user-attachments/assets/57a35355-d605-479c-b745-b7d419322b15)
+       - OQSDrug2ではデータベース形式mdbでも一部動作は可能ですが、薬剤添付文書機能や相互作用検索、AI機能、BulkTool機能はPostgreSQLにしか対応していないので、PostgreSQLを使うことをおすすめすます。 
+       - OQSDrug version1の設定ファイルも読み込めますので、まずversion1で設定の`エクスポート`をしてから、そのconfigファイルをインポートすると、医療機関コード等の設定がそのまま移行できます。
+       - `データベース形式`で、`PostgreSQL`を選択後、 `サーバーアドレス`、`Port`(デフォルト5432推奨)、`ユーザー名`(デフォルトpostgres推奨)、`パスワード`(PostgreSQLインストール時に設定してください) を設定
+       - 「象のマークのついた`設定`」ボタンを押す
+    
+       - PostgreSQLの設定画面になります。左上の部分が接続状況を示します。初期状態では以下のようになるはずです。
 
-   - 従来の `OQSDrugdata.mdb` を引き継ぐ時は、`移行元mdb`を選択後、`データ移行開始` ボタンを押してください。数分かかることもありますが、成功すると以下のようになります。引き継がずに新規に使用する場合はこのステップは不要です。
+         ![PG11](https://github.com/user-attachments/assets/b226eac0-df0f-4319-9767-aba804834dcf)
+
+       - 「`データベース/テーブル新規作成`」ボタンを押します。
+       - 成功すると以下のように、`OQSDrug_data:Ready`が点灯します。
  
-     ![PG13](https://github.com/user-attachments/assets/ca058531-fa53-4306-b2fb-d4e8ea2dff50)
+         ![PG12](https://github.com/user-attachments/assets/57a35355-d605-479c-b745-b7d419322b15)
 
-   - **薬剤情報データベースをインポートします** [Release一覧](https://github.com/YUKI-ENT/SGML2SQL/releases/) から`DrugSGMLdatayyyymmdd.backup`(約200MBあります)をダウンロード後、`Backupデータのインポート`ボタンを押して、このファイルを選択してください。インポートには1-5分程度かかります。インポート中は以下のような表示になり、フリーズしたみたいに見えますが、完了するまで操作しないようお願いします。
+       - 従来の `OQSDrugdata.mdb` を引き継ぐ時は、`移行元mdb`を選択後、`データ移行開始` ボタンを押してください。数分かかることもありますが、成功すると以下のようになります。引き継がずに新規に使用する場合はこのステップは不要です。
+ 
+         ![PG13](https://github.com/user-attachments/assets/ca058531-fa53-4306-b2fb-d4e8ea2dff50)
 
-    ![PG14](https://github.com/user-attachments/assets/5a3096d1-61ec-460a-b180-0945279a154c)
+       - **薬剤情報データベースをインポートします** [Release一覧](https://github.com/YUKI-ENT/SGML2SQL/releases/) から`DrugSGMLdatayyyymmdd.backup`(約200MBあります)をダウンロード後、`Backupデータのインポート`ボタンを押して、このファイルを選択してください。インポートには1-5分程度かかります。インポート中は以下のような表示になり、フリーズしたみたいに見えますが、完了するまで操作しないようお願いします。
 
-   - 完了すると以下のようになります。これで初期設定は完了です。Version1と同じように操作できます。
+         ![PG14](https://github.com/user-attachments/assets/5a3096d1-61ec-460a-b180-0945279a154c)
 
-    ![PG15](https://github.com/user-attachments/assets/43d4fbec-60fe-45ae-8687-3df66592fbfb)
+       - 完了すると以下のようになります。これで初期設定は完了です。Version1と同じように操作できます。
 
-   - **バックアップ機能** `保存先`のフォルダを選択後、 `バックアップ`ボタンを押すと、薬歴、健診歴、取得歴ログなどのテーブルを外部ファイルに手動保存します。
-      `自動`にチェックをいれると、3時間毎に自動で指定フォルダにバックアップ作成します。7日経過すると削除される設定です。
+        ![PG15](https://github.com/user-attachments/assets/43d4fbec-60fe-45ae-8687-3df66592fbfb)
+
+       - **バックアップ機能** `保存先`のフォルダを選択後、 `バックアップ`ボタンを押すと、薬歴、健診歴、取得歴ログなどのテーブルを外部ファイルに手動保存します。 `自動`にチェックをいれると、3時間毎に自動で指定フォルダにバックアップ作成します。7日経過すると削除される設定です。
      
-     ![PG16](https://github.com/user-attachments/assets/e44a9507-e1ad-429e-a3c7-ec4158029414)
+       ![PG16](https://github.com/user-attachments/assets/e44a9507-e1ad-429e-a3c7-ec4158029414)
+
+  - **取込設定**
+    <img width="617" height="553" alt="setting2" src="https://github.com/user-attachments/assets/e6d7de6f-814e-4053-b439-626492741dd5" />
+ 
+    - 取込を行うPCでは、ダイナミクスの場所（ダイナミクスクライアントを動かしていないPCではダイナミクスのdatadyna.mdbを、ダイナクライアントクライアントが動いている場合は稼働中のダイナクライアントを指定）、OQSフォルダ（オンライン資格確認端末のoqsフォルダの共有名）を指定。
+    - 薬剤情報の取込期間、取込間隔を指定できます。
+    - Viewerとしてしか使用しない場合は、これらの設定は不要です。
+    
+  - **Viewer設定**
+    - <img width="617" height="553" alt="setting3" src="https://github.com/user-attachments/assets/02ed90cd-35a0-4570-8527-70234d36ebc5" />
+  - **BulkTool設定**
+    <img width="617" height="553" alt="setting4" src="https://github.com/user-attachments/assets/aebd7808-d6c5-40d2-89cf-4b8025c2ac7d" />
+ 
+    - マイナ資格確認アプリや、マイナ資格確認Webで同意・確認を行ったオンライン診療、訪問診療情報や医療扶助の情報を取り込む設定をします。
+    - 自動実行をonにすると、起動後一定間隔で自動でBulkToolを実行し、ダイナミクスへの転送もonにしておくとダイナの転送まで自動で行います。
+    - Bulk問い合わせはオンライン資格確認サーバーに負荷がかかりますので、あまり取得間隔を短くしすぎないほうがいいと思います。
+
 
 
 - **相互作用表示**
