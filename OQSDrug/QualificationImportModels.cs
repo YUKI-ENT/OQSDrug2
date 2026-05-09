@@ -78,6 +78,7 @@ namespace OQSDrug
         public string MatchedPatientName { get; set; } = string.Empty;
         public string MatchStatus { get; set; } = "Pending";
         public bool IsSent { get; set; }
+        public bool IsDuplicate { get; set; }
         public string LastSendMessage { get; set; } = string.Empty;
         public Dictionary<string, object> DynamicsValues { get; } = new Dictionary<string, object>(StringComparer.Ordinal);
         public Dictionary<string, object> BulkToolValues { get; } = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -641,6 +642,12 @@ namespace OQSDrug
         private static void PopulateRecordFromQualificationResult(ImportedQualificationRecord record, XmlNode resultNode)
         {
             string insuredCardClassification = FindValue(resultNode, "InsuredCardClassification");
+            if (record.Kind == BulkQualificationKind.MedicalAid)
+            {
+                record.QualificationValidity = FirstNonEmpty(record.QualificationValidity, "1");
+                insuredCardClassification = FirstNonEmpty(insuredCardClassification, "A1");
+            }
+
             string insurerNumber = FirstNonEmpty(
                 FindValue(resultNode, "InsurerNumber"),
                 FindValue(resultNode, "PublicExpenseNumber"));
@@ -1169,8 +1176,23 @@ namespace OQSDrug
             {
                 await OpenAsync(connection).ConfigureAwait(false);
 
+                int skippedCount = 0;
                 foreach (ImportedQualificationRecord record in session.Records)
                 {
+                    DuplicateRecordInfo duplicate = await FindDuplicateRecordAsync(connection, record).ConfigureAwait(false);
+                    if (duplicate != null)
+                    {
+                        record.StorageId = duplicate.StorageId;
+                        record.IsSent = duplicate.IsSent;
+                        record.IsDuplicate = true;
+                        record.MatchStatus = string.IsNullOrWhiteSpace(duplicate.MatchStatus) ? record.MatchStatus : duplicate.MatchStatus;
+                        record.LastSendMessage = string.IsNullOrWhiteSpace(duplicate.FaceOutputMessage)
+                            ? "重複レコードのためダイナ送信スキップ"
+                            : "重複レコードのためダイナ送信スキップ: " + duplicate.FaceOutputMessage;
+                        skippedCount++;
+                        continue;
+                    }
+
                     using (IDbCommand command = connection.CreateCommand())
                     {
                         command.CommandText = insertSql;
@@ -1185,12 +1207,93 @@ namespace OQSDrug
                         record.StorageId = id == null || id == DBNull.Value ? 0 : Convert.ToInt64(id);
                     }
                 }
+
+                if (logAsync != null && skippedCount > 0)
+                {
+                    await logAsync($"PG一括資格取込データの重複をスキップしました: {skippedCount}件").ConfigureAwait(false);
+                }
             }
 
             if (logAsync != null)
             {
-                await logAsync($"PG一括資格取込データを保存しました: {session.Records.Count}件").ConfigureAwait(false);
+                int insertedCount = session.Records.Count(r => !r.IsDuplicate);
+                await logAsync($"PG一括資格取込データを保存しました: {insertedCount}件").ConfigureAwait(false);
             }
+        }
+
+        private static async Task<DuplicateRecordInfo> FindDuplicateRecordAsync(IDbConnection connection, ImportedQualificationRecord record)
+        {
+            if (record == null)
+            {
+                return null;
+            }
+
+            long karteNumber = record.MatchedPatientId;
+            string name = NormalizeDuplicateKeyValue(record.Name);
+            string birthDate = NormalizeDuplicateKeyValue(record.BirthDate);
+            if (karteNumber <= 0 && (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(birthDate)))
+            {
+                return null;
+            }
+
+            DateTime importedDate = record.ImportedAt == DateTime.MinValue ? DateTime.Today : record.ImportedAt.Date;
+            string duplicateSql = $@"
+SELECT id, sent_to_face, face_output_message, match_status
+FROM public.{BulkToolUploadSchema.TableName}
+WHERE import_kind = @kind
+  AND created_at >= @importedDateFrom
+  AND created_at < @importedDateTo
+  AND (
+        (@karte > 0 AND COALESCE(""karte_number"", 0) = @karte)
+        OR
+        (@karte <= 0
+          AND @name <> ''
+          AND @birthdate <> ''
+          AND COALESCE(""Name"", '') = @name
+          AND COALESCE(""Birthdate"", '') = @birthdate
+          AND (@insurer = '' OR COALESCE(""InsurerNumber"", '') = @insurer OR COALESCE(""PublicExpenseNumber"", '') = @insurer)
+          AND (@symbol = '' OR COALESCE(""InsuredCardSymbol"", '') = @symbol)
+          AND (@number = '' OR COALESCE(""InsuredIdentificationNumber"", '') = @number OR COALESCE(""BeneficiaryNumber"", '') = @number)
+          AND (@branch = '' OR COALESCE(""InsuredBranchNumber"", '') = @branch))
+      )
+ORDER BY created_at DESC, id DESC
+LIMIT 1";
+
+            using (IDbCommand command = connection.CreateCommand())
+            {
+                command.CommandText = duplicateSql;
+                AddParameter(command, "@kind", record.Kind.ToString());
+                AddParameter(command, "@importedDateFrom", importedDate);
+                AddParameter(command, "@importedDateTo", importedDate.AddDays(1));
+                AddParameter(command, "@karte", karteNumber);
+                AddParameter(command, "@name", name);
+                AddParameter(command, "@birthdate", birthDate);
+                AddParameter(command, "@insurer", NormalizeDuplicateKeyValue(record.InsurerNumber));
+                AddParameter(command, "@symbol", NormalizeDuplicateKeyValue(record.Symbol));
+                AddParameter(command, "@number", NormalizeDuplicateKeyValue(record.Number));
+                AddParameter(command, "@branch", NormalizeDuplicateKeyValue(record.BranchNumber));
+
+                using (DbDataReader reader = await ((DbCommand)command).ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (!await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        return null;
+                    }
+
+                    return new DuplicateRecordInfo
+                    {
+                        StorageId = ReadInt64(reader, "id"),
+                        IsSent = ReadBool(reader, "sent_to_face"),
+                        FaceOutputMessage = ReadString(reader, "face_output_message"),
+                        MatchStatus = ReadString(reader, "match_status")
+                    };
+                }
+            }
+        }
+
+        private static string NormalizeDuplicateKeyValue(string value)
+        {
+            return (value ?? string.Empty).Trim();
         }
 
         private static async Task<QualificationImportSession> LoadLatestSessionFromPostgresAsync(BulkQualificationKind kind, Func<string, Task> logAsync)
@@ -1654,6 +1757,14 @@ LIMIT @p0";
         {
             int ordinal = record.GetOrdinal(columnName);
             return !record.IsDBNull(ordinal) && Convert.ToBoolean(record.GetValue(ordinal));
+        }
+
+        private sealed class DuplicateRecordInfo
+        {
+            public long StorageId { get; set; }
+            public bool IsSent { get; set; }
+            public string FaceOutputMessage { get; set; } = string.Empty;
+            public string MatchStatus { get; set; } = string.Empty;
         }
     }
 }

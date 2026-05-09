@@ -25,6 +25,7 @@ namespace OQSDrug
         public int PollIntervalSeconds { get; set; }
         public int AutoIntervalMinutes { get; set; }
         public int MaxRetryCount { get; set; }
+        public bool SendToFaceAfterImport { get; set; }
         public DateTime? DateFromOverride { get; set; }
         public DateTime? DateToOverride { get; set; }
         public DateTime? MedicalTreatmentMonthOverride { get; set; }

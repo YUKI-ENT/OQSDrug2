@@ -75,7 +75,7 @@
       <Value Profile="(Default)">T_資格確認結果表示</Value>
     </Setting>
     <Setting Name="ViewerSpan" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">6</Value>
+      <Value Profile="(Default)">12</Value>
     </Setting>
     <Setting Name="SearchBounds" Type="System.Drawing.Rectangle" Scope="User">
       <Value Profile="(Default)">0, 0, 0, 0</Value>
@@ -174,7 +174,7 @@
       <Value Profile="(Default)">5</Value>
     </Setting>
     <Setting Name="BulkHoumonMaxRetryCount" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">3</Value>
+      <Value Profile="(Default)">10</Value>
     </Setting>
     <Setting Name="BulkOnlineAutoEnabled" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
@@ -201,7 +201,7 @@
       <Value Profile="(Default)">5</Value>
     </Setting>
     <Setting Name="BulkOnlineMaxRetryCount" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">3</Value>
+      <Value Profile="(Default)">10</Value>
     </Setting>
     <Setting Name="BulkMedicalAidAutoEnabled" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
@@ -219,10 +219,19 @@
       <Value Profile="(Default)">5</Value>
     </Setting>
     <Setting Name="BulkMedicalAidMaxRetryCount" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">3</Value>
+      <Value Profile="(Default)">10</Value>
     </Setting>
     <Setting Name="BulkStatusWindowMode" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">1</Value>
+    </Setting>
+    <Setting Name="BulkAutoSendToFaceEnabled" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="BulkManualSendToFaceEnabled" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="YZRequeryHours" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">12</Value>
     </Setting>
   </Settings>
 </SettingsFile>

@@ -837,6 +837,7 @@ namespace OQSDrug
         {
             int Span = Properties.Settings.Default.YZspan;
             int YZinterval = Properties.Settings.Default.YZinterval, KSinterval = Properties.Settings.Default.KSinterval, Interval;
+            int YZRequeryHours = Properties.Settings.Default.YZRequeryHours; //同一日再取得の時間間隔
             string dynaPath = Properties.Settings.Default.Datadyna;
             string douiFlag = "", douiDate = "";
             DateTime checkDate;
@@ -3243,6 +3244,52 @@ namespace OQSDrug
                 cancellationToken.ThrowIfCancellationRequested();
                 await QualificationImportStore.SaveSessionAsync(session, message => AddLogAsync(message));
                 lastQualificationImportSession = session;
+
+                bool sendToFaceAfterImport = options.SendToFaceAfterImport
+                    || Properties.Settings.Default.BulkAutoSendToFaceEnabled;
+                if (sendToFaceAfterImport)
+                {
+                    List<ImportedQualificationRecord> sendTargets = session.Records
+                        .Where(record => record != null && !record.IsSent && !record.IsDuplicate)
+                        .ToList();
+                    if (sendTargets.Count > 0)
+                    {
+                        progressAction?.Invoke(new BulkExecutionProgressInfo
+                        {
+                            Timestamp = DateTime.Now,
+                            Kind = kind,
+                            ProcessName = processName,
+                            StatusText = "face送信中",
+                            DetailText = $"対象件数: {sendTargets.Count}",
+                            ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                        });
+
+                        QualificationSendSummary sendSummary = await ExportImportedQualificationsToFaceAsync(sendTargets);
+                        AddLogAsync($"{processName} face送信を完了しました: 送信={sendSummary.SentCount}, 失敗={sendSummary.FailedCount}");
+                        progressAction?.Invoke(new BulkExecutionProgressInfo
+                        {
+                            Timestamp = DateTime.Now,
+                            Kind = kind,
+                            ProcessName = processName,
+                            StatusText = "ダイナ送信完了",
+                            DetailText = $"送信={sendSummary.SentCount}, 失敗={sendSummary.FailedCount}",
+                            ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                        });
+                    }
+                    else
+                    {
+                        AddLogAsync($"{processName} face送信対象はありませんでした（重複または送信済み）。");
+                        progressAction?.Invoke(new BulkExecutionProgressInfo
+                        {
+                            Timestamp = DateTime.Now,
+                            Kind = kind,
+                            ProcessName = processName,
+                            StatusText = "ダイナ送信スキップ",
+                            DetailText = "重複または送信済みのため送信対象なし",
+                            ReceptionNumber = job.ReceptionNumber ?? string.Empty
+                        });
+                    }
+                }
 
                 await BulkAutoExecutionStore.MarkCompletedAsync(job.Id, importResult, downloadResultPath);
                 AddLogAsync($"{processName}取込を完了しました: JobId={job.Id}, Records={session.Records.Count}");

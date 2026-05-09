@@ -34,7 +34,7 @@ namespace OQSDrug
             Directory.CreateDirectory(faceFolder);
 
             List<ImportedQualificationRecord> targetRecords = records
-                .Where(r => r != null)
+                .Where(r => r != null && !r.IsSent && !r.IsDuplicate)
                 .ToList();
 
             if (targetRecords.Count == 0)
@@ -58,7 +58,7 @@ namespace OQSDrug
                     foreach (ImportedQualificationRecord record in groupRecords)
                     {
                         record.IsSent = true;
-                        record.LastSendMessage = $"face出力: {Path.GetFileName(filePath)}";
+                        record.LastSendMessage = $"ダイナ送信済み: {Path.GetFileName(filePath)}";
                         summary.SentCount++;
                     }
 
@@ -100,7 +100,8 @@ namespace OQSDrug
                 NewLineChars = "\r\n",
                 NewLineHandling = NewLineHandling.Replace,
                 Encoding = Encoding.GetEncoding(932),
-                OmitXmlDeclaration = false
+                OmitXmlDeclaration = false,
+                Async = true
             };
 
             using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -121,7 +122,7 @@ namespace OQSDrug
 
                 writer.WriteStartElement("MessageBody");
                 WriteElement(writer, "ProcessingResultStatus", GetValue(first, "PRS"));
-                WriteElement(writer, "QualificationValidity", GetValue(first, "QV"));
+                WriteElement(writer, "QualificationValidity", GetQualificationValidity(first));
 
                 writer.WriteStartElement("ResultList");
                 foreach (ImportedQualificationRecord record in records)
@@ -141,7 +142,7 @@ namespace OQSDrug
         {
             writer.WriteStartElement("ResultOfQualificationConfirmation");
 
-            WriteElement(writer, "InsuredCardClassification", GetValue(record, "INSCC"));
+            WriteElement(writer, "InsuredCardClassification", GetInsuredCardClassification(record));
 
             string insuranceType = GetValue(record, "CNFTYPBR");
             if (string.Equals(insuranceType, "1", StringComparison.OrdinalIgnoreCase))
@@ -331,6 +332,20 @@ namespace OQSDrug
             }
 
             return string.Empty;
+        }
+
+        private static string GetQualificationValidity(ImportedQualificationRecord record)
+        {
+            return record?.Kind == BulkQualificationKind.MedicalAid
+                ? FirstNonEmpty(GetValue(record, "QV"), "1")
+                : GetValue(record, "QV");
+        }
+
+        private static string GetInsuredCardClassification(ImportedQualificationRecord record)
+        {
+            return record?.Kind == BulkQualificationKind.MedicalAid
+                ? FirstNonEmpty(GetValue(record, "INSCC"), "A1")
+                : GetValue(record, "INSCC");
         }
 
         private static void WriteElement(XmlWriter writer, string elementName, string value)

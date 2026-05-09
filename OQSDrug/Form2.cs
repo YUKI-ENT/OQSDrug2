@@ -72,7 +72,17 @@ namespace OQSDrug
             {
                 comboBoxYZspan.SelectedItem = 24; // デフォルト
             }
-            
+
+            comboBoxYZRequeryHours.Items.AddRange(new object[] {3,6,12, 24 });
+            int savedYZRequery = Properties.Settings.Default.YZRequeryHours;
+            if (comboBoxYZRequeryHours.Items.Contains(savedYZRequery))
+            {
+                comboBoxYZRequeryHours.SelectedItem = savedYZRequery;
+            }
+            else
+            {
+                comboBoxYZRequeryHours.SelectedItem = 12; // デフォルト
+            }
 
             textBoxTemprs.Text = Properties.Settings.Default.temprs;
 
@@ -192,6 +202,7 @@ namespace OQSDrug
                 bulkStatusWindowMode = 1;
             }
             comboBoxBulkStatusWindowMode.SelectedIndex = bulkStatusWindowMode;
+            checkBoxBulkAutoSendToFaceEnabled.Checked = Properties.Settings.Default.BulkAutoSendToFaceEnabled;
 
 
             //LLM Model list
@@ -322,6 +333,12 @@ namespace OQSDrug
                 Properties.Settings.Default.YZspan = Convert.ToInt16(comboBoxYZspan.SelectedItem.ToString());
             }
 
+            if (comboBoxYZRequeryHours.SelectedItem != null)
+            {
+                Properties.Settings.Default.YZRequeryHours = Convert.ToInt16(comboBoxYZRequeryHours .SelectedItem.ToString());
+            }
+
+
             Properties.Settings.Default.OmitMyOrg = checkBoxOmitMyOrg.Checked;
 
             Properties.Settings.Default.AutoStart = checkBoxAutoStart.Checked;
@@ -370,6 +387,7 @@ namespace OQSDrug
             Properties.Settings.Default.BulkStatusWindowMode = comboBoxBulkStatusWindowMode.SelectedIndex >= 0
                 ? comboBoxBulkStatusWindowMode.SelectedIndex
                 : 1;
+            Properties.Settings.Default.BulkAutoSendToFaceEnabled = checkBoxBulkAutoSendToFaceEnabled.Checked;
 
             Properties.Settings.Default.DIviewer = (radioButtonRSB.Checked) ? "RSB" : "SGML"; 
 

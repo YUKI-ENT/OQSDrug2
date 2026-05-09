@@ -51,6 +51,8 @@ namespace OQSDrug
             ApplyDetailLogExpandedState(false);
             progressBlinkTimer.Interval = 500;
             progressBlinkTimer.Tick += progressBlinkTimer_Tick;
+            checkBoxSendToFaceAfterManualRun.Checked = Properties.Settings.Default.BulkManualSendToFaceEnabled;
+            RefreshFaceSendStepVisibility();
             UpdateActionState();
         }
 
@@ -78,7 +80,7 @@ namespace OQSDrug
                     options.DateToOverride = dateTimePickerHoumonTo.Value.Date;
                     break;
                 case BulkQualificationKind.Online:
-                    options.UseConsentDates = checkBoxOnlineUseConsent.Checked;
+                    options.UseConsentDates = radioButtonOnlineUseConsent.Checked;
                     options.DateFromOverride = dateTimePickerOnlineFrom.Value.Date;
                     options.DateToOverride = dateTimePickerOnlineTo.Value.Date;
                     break;
@@ -90,6 +92,7 @@ namespace OQSDrug
                     break;
             }
 
+            options.SendToFaceAfterImport = checkBoxSendToFaceAfterManualRun.Checked;
             return options;
         }
 
@@ -316,10 +319,10 @@ namespace OQSDrug
             dateTimePickerHoumonTo.Value = houmon.GetDateTo(today);
 
             BulkAutoExecutionOptions online = BulkAutoExecutionOptions.FromSettings(BulkQualificationKind.Online);
-            checkBoxOnlineUseConsent.Checked = online.UseConsentDates;
+            radioButtonOnlineUseConsent.Checked = online.UseConsentDates;
+            radioButtonOnlineUseVisit.Checked = !online.UseConsentDates;
             dateTimePickerOnlineFrom.Value = online.GetDateFrom(today);
             dateTimePickerOnlineTo.Value = online.GetDateTo(today);
-            UpdateOnlineRangeCaption();
 
             BulkAutoExecutionOptions medical = BulkAutoExecutionOptions.FromSettings(BulkQualificationKind.MedicalAid);
             DateTime medicalMonth = medical.GetMedicalTreatmentMonth(today);
@@ -334,16 +337,6 @@ namespace OQSDrug
             return value;
         }
 
-        private void UpdateOnlineRangeCaption()
-        {
-            checkBoxOnlineUseConsent.Text = checkBoxOnlineUseConsent.Checked ? "同意日で取得" : "受診日で取得";
-        }
-
-        private void checkBoxOnlineUseConsent_CheckedChanged(object sender, EventArgs e)
-        {
-            UpdateOnlineRangeCaption();
-        }
-
         private void InitializeGrid()
         {
             dgvResults.AutoGenerateColumns = false;
@@ -354,17 +347,19 @@ namespace OQSDrug
                 HeaderText = "送信",
                 Width = 48
             });
+            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.SendStatus), "ダイナ送信", 120));
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.ImportedAt), "取得日時", 135));
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.Kind), "種別", 90));
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.Sequence), "No", 50));
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.Name), "氏名", 120));
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.BirthDate), "生年月日", 90));
-            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.Insurance), "保険情報", 220));
+            DataGridViewTextBoxColumn insuranceColumn = CreateTextColumn(nameof(BulkExecutionResultRow.Insurance), "保険情報", 180);
+            insuranceColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            dgvResults.Columns.Add(insuranceColumn);
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.Validity), "資格", 90));
-            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.MatchStatus), "照合", 90));
-            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.KarteNo), "カルテ", 80));
-            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.QueryNumber), "照会番号", 120));
-            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.SendStatus), "送信結果", 140));
+            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.MatchStatus), "患者照合", 105, false));
+            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.KarteNo), "カルテ", 80, false));
+            dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.QueryNumber), "照会番号", 120, false));
             dgvResults.DataSource = rows;
             dgvResults.ReadOnly = false;
 
@@ -411,7 +406,7 @@ namespace OQSDrug
 
         private void AddStepIndicators(BulkQualificationKind kind, Panel card, Label detailLabel)
         {
-            string[] captions = { "処理番号", "資格情報", "完了" };
+            string[] captions = { "処理番号", "資格情報", "完了", "ダイナ送信" };
             Label[] labels = new Label[captions.Length];
             for (int i = 0; i < captions.Length; i++)
             {
@@ -420,9 +415,9 @@ namespace OQSDrug
                     AutoSize = false,
                     Font = new Font("Meiryo UI", 8.5F, FontStyle.Bold),
                     ForeColor = Color.FromArgb(148, 163, 184),
-                    Location = new Point(18 + (i * 112), 123),
+                    Location = new Point(18 + (i * 82), 123),
                     Name = kind.ToString() + "ProgressStep" + i.ToString(),
-                    Size = new Size(i == 2 ? 82 : 104, 18),
+                    Size = new Size(i == 3 ? 104 : 78, 18),
                     Text = (i == 0 ? "" : "→ ") + captions[i],
                     TextAlign = ContentAlignment.MiddleLeft
                 };
@@ -436,6 +431,24 @@ namespace OQSDrug
             progressStepLabels[kind] = labels;
             activeProgressSteps[kind] = -1;
             completedProgressSteps[kind] = -1;
+        }
+
+        private void RefreshFaceSendStepVisibility()
+        {
+            bool visible = IsFaceSendStepEnabled();
+            foreach (Label[] labels in progressStepLabels.Values)
+            {
+                if (labels.Length > 3)
+                {
+                    labels[3].Visible = visible;
+                }
+            }
+        }
+
+        private bool IsFaceSendStepEnabled()
+        {
+            return Properties.Settings.Default.BulkAutoSendToFaceEnabled
+                || (checkBoxSendToFaceAfterManualRun != null && checkBoxSendToFaceAfterManualRun.Checked);
         }
 
         private void UpdateCardProgress(BulkExecutionProgressInfo info)
@@ -537,7 +550,7 @@ namespace OQSDrug
 
             if (completed || (!string.IsNullOrWhiteSpace(status) && status.Contains("取得完了")))
             {
-                completedProgressSteps[kind] = 2;
+                completedProgressSteps[kind] = IsFaceSendStepEnabled() ? 3 : 2;
                 activeProgressSteps[kind] = -1;
                 ApplyStepProgressVisuals(kind, false);
                 RefreshBlinkTimerState();
@@ -579,6 +592,11 @@ namespace OQSDrug
                 || status.Contains("保存"))
             {
                 return 1;
+            }
+
+            if (status.Contains("face送信") || status.Contains("ダイナ送信"))
+            {
+                return 3;
             }
 
             if (status.Contains("完了") || status.Contains("成功"))
@@ -780,13 +798,14 @@ namespace OQSDrug
             public Color ForeColor { get; }
         }
 
-        private static DataGridViewTextBoxColumn CreateTextColumn(string propertyName, string header, int width)
+        private static DataGridViewTextBoxColumn CreateTextColumn(string propertyName, string header, int width, bool visible = true)
         {
             return new DataGridViewTextBoxColumn
             {
                 DataPropertyName = propertyName,
                 HeaderText = header,
                 Width = width,
+                Visible = visible,
                 ReadOnly = true
             };
         }
@@ -969,7 +988,7 @@ namespace OQSDrug
 
             buttonCheckAll.Enabled = enabled && rows.Count > 0;
             buttonClearChecks.Enabled = enabled && rows.Count > 0;
-            buttonSendSelected.Enabled = enabled && sendSelectedAsync != null && rows.Any(r => r.Send && !r.Record.IsSent);
+            buttonSendSelected.Enabled = enabled && sendSelectedAsync != null && rows.Any(r => r.Send && !r.Record.IsSent && !r.Record.IsDuplicate);
             buttonRefreshResults.Enabled = enabled && refreshLatestAsync != null;
 
             RefreshButtonVisualStates(
@@ -1062,7 +1081,7 @@ namespace OQSDrug
         {
             foreach (BulkExecutionResultRow row in rows)
             {
-                if (!row.Record.IsSent)
+                if (!row.Record.IsSent && !row.Record.IsDuplicate)
                 {
                     row.Send = true;
                 }
@@ -1083,6 +1102,13 @@ namespace OQSDrug
             ToggleActionButtons(true);
         }
 
+        private void checkBoxSendToFaceAfterManualRun_CheckedChanged(object sender, EventArgs e)
+        {
+            Properties.Settings.Default.BulkManualSendToFaceEnabled = checkBoxSendToFaceAfterManualRun.Checked;
+            Properties.Settings.Default.Save();
+            RefreshFaceSendStepVisibility();
+        }
+
         private async void buttonSendSelected_Click(object sender, EventArgs e)
         {
             if (sendSelectedAsync == null)
@@ -1090,7 +1116,7 @@ namespace OQSDrug
                 return;
             }
 
-            List<BulkExecutionResultRow> selectedRows = rows.Where(r => r.Send && !r.Record.IsSent).ToList();
+            List<BulkExecutionResultRow> selectedRows = rows.Where(r => r.Send && !r.Record.IsSent && !r.Record.IsDuplicate).ToList();
             if (selectedRows.Count == 0)
             {
                 MessageBox.Show(this, "送信対象のチェックがありません。", "BulkTool", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1193,8 +1219,8 @@ namespace OQSDrug
             public BulkExecutionResultRow(ImportedQualificationRecord record)
             {
                 this.record = record;
-                matchStatus = record == null ? string.Empty : record.MatchStatus;
-                sendStatus = record == null ? string.Empty : record.LastSendMessage;
+                matchStatus = FormatMatchStatus(record);
+                sendStatus = FormatSendStatus(record);
             }
 
             public ImportedQualificationRecord Record => record;
@@ -1242,9 +1268,55 @@ namespace OQSDrug
 
             public void RefreshFromRecord()
             {
-                MatchStatus = record.MatchStatus;
-                SendStatus = record.LastSendMessage;
+                MatchStatus = FormatMatchStatus(record);
+                SendStatus = FormatSendStatus(record);
                 OnPropertyChanged(nameof(KarteNo));
+            }
+
+            private static string FormatMatchStatus(ImportedQualificationRecord record)
+            {
+                if (record == null || string.IsNullOrWhiteSpace(record.MatchStatus))
+                {
+                    return string.Empty;
+                }
+
+                switch (record.MatchStatus)
+                {
+                    case "Matched":
+                        return "患者一致";
+                    case "NoKarte":
+                        return "カルテ番号なし";
+                    case "NoMatch":
+                        return "患者未照合";
+                    default:
+                        return record.MatchStatus;
+                }
+            }
+
+            private static string FormatSendStatus(ImportedQualificationRecord record)
+            {
+                if (record == null)
+                {
+                    return string.Empty;
+                }
+
+                if (record.IsDuplicate)
+                {
+                    return string.IsNullOrWhiteSpace(record.LastSendMessage)
+                        ? "重複のためダイナ送信スキップ"
+                        : record.LastSendMessage;
+                }
+
+                if (record.IsSent)
+                {
+                    return string.IsNullOrWhiteSpace(record.LastSendMessage)
+                        ? "ダイナ送信済み"
+                        : record.LastSendMessage;
+                }
+
+                return string.IsNullOrWhiteSpace(record.LastSendMessage)
+                    ? "未送信"
+                    : record.LastSendMessage;
             }
 
             public event PropertyChangedEventHandler PropertyChanged;
