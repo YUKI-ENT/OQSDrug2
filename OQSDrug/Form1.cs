@@ -14,6 +14,7 @@ using System.Data.OleDb;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -840,11 +841,15 @@ namespace OQSDrug
             int YZRequeryHours = Properties.Settings.Default.YZRequeryHours; //同一日再取得の時間間隔
             string dynaPath = Properties.Settings.Default.Datadyna;
             string douiFlag = "", douiDate = "";
+            string[] douiFlagCandidates = Array.Empty<string>();
+            string[] douiDateCandidates = Array.Empty<string>();
+            string[] douiConsentDateCandidates = Array.Empty<string>();
             DateTime checkDate;
             bool doReq = true;
             int fileCategory = 0; //1:PDF, 2:xml
             string OQSpath = Properties.Settings.Default.OQSFolder;
             string CategoryName = "";
+            string categoryStartLog = "";
 
             string startDate = DateTime.Now.AddMonths(-Span).ToString("yyyyMM");
             string endDate = DateTime.Now.ToString("yyyyMM");
@@ -874,50 +879,68 @@ namespace OQSDrug
                 case 11:
                     douiFlag = "薬剤情報閲覧同意フラグ";
                     douiDate = "薬剤情報閲覧有効期限";
+                    douiFlagCandidates = new[] { douiFlag, "診療情報閲覧同意フラグ" };
+                    douiDateCandidates = new[] { douiDate, "診療情報閲覧有効期限" };
+                    douiConsentDateCandidates = new[] { "薬剤情報閲覧同意日時", "診療情報閲覧同意日時" };
                     Interval = YZinterval;  // Replace with appropriate interval
                     fileCategory = 1; //1:PDF, 2:xml
                     CategoryName = "薬剤PDF";
-                    AddLogAsync("PDF薬剤情報取得用reqファイルを作成します");
+                    categoryStartLog = "PDF薬剤情報取得用reqファイルを作成します";
                     break;
                 case 101:
                     douiFlag = "特定検診情報閲覧同意フラグ";
                     douiDate = "特定検診情報閲覧有効期限";
+                    douiFlagCandidates = new[] { douiFlag, "特定健診情報閲覧同意フラグ" };
+                    douiDateCandidates = new[] { douiDate, "特定健診情報閲覧有効期限" };
+                    douiConsentDateCandidates = new[] { "特定検診情報閲覧同意日時", "特定健診情報閲覧同意日時" };
                     Interval = KSinterval;
                     fileCategory = 1;
                     CategoryName = "健診PDF";
-                    AddLogAsync("特定検診PDF情報取得用reqファイルを作成します");
+                    categoryStartLog = "特定検診PDF情報取得用reqファイルを作成します";
                     break;
                 case 102:
                     douiFlag = "特定検診情報閲覧同意フラグ";
                     douiDate = "特定検診情報閲覧有効期限";
+                    douiFlagCandidates = new[] { douiFlag, "特定健診情報閲覧同意フラグ" };
+                    douiDateCandidates = new[] { douiDate, "特定健診情報閲覧有効期限" };
+                    douiConsentDateCandidates = new[] { "特定検診情報閲覧同意日時", "特定健診情報閲覧同意日時" };
                     Interval = KSinterval;
                     fileCategory = 2;
                     CategoryName = "健診xml";
-                    AddLogAsync("特定検診xml情報取得用reqファイルを作成します");
+                    categoryStartLog = "特定検診xml情報取得用reqファイルを作成します";
                     break;
                 case 12:
                     douiFlag = "薬剤情報閲覧同意フラグ";
                     douiDate = "薬剤情報閲覧有効期限";
+                    douiFlagCandidates = new[] { douiFlag, "診療情報閲覧同意フラグ" };
+                    douiDateCandidates = new[] { douiDate, "診療情報閲覧有効期限" };
+                    douiConsentDateCandidates = new[] { "薬剤情報閲覧同意日時", "診療情報閲覧同意日時" };
                     Interval = YZinterval;  // Replace with appropriate interval
                     fileCategory = 2;
                     CategoryName = "薬剤xml";
-                    AddLogAsync("xml薬剤情報取得用reqファイルを作成します");
+                    categoryStartLog = "xml薬剤情報取得用reqファイルを作成します";
                     break;
                 case 13:
                     douiFlag = "薬剤情報閲覧同意フラグ";
                     douiDate = "薬剤情報閲覧有効期限";
+                    douiFlagCandidates = new[] { douiFlag, "診療情報閲覧同意フラグ" };
+                    douiDateCandidates = new[] { douiDate, "診療情報閲覧有効期限" };
+                    douiConsentDateCandidates = new[] { "薬剤情報閲覧同意日時", "診療情報閲覧同意日時" };
                     Interval = YZinterval;  // Replace with appropriate interval
                     fileCategory = 1;
                     CategoryName = "薬剤診療PDF";
-                    AddLogAsync("PDF薬剤診療情報取得用reqファイルを作成します");
+                    categoryStartLog = "PDF薬剤診療情報取得用reqファイルを作成します";
                     break;
                 case 14:
                     douiFlag = "薬剤情報閲覧同意フラグ";
                     douiDate = "薬剤情報閲覧有効期限";
+                    douiFlagCandidates = new[] { douiFlag, "診療情報閲覧同意フラグ" };
+                    douiDateCandidates = new[] { douiDate, "診療情報閲覧有効期限" };
+                    douiConsentDateCandidates = new[] { "薬剤情報閲覧同意日時", "診療情報閲覧同意日時" };
                     Interval = YZinterval;  // Replace with appropriate interval
                     fileCategory = 2;
                     CategoryName = "薬剤診療xml";
-                    AddLogAsync("xml薬剤診療情報取得用reqファイルを作成します");
+                    categoryStartLog = "xml薬剤診療情報取得用reqファイルを作成します";
                     break;
                 default:
                     AddLogAsync("Invalid category");
@@ -931,7 +954,10 @@ namespace OQSDrug
 
             try
             {
-                DataRow[] DouiRows = dynaTable.Select($"{douiFlag} = '1'");
+                DataRow[] DouiRows = dynaTable.Rows
+                    .Cast<DataRow>()
+                    .Where(row => IsConsentFlagOn(row, douiFlagCandidates))
+                    .ToArray();
                 foreach (DataRow DouiRow in DouiRows)
                 {
                     long ptId = DouiRow["カルテ番号"] == DBNull.Value ? 0 : Convert.ToInt64(DouiRow["カルテ番号"]);
@@ -945,7 +971,8 @@ namespace OQSDrug
 
                     if (targetId == 0 || ptId == targetId)
                     {
-                        if (!IsDateStringAfterNow(DouiRow[douiDate].ToString()))
+                        string consentDateLog;
+                        if (!IsConsentDateAfterNow(DouiRow, douiDateCandidates, douiConsentDateCandidates, ptId, ptName, CategoryName, out consentDateLog))
                         {
                             AddLogAsync($"{ptId}:{ptName}さんの同意有効期限が切れているのでスキップします");
                         }
@@ -1000,6 +1027,16 @@ namespace OQSDrug
 
                                             if (doReq)
                                             {
+                                                if (!string.IsNullOrWhiteSpace(categoryStartLog))
+                                                {
+                                                    AddLogAsync(categoryStartLog);
+                                                }
+
+                                                if (!string.IsNullOrWhiteSpace(consentDateLog))
+                                                {
+                                                    AddLogAsync(consentDateLog);
+                                                }
+
                                                 var ptData = new
                                                 {
                                                     Id = ptId,
@@ -2212,29 +2249,193 @@ namespace OQSDrug
                         
         }
 
-        private bool IsDateStringAfterNow(string dateString)
+        private bool IsConsentFlagOn(DataRow row, IEnumerable<string> columnNames)
         {
-            try
+            if (row == null || columnNames == null)
             {
-                // 日付文字列を変換
-                var targetDate = new DateTime(
-                    int.Parse(dateString.Substring(0, 4)),   // 年
-                    int.Parse(dateString.Substring(4, 2)),   // 月
-                    int.Parse(dateString.Substring(6, 2)),   // 日
-                    int.Parse(dateString.Substring(8, 2)),   // 時
-                    int.Parse(dateString.Substring(10, 2)),  // 分
-                    int.Parse(dateString.Substring(12, 2))   // 秒
-                );
-
-                // 現在時刻と比較
-                return targetDate > DateTime.Now;
-            }
-            catch (Exception)
-            {
-                // 不正な文字列が渡された場合の処理
-                AddLogAsync($"Invalid date string: {dateString}");
                 return false;
             }
+
+            foreach (string columnName in columnNames.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct())
+            {
+                if (!row.Table.Columns.Contains(columnName) || row[columnName] == DBNull.Value)
+                {
+                    continue;
+                }
+
+                string flag = row[columnName].ToString().Trim();
+                if (flag == "1" || flag.Equals("true", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsConsentDateAfterNow(
+            DataRow row,
+            IEnumerable<string> expirationColumnNames,
+            IEnumerable<string> consentDateColumnNames,
+            long ptId,
+            string ptName,
+            string categoryName,
+            out string consentDateLog)
+        {
+            consentDateLog = string.Empty;
+
+            if (row == null)
+            {
+                _ = AddLogAsync($"[MakeReq] {categoryName} {ptId}:{ptName} の同意有効期限行が取得できません。");
+                return false;
+            }
+
+            var expirationColumns = expirationColumnNames
+                .Where(name => !string.IsNullOrWhiteSpace(name) && row.Table.Columns.Contains(name))
+                .Distinct()
+                .ToList();
+
+            foreach (string columnName in expirationColumns)
+            {
+                object value = row[columnName];
+                if (value == DBNull.Value || string.IsNullOrWhiteSpace(value.ToString()))
+                {
+                    continue;
+                }
+
+                if (TryParseConsentDate(value, out DateTime targetDate))
+                {
+                    return targetDate > DateTime.Now;
+                }
+
+                _ = AddLogAsync($"Invalid date string: {FormatLogValue(value)} ({categoryName} {ptId}:{ptName}, column={columnName})");
+            }
+
+            var consentDateColumns = consentDateColumnNames
+                .Where(name => !string.IsNullOrWhiteSpace(name) && row.Table.Columns.Contains(name))
+                .Distinct()
+                .ToList();
+
+            foreach (string columnName in consentDateColumns)
+            {
+                object value = row[columnName];
+                if (value == DBNull.Value || string.IsNullOrWhiteSpace(value.ToString()))
+                {
+                    continue;
+                }
+
+                if (TryParseConsentDate(value, out DateTime consentDate))
+                {
+                    DateTime fallbackExpiration = consentDate.AddHours(24);
+                    consentDateLog = $"[MakeReq] {categoryName} {ptId}:{ptName} は{columnName}={FormatLogValue(value)} から24時間有効として判定します。期限={fallbackExpiration:yyyyMMddHHmmss}";
+                    return fallbackExpiration > DateTime.Now;
+                }
+
+                _ = AddLogAsync($"Invalid consent date string: {FormatLogValue(value)} ({categoryName} {ptId}:{ptName}, column={columnName})");
+            }
+
+            string expirationLog = BuildColumnValueLog(row, expirationColumns.Count > 0 ? expirationColumns : expirationColumnNames);
+            string consentLog = BuildColumnValueLog(row, consentDateColumns.Count > 0 ? consentDateColumns : consentDateColumnNames);
+            _ = AddLogAsync($"[MakeReq] {categoryName} {ptId}:{ptName} の同意日時/有効期限が判定できません。期限列={expirationLog} 同意日時列={consentLog}");
+            return false;
+        }
+
+        private bool TryParseConsentDate(object dateValue, out DateTime targetDate)
+        {
+            targetDate = default(DateTime);
+
+            if (dateValue == null || dateValue == DBNull.Value)
+            {
+                return false;
+            }
+
+            if (dateValue is DateTime dateTime)
+            {
+                targetDate = dateTime;
+                return true;
+            }
+
+            string dateString = dateValue.ToString().Trim();
+            if (string.IsNullOrWhiteSpace(dateString))
+            {
+                return false;
+            }
+
+            string digitsOnly = Regex.Replace(dateString, @"[^\d]", "");
+            string[] exactFormats = { "yyyyMMddHHmmss", "yyyyMMddHHmm", "yyyyMMdd" };
+            foreach (string format in exactFormats)
+            {
+                if (digitsOnly.Length != format.Length)
+                {
+                    continue;
+                }
+
+                if (DateTime.TryParseExact(digitsOnly, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out targetDate))
+                {
+                    if (format == "yyyyMMdd")
+                    {
+                        targetDate = targetDate.Date.AddDays(1).AddTicks(-1);
+                    }
+
+                    return true;
+                }
+            }
+
+            CultureInfo japaneseCulture = CultureInfo.GetCultureInfo("ja-JP");
+            return DateTime.TryParse(dateString, japaneseCulture, DateTimeStyles.None, out targetDate)
+                || DateTime.TryParse(dateString, CultureInfo.InvariantCulture, DateTimeStyles.None, out targetDate);
+        }
+
+        private string BuildColumnValueLog(DataRow row, IEnumerable<string> columnNames)
+        {
+            if (row == null || columnNames == null)
+            {
+                return "(none)";
+            }
+
+            var parts = columnNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct()
+                .Select(name =>
+                {
+                    if (!row.Table.Columns.Contains(name))
+                    {
+                        return $"{name}=(列なし)";
+                    }
+
+                    object value = row[name];
+                    return $"{name}={FormatLogValue(value)}";
+                })
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : "(none)";
+        }
+
+        private string FormatLogValue(object value)
+        {
+            if (value == null || value == DBNull.Value)
+            {
+                return "(空)";
+            }
+
+            string text = value.ToString();
+            if (string.IsNullOrEmpty(text))
+            {
+                return "(空)";
+            }
+
+            return $"'{text.Replace("\r", "\\r").Replace("\n", "\\n")}'";
+        }
+
+        private bool IsDateStringAfterNow(string dateString)
+        {
+            if (TryParseConsentDate(dateString, out DateTime targetDate))
+            {
+                return targetDate > DateTime.Now;
+            }
+
+            _ = AddLogAsync($"Invalid date string: {dateString}");
+            return false;
         }
                 
         private void SetConnectionStatus()
@@ -3620,10 +3821,10 @@ namespace OQSDrug
                                     {
                                         case ".xml":
                                             AddLogAsync($"{PtID}:{PtName}resフォルダにxmlファイルが見つかりました: {resFileName}");
-                                            XmlDocument xmlDoc = new XmlDocument();
                                             try
                                             {
-                                                xmlDoc.Load(file);
+                                                XmlDocument xmlDoc = LoadResponseXmlDocument(file, out string xmlEncoding);
+                                                AddLogAsync($"{resFileName}をXML宣言/BOMに基づいて読み込みました。encoding={xmlEncoding}");
                                                 var resultCodeNode = xmlDoc.SelectSingleNode("//ResultCode");
 
                                                 if (resultCodeNode != null && resultCodeNode.InnerText == "1")
@@ -3673,9 +3874,10 @@ namespace OQSDrug
                                                     messageContent = xmlNode != null ? xmlNode.InnerText : "<MessageContents> タグが見つかりません";
                                                 }
                                             }
-                                            catch
+                                            catch (Exception ex)
                                             {
                                                 messageContent = "XMLファイルの読み込みに失敗しました";
+                                                AddLogAsync($"{resFileName}のXML読み込みに失敗しました: {ex.Message}");
                                             }
 
                                             if (!Properties.Settings.Default.KeepXml)
@@ -3778,6 +3980,70 @@ namespace OQSDrug
                 CommonFunctions.DataDbLock = false;
                 return false;
             }
+        }
+
+        private XmlDocument LoadResponseXmlDocument(string filePath, out string encodingName)
+        {
+            encodingName = DetectXmlEncodingForLog(filePath);
+
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Ignore
+            };
+
+            var xmlDoc = new XmlDocument();
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var reader = XmlReader.Create(stream, settings))
+            {
+                xmlDoc.Load(reader);
+            }
+
+            return xmlDoc;
+        }
+
+        private string DetectXmlEncodingForLog(string filePath)
+        {
+            try
+            {
+                byte[] header = new byte[512];
+                int read;
+                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    read = stream.Read(header, 0, header.Length);
+                }
+
+                if (read >= 3 && header[0] == 0xEF && header[1] == 0xBB && header[2] == 0xBF)
+                {
+                    return "UTF-8(BOM)";
+                }
+
+                if (read >= 2 && header[0] == 0xFF && header[1] == 0xFE)
+                {
+                    return "UTF-16LE(BOM)";
+                }
+
+                if (read >= 2 && header[0] == 0xFE && header[1] == 0xFF)
+                {
+                    return "UTF-16BE(BOM)";
+                }
+
+                string headText = Encoding.ASCII.GetString(header, 0, read);
+                Match match = Regex.Match(
+                    headText,
+                    @"<\?xml\s+[^>]*encoding\s*=\s*[""'](?<encoding>[^""']+)[""']",
+                    RegexOptions.IgnoreCase);
+
+                if (match.Success)
+                {
+                    return match.Groups["encoding"].Value;
+                }
+            }
+            catch
+            {
+                return "判定失敗";
+            }
+
+            return "XML自動判定";
         }
 
         private async Task MoveFileToPatientFolder(string baseDir, long ptIDmain, string sourceFilePath, string rsbDate, string rsbCategory)

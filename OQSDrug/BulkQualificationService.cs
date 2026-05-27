@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -133,6 +134,7 @@ namespace OQSDrug
             await LogAsync($"アップロード結果XMLを読み込みます: {normalizedPath}").ConfigureAwait(false);
 
             var xml = await LoadXmlAsync(normalizedPath).ConfigureAwait(false);
+            await LogAsync($"アップロード結果XMLをXML宣言/BOMに基づいて読み込みました。encoding={BulkXmlLoader.DetectXmlEncodingForLog(normalizedPath)}").ConfigureAwait(false);
             var result = new BulkQualificationUploadResult
             {
                 SourceFilePath = normalizedPath,
@@ -202,6 +204,7 @@ namespace OQSDrug
             }
 
             var xml = await LoadXmlAsync(extractedXmlPath).ConfigureAwait(false);
+            string xmlEncoding = BulkXmlLoader.DetectXmlEncodingForLog(extractedXmlPath);
             var result = new BulkQualificationImportResult
             {
                 SourceFilePath = normalizedPath,
@@ -217,6 +220,7 @@ namespace OQSDrug
 
             await LogAsync(
                 $"[{kind}] 結果XMLを読み込みました: Xml={result.ExtractedXmlPath}, " +
+                $"Encoding={xmlEncoding}, " +
                 $"Segment={result.SegmentOfResult}, Status={result.ProcessingResultStatus}, " +
                 $"Code={result.ProcessingResultCode}, Message={result.ProcessingResultMessage}").ConfigureAwait(false);
             ReportProgress(kind, "結果XML解析完了", result.ExtractedXmlPath);
@@ -430,15 +434,7 @@ namespace OQSDrug
 
         private static async Task<XmlDocument> LoadXmlAsync(string filePath)
         {
-            string xmlText;
-            using (var reader = new StreamReader(filePath, Encoding.GetEncoding("Shift_JIS"), true))
-            {
-                xmlText = await reader.ReadToEndAsync().ConfigureAwait(false);
-            }
-
-            var xml = new XmlDocument();
-            xml.LoadXml(xmlText);
-            return xml;
+            return await BulkXmlLoader.LoadXmlDocumentAsync(filePath).ConfigureAwait(false);
         }
 
         private static string SelectNodeValue(XmlDocument xml, string xpath)
@@ -661,6 +657,76 @@ namespace OQSDrug
             UploadResult,
             DownloadRequest,
             DownloadResult
+        }
+    }
+
+    internal static class BulkXmlLoader
+    {
+        public static Task<XmlDocument> LoadXmlDocumentAsync(string filePath)
+        {
+            return Task.Run(() => LoadXmlDocument(filePath));
+        }
+
+        public static XmlDocument LoadXmlDocument(string filePath)
+        {
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Ignore
+            };
+
+            var xml = new XmlDocument();
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var reader = XmlReader.Create(stream, settings))
+            {
+                xml.Load(reader);
+            }
+
+            return xml;
+        }
+
+        public static string DetectXmlEncodingForLog(string filePath)
+        {
+            try
+            {
+                byte[] header = new byte[512];
+                int read;
+                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    read = stream.Read(header, 0, header.Length);
+                }
+
+                if (read >= 3 && header[0] == 0xEF && header[1] == 0xBB && header[2] == 0xBF)
+                {
+                    return "UTF-8(BOM)";
+                }
+
+                if (read >= 2 && header[0] == 0xFF && header[1] == 0xFE)
+                {
+                    return "UTF-16LE(BOM)";
+                }
+
+                if (read >= 2 && header[0] == 0xFE && header[1] == 0xFF)
+                {
+                    return "UTF-16BE(BOM)";
+                }
+
+                string headText = Encoding.ASCII.GetString(header, 0, read);
+                Match match = Regex.Match(
+                    headText,
+                    @"<\?xml\s+[^>]*encoding\s*=\s*[""'](?<encoding>[^""']+)[""']",
+                    RegexOptions.IgnoreCase);
+
+                if (match.Success)
+                {
+                    return match.Groups["encoding"].Value;
+                }
+            }
+            catch
+            {
+                return "判定失敗";
+            }
+
+            return "XML自動判定";
         }
     }
 }

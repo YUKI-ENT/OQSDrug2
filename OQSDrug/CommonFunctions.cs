@@ -426,6 +426,12 @@ namespace OQSDrug
         // 改訂版 AddLogAsync
         public static async Task AddLogAsync(string message, bool fileOnly = false)
         {
+            message = NormalizeLogMessage(message);
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
             var now = DateTime.Now; // 表示はローカルでOK（UTCにしたいなら DateTime.UtcNow）
             string timestamp = now.ToString("yy-MM-dd HH:mm:ss");
             string fullMessage = $"{timestamp} {message}";
@@ -451,6 +457,29 @@ namespace OQSDrug
 
             // ファイル保存（本物の非同期I/O）
             await SaveLogToFileAsync(fullMessage).ConfigureAwait(false);
+        }
+
+        private static string NormalizeLogMessage(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+            {
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder(message.Length);
+            foreach (char ch in message)
+            {
+                if (ch == '\r' || ch == '\n' || ch == '\t')
+                {
+                    sb.Append(' ');
+                }
+                else if (!char.IsControl(ch))
+                {
+                    sb.Append(ch);
+                }
+            }
+
+            return sb.ToString().Trim();
         }
 
         /// <summary>ログファイルに非同期追記</summary>

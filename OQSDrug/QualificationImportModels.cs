@@ -45,6 +45,15 @@ namespace OQSDrug
         public const string SymbolShort = "\u8a18\u53f7";
         public const string NumberShort = "\u756a\u53f7";
         public const string BranchShort = "\u679d\u756a";
+        public const string SpecificHealthCheckupsConsentFlag = "\u7279\u5b9a\u691c\u8a3a\u60c5\u5831\u95b2\u89a7\u540c\u610f\u30d5\u30e9\u30b0";
+        public const string SpecificHealthCheckupsConsentTime = "\u7279\u5b9a\u691c\u8a3a\u60c5\u5831\u95b2\u89a7\u540c\u610f\u65e5\u6642";
+        public const string SpecificHealthCheckupsAvailableTime = "\u7279\u5b9a\u691c\u8a3a\u60c5\u5831\u95b2\u89a7\u6709\u52b9\u671f\u9650";
+        public const string PharmaceuticalConsentFlag = "\u85ac\u5264\u60c5\u5831\u95b2\u89a7\u540c\u610f\u30d5\u30e9\u30b0";
+        public const string PharmaceuticalConsentTime = "\u85ac\u5264\u60c5\u5831\u95b2\u89a7\u540c\u610f\u65e5\u6642";
+        public const string PharmaceuticalAvailableTime = "\u85ac\u5264\u60c5\u5831\u95b2\u89a7\u6709\u52b9\u671f\u9650";
+        public const string DiagnosisConsentFlag = "\u8a3a\u7642\u60c5\u5831\u95b2\u89a7\u540c\u610f\u30d5\u30e9\u30b0";
+        public const string DiagnosisConsentTime = "\u8a3a\u7642\u60c5\u5831\u95b2\u89a7\u540c\u610f\u65e5\u6642";
+        public const string DiagnosisAvailableTime = "\u8a3a\u7642\u60c5\u5831\u95b2\u89a7\u6709\u52b9\u671f\u9650";
     }
 
     internal sealed class ImportedQualificationRecord
@@ -438,8 +447,7 @@ namespace OQSDrug
                 ImportedAt = DateTime.Now
             };
 
-            var xml = new XmlDocument();
-            xml.Load(importResult.ExtractedXmlPath);
+            var xml = BulkXmlLoader.LoadXmlDocument(importResult.ExtractedXmlPath);
 
             XmlNode headerNode = xml.SelectSingleNode("//*[local-name()='MessageHeader']");
             XmlNode bodyNode = xml.SelectSingleNode("//*[local-name()='MessageBody']");
@@ -536,6 +544,32 @@ namespace OQSDrug
             record.DynamicsValues[QualificationColumnNames.BirthDateSeireki] = record.BirthDate;
             record.DynamicsValues[QualificationColumnNames.ReceptionSent] = false;
             record.DynamicsValues[QualificationColumnNames.Hidden] = false;
+            CopyBulkValueToDynamics(record, "SHCICF", QualificationColumnNames.SpecificHealthCheckupsConsentFlag);
+            CopyBulkValueToDynamics(record, "SHCICT", QualificationColumnNames.SpecificHealthCheckupsConsentTime);
+            CopyBulkValueToDynamics(record, "SHCIAT", QualificationColumnNames.SpecificHealthCheckupsAvailableTime);
+            CopyBulkValueToDynamics(record, "PICF", QualificationColumnNames.PharmaceuticalConsentFlag);
+            CopyBulkValueToDynamics(record, "PICT", QualificationColumnNames.PharmaceuticalConsentTime);
+            CopyBulkValueToDynamics(record, "PIAT", QualificationColumnNames.PharmaceuticalAvailableTime);
+            CopyBulkValueToDynamics(record, "DICF", QualificationColumnNames.DiagnosisConsentFlag);
+            CopyBulkValueToDynamics(record, "DICT", QualificationColumnNames.DiagnosisConsentTime);
+            CopyBulkValueToDynamics(record, "DIAT", QualificationColumnNames.DiagnosisAvailableTime);
+        }
+
+        private static void CopyBulkValueToDynamics(ImportedQualificationRecord record, string bulkKey, string dynamicsColumnName)
+        {
+            if (record == null || string.IsNullOrWhiteSpace(bulkKey) || string.IsNullOrWhiteSpace(dynamicsColumnName))
+            {
+                return;
+            }
+
+            if (record.BulkToolValues.TryGetValue(bulkKey, out object value) && value != null && value != DBNull.Value)
+            {
+                string text = Convert.ToString(value);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    record.DynamicsValues[dynamicsColumnName] = text.Trim();
+                }
+            }
         }
 
         private static List<ImportedQualificationRecord> ParseBulkConfirmUnitResults(
