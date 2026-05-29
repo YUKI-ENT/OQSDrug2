@@ -430,7 +430,6 @@
             // 
             // toolStripTextBoxPtIDmain
             // 
-            this.toolStripTextBoxPtIDmain.Font = new System.Drawing.Font("Yu Gothic UI", 9F);
             this.toolStripTextBoxPtIDmain.Name = "toolStripTextBoxPtIDmain";
             this.toolStripTextBoxPtIDmain.Size = new System.Drawing.Size(70, 27);
             this.toolStripTextBoxPtIDmain.ToolTipText = "枝番なしIDを入力し右のいずれかのボタンを押すと\r\n薬歴、健診歴等のウインドウが開きます\r\n空欄だと患者選択無しでウインドウが開きます";
@@ -593,7 +592,6 @@
             // toolStripTextBoxDebug
             // 
             this.toolStripTextBoxDebug.AutoSize = false;
-            this.toolStripTextBoxDebug.Font = new System.Drawing.Font("Yu Gothic UI", 9F);
             this.toolStripTextBoxDebug.Name = "toolStripTextBoxDebug";
             this.toolStripTextBoxDebug.Size = new System.Drawing.Size(60, 27);
             this.toolStripTextBoxDebug.ToolTipText = "デバッグ用xmlの患者ID(枝番付)";

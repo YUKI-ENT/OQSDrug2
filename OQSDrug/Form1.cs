@@ -140,6 +140,12 @@ namespace OQSDrug
 
         private void toolStripButtonDynaViewer_Click(object sender, EventArgs e)
         {
+            if (!IsPostgresMode())
+            {
+                MessageBox.Show("PostgreSQLバージョンでのみ利用可能です");
+                return;
+            }
+
             try
             {
                 var dlg = new FormDynaViewer();
@@ -2466,6 +2472,21 @@ namespace OQSDrug
             pictureBoxDynamics.Image  = Properties.Resources.Hourglass;
             pictureBoxOQSFolder.Image = Properties.Resources.Hourglass;
 
+            ApplyPostgresOnlyFeatureAvailability();
+        }
+
+        private bool IsPostgresMode()
+        {
+            return string.Equals(Properties.Settings.Default.DBtype, "pg", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ApplyPostgresOnlyFeatureAvailability()
+        {
+            bool enabled = IsPostgresMode();
+
+            toolStripButtonPMDA.Enabled = enabled;
+            toolStripButtonDynaViewer1.Enabled = enabled;
+            toolStripButtonBulkTool.Enabled = enabled;
         }
 
        
@@ -3792,6 +3813,7 @@ namespace OQSDrug
 
                         bool RSBreloadFlag = false;
                         bool RSBXMLreloadFlag = false;
+                        var rsbXmlReloadFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                         foreach (var record in records)
                         {
@@ -3821,17 +3843,20 @@ namespace OQSDrug
                                     {
                                         case ".xml":
                                             AddLogAsync($"{PtID}:{PtName}resフォルダにxmlファイルが見つかりました: {resFileName}");
+                                            bool handledXmlForRsb = false;
                                             try
                                             {
-                                                XmlDocument xmlDoc = LoadResponseXmlDocument(file, out string xmlEncoding);
+                                                XmlDocument xmlDoc = BulkXmlLoader.LoadXmlDocument(file);
+                                                string xmlEncoding = BulkXmlLoader.DetectXmlEncodingForLog(file);
                                                 AddLogAsync($"{resFileName}をXML宣言/BOMに基づいて読み込みました。encoding={xmlEncoding}");
                                                 var resultCodeNode = xmlDoc.SelectSingleNode("//ResultCode");
 
                                                 if (resultCodeNode != null && resultCodeNode.InnerText == "1")
                                                 {
-                                                    if (resFileName.StartsWith("YZK"))
+                                                    if (resFileName.StartsWith("YZK", StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         messageContent = await ProcessDrugInfoAsync2(PtID, xmlDoc);
+                                                        handledXmlForRsb = true;
 
                                                         //LLM自動問い合わせ
                                                     if (Properties.Settings.Default.DBtype == "pg" &&  messageContent.StartsWith("成功：") && Properties.Settings.Default.AIauto)
@@ -3847,9 +3872,10 @@ namespace OQSDrug
                                                         }
                                                     }
                                                     }
-                                                    else if (resFileName.StartsWith("TKK"))
+                                                    else if (resFileName.StartsWith("TKK", StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         messageContent = await ProcessTKKAsync(PtID, xmlDoc, connection);
+                                                        handledXmlForRsb = true;
 
                                                         if (Properties.Settings.Default.KensinFileCategory > 0 && TKKdate.TryGetValue(PtID, out string lastTKKdate))
                                                         {
@@ -3863,9 +3889,13 @@ namespace OQSDrug
                                                         }
                                                     }
 
-                                                    if (Properties.Settings.Default.KeepXml && Properties.Settings.Default.RSBXml)
+                                                    if (Properties.Settings.Default.KeepXml
+                                                        && Properties.Settings.Default.RSBXml
+                                                        && handledXmlForRsb
+                                                        && IsRsbXmlReloadTargetFile(file))
                                                     {
                                                         RSBXMLreloadFlag = true;
+                                                        rsbXmlReloadFiles.Add(file);
                                                     }
                                                 }
                                                 else
@@ -3917,7 +3947,8 @@ namespace OQSDrug
                                     }
 
                                     var update = connection.CreateCommand();
-                                    update.CommandText = "UPDATE reqResults SET resFile = @resFile, resDate = @resDate, result = @result WHERE ID = @ID";
+                                    update.CommandText = CommonFunctions.ConvertSqlForOleDb(
+                                        "UPDATE reqResults SET resFile = @resFile, resDate = @resDate, result = @result WHERE ID = @ID");
                                     CommonFunctions.AddDbParameter(update, "@resFile", resFilePath ?? "");
                                    
                                     if(Properties.Settings.Default.DBtype == "pg")
@@ -3961,6 +3992,11 @@ namespace OQSDrug
 
                             if (RSBXMLreloadFlag)
                             {
+                                if (Properties.Settings.Default.RSBXmlConvertToShiftJis)
+                                {
+                                    await ConvertRsbXmlReloadFilesToShiftJisAsync(rsbXmlReloadFiles);
+                                }
+
                                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                                 {
                                     FileName = Properties.Settings.Default.RSBXmlURL,
@@ -3982,68 +4018,81 @@ namespace OQSDrug
             }
         }
 
-        private XmlDocument LoadResponseXmlDocument(string filePath, out string encodingName)
+        private bool IsRsbXmlReloadTargetFile(string filePath)
         {
-            encodingName = DetectXmlEncodingForLog(filePath);
-
-            var settings = new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Ignore
-            };
-
-            var xmlDoc = new XmlDocument();
-            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var reader = XmlReader.Create(stream, settings))
-            {
-                xmlDoc.Load(reader);
-            }
-
-            return xmlDoc;
+            string fileName = Path.GetFileName(filePath);
+            return fileName.StartsWith("YZK", StringComparison.OrdinalIgnoreCase)
+                || fileName.StartsWith("TKK", StringComparison.OrdinalIgnoreCase);
         }
 
-        private string DetectXmlEncodingForLog(string filePath)
+        private bool IsUtf8XmlEncoding(string encodingName)
         {
-            try
+            return !string.IsNullOrWhiteSpace(encodingName)
+                && encodingName.IndexOf("UTF-8", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private async Task ConvertRsbXmlReloadFilesToShiftJisAsync(IEnumerable<string> filePaths)
+        {
+            foreach (string filePath in filePaths.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                byte[] header = new byte[512];
-                int read;
-                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                try
                 {
-                    read = stream.Read(header, 0, header.Length);
+                    if (!File.Exists(filePath) || !IsRsbXmlReloadTargetFile(filePath))
+                    {
+                        continue;
+                    }
+
+                    string encodingName = BulkXmlLoader.DetectXmlEncodingForLog(filePath);
+                    if (!IsUtf8XmlEncoding(encodingName))
+                    {
+                        await AddLogAsync($"{Path.GetFileName(filePath)}はUTF-8ではないため、RSBase xml reload用のSJIS変換をスキップしました。encoding={encodingName}");
+                        continue;
+                    }
+
+                    string directory = Path.GetDirectoryName(filePath);
+                    string baseName = Path.GetFileNameWithoutExtension(filePath);
+                    string convertedPath = Path.Combine(directory, baseName + "_sjis.xml");
+                    string tempPath = convertedPath + ".tmp";
+
+                    XmlDocument xmlDoc = BulkXmlLoader.LoadXmlDocument(filePath);
+                    XmlDeclaration declaration = xmlDoc.FirstChild as XmlDeclaration;
+                    if (declaration == null)
+                    {
+                        declaration = xmlDoc.CreateXmlDeclaration("1.0", "Shift_JIS", null);
+                        xmlDoc.InsertBefore(declaration, xmlDoc.DocumentElement);
+                    }
+                    else
+                    {
+                        declaration.Encoding = "Shift_JIS";
+                    }
+
+                    var writerSettings = new XmlWriterSettings
+                    {
+                        Encoding = Encoding.GetEncoding("Shift_JIS"),
+                        Indent = false
+                    };
+
+                    using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    using (var writer = XmlWriter.Create(stream, writerSettings))
+                    {
+                        xmlDoc.Save(writer);
+                    }
+
+                    if (File.Exists(convertedPath))
+                    {
+                        File.Delete(convertedPath);
+                    }
+
+                    File.Move(tempPath, convertedPath);
+                    File.Delete(filePath);
+
+                    await AddLogAsync($"{Path.GetFileName(filePath)}をRSBase xml reload用にShift_JISへ変換しました: {Path.GetFileName(convertedPath)}");
                 }
-
-                if (read >= 3 && header[0] == 0xEF && header[1] == 0xBB && header[2] == 0xBF)
+                catch (Exception ex)
                 {
-                    return "UTF-8(BOM)";
-                }
-
-                if (read >= 2 && header[0] == 0xFF && header[1] == 0xFE)
-                {
-                    return "UTF-16LE(BOM)";
-                }
-
-                if (read >= 2 && header[0] == 0xFE && header[1] == 0xFF)
-                {
-                    return "UTF-16BE(BOM)";
-                }
-
-                string headText = Encoding.ASCII.GetString(header, 0, read);
-                Match match = Regex.Match(
-                    headText,
-                    @"<\?xml\s+[^>]*encoding\s*=\s*[""'](?<encoding>[^""']+)[""']",
-                    RegexOptions.IgnoreCase);
-
-                if (match.Success)
-                {
-                    return match.Groups["encoding"].Value;
+                    await AddLogAsync($"{Path.GetFileName(filePath)}のRSBase xml reload用SJIS変換に失敗しました: {ex.Message}");
                 }
             }
-            catch
-            {
-                return "判定失敗";
-            }
-
-            return "XML自動判定";
         }
 
         private async Task MoveFileToPatientFolder(string baseDir, long ptIDmain, string sourceFilePath, string rsbDate, string rsbCategory)
@@ -4577,6 +4626,7 @@ namespace OQSDrug
                             }
 
 
+                            revisedCount = await SetRevisedBySourceAsync(db, tx, ptIDMain);
                             tx.Commit();
                         }
                         else
@@ -4718,13 +4768,10 @@ namespace OQSDrug
                                         }
                                     }
                                 }
+                                revisedCount = await SetRevisedBySourceAsync(db, tx, ptIDMain);
                                 tx.Commit();
                             }
                         }
-
-
-                        // Revised処理
-                        revisedCount = await SetRevisedBySourceAsync(db, tx, ptIDMain);
                     }
 
 
@@ -5568,6 +5615,72 @@ namespace OQSDrug
             }
         }
 
+        private void ReinforceViewerTopMost(Form viewer)
+        {
+            if (viewer == null || viewer.IsDisposed) return;
+
+            try
+            {
+                if (viewer.InvokeRequired)
+                {
+                    viewer.BeginInvoke((Action)(() => ReinforceViewerTopMost(viewer)));
+                    return;
+                }
+
+                ApplyViewerTopMostOnce(viewer);
+                viewer.BeginInvoke((Action)(() => ApplyViewerTopMostOnce(viewer)));
+                ScheduleViewerTopMostReinforce(viewer, 250);
+                ScheduleViewerTopMostReinforce(viewer, 1000);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        private void ApplyViewerTopMostOnce(Form viewer)
+        {
+            if (viewer == null || viewer.IsDisposed || viewer.Disposing) return;
+
+            bool useTopMost = Properties.Settings.Default.ViewerTopmost;
+            viewer.TopMost = useTopMost;
+
+            if (viewer.WindowState == FormWindowState.Minimized)
+            {
+                viewer.WindowState = FormWindowState.Normal;
+            }
+
+            if (viewer.Visible)
+            {
+                viewer.BringToFront();
+                viewer.Activate();
+            }
+
+            if (useTopMost)
+            {
+                viewer.TopMost = false;
+                viewer.TopMost = true;
+                viewer.BringToFront();
+                viewer.Activate();
+            }
+        }
+
+        private void ScheduleViewerTopMostReinforce(Form viewer, int interval)
+        {
+            if (viewer == null || viewer.IsDisposed) return;
+
+            var timer = new System.Windows.Forms.Timer { Interval = interval };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                timer.Dispose();
+                ApplyViewerTopMostOnce(viewer);
+            };
+            timer.Start();
+        }
+
         public async Task OpenDrugHistory(long ptId, bool messagePopup = false, bool alwaysShow = false)
         {
             if (alwaysShow || await existHistory(ptId, "drug_history"))
@@ -5593,9 +5706,6 @@ namespace OQSDrug
                             //form3Instance.FormBorderStyle = FormBorderStyle.None;
                         }
 
-                        // TopMost状態を設定
-                        formDIInstance.TopMost = Properties.Settings.Default.ViewerTopmost;
-
                         // Form3が閉じるときに位置、サイズ、TopMost状態を保存
                         formDIInstance.FormClosing += (s, args) =>
                         {
@@ -5603,6 +5713,7 @@ namespace OQSDrug
                         };
 
                         formDIInstance.Show(this);
+                        ReinforceViewerTopMost(formDIInstance);
                     }
                     else
                     {
@@ -5612,8 +5723,8 @@ namespace OQSDrug
                         {
                             Task.Run(async () => await currentForm.LoadDataIntoComboBoxes());
                         }
-                        // すでに開いている場合はアクティブにする
-                        currentForm?.Activate();
+                        // すでに開いている場合も患者遷移に合わせて前面化を再適用する
+                        ReinforceViewerTopMost(currentForm);
 
                     }
                 }));
@@ -5665,9 +5776,6 @@ namespace OQSDrug
                             //form3Instance.FormBorderStyle = FormBorderStyle.None;
                         }
 
-                        // TopMost状態を設定
-                        formTKKInstance.TopMost = Properties.Settings.Default.ViewerTopmost;
-
                         // Form3が閉じるときに位置、サイズ、TopMost状態を保存
                         formTKKInstance.FormClosing += (s, args) =>
                         {
@@ -5675,6 +5783,7 @@ namespace OQSDrug
                         };
 
                         formTKKInstance.Show(this);
+                        ReinforceViewerTopMost(formTKKInstance);
                     }
                     else
                     {
@@ -5684,8 +5793,8 @@ namespace OQSDrug
                         {
                             Task.Run(async () => await currentForm.LoadToolStripComboBox());
                         }
-                        // すでに開いている場合はアクティブにする
-                        currentForm?.Activate();
+                        // すでに開いている場合も患者遷移に合わせて前面化を再適用する
+                        ReinforceViewerTopMost(currentForm);
 
                     }
                 });
@@ -6047,9 +6156,13 @@ namespace OQSDrug
             contextMenu.Items.Add("診療情報", Properties.Resources.Equipment, toolStripButtonSinryo_Click);
             contextMenu.Items.Add("健診", Properties.Resources.Heart, toolStripButtonTKK_Click);
             contextMenu.Items.Add(new ToolStripSeparator());
-            contextMenu.Items.Add("PMDA薬情",Properties.Resources.PMDA, toolStripButtonPMDA_Click);
-            contextMenu.Items.Add("資格確認一覧", Properties.Resources.Person, toolStripButtonDynaViewer_Click);
-            contextMenu.Items.Add("Bulk Tool", Properties.Resources.People, toolStripButtonBulkTool_Click);
+            ToolStripItem pmdaMenuItem = contextMenu.Items.Add("PMDA薬情",Properties.Resources.PMDA, toolStripButtonPMDA_Click);
+            ToolStripItem dynaViewerMenuItem = contextMenu.Items.Add("資格確認一覧", Properties.Resources.Person, toolStripButtonDynaViewer_Click);
+            ToolStripItem bulkToolMenuItem = contextMenu.Items.Add("Bulk Tool", Properties.Resources.People, toolStripButtonBulkTool_Click);
+            bool postgresOnlyFeaturesEnabled = IsPostgresMode();
+            pmdaMenuItem.Enabled = postgresOnlyFeaturesEnabled;
+            dynaViewerMenuItem.Enabled = postgresOnlyFeaturesEnabled;
+            bulkToolMenuItem.Enabled = postgresOnlyFeaturesEnabled;
             contextMenu.Items.Add("終了", Properties.Resources.Exit, ExitApplication);
 
             notifyIcon1.ContextMenuStrip = contextMenu;
@@ -6756,9 +6869,7 @@ namespace OQSDrug
                 {
                     string settingsFilePath = op.FileName;
 
-                    var xmlDoc = new XmlDocument();
-
-                    xmlDoc.Load(settingsFilePath);
+                    XmlDocument xmlDoc = BulkXmlLoader.LoadXmlDocument(settingsFilePath);
 
                     MessageBox.Show(await ProcessDrugInfoAsync2(ptId, xmlDoc));
                 }
@@ -7604,7 +7715,7 @@ namespace OQSDrug
 
         private void toolStripButtonPMDA_Click(object sender, EventArgs e)
         {
-            if(Properties.Settings.Default.DBtype != "pg")
+            if(!IsPostgresMode())
             {
                 MessageBox.Show("PostgreSQLバージョンでのみ利用可能です");
                 return;
@@ -7661,6 +7772,12 @@ namespace OQSDrug
 
         private void toolStripButtonBulkTool_Click(object sender, EventArgs e)
         {
+            if (!IsPostgresMode())
+            {
+                MessageBox.Show("PostgreSQLバージョンでのみ利用可能です");
+                return;
+            }
+
             OpenBulkDashboard();
         }
 

@@ -103,7 +103,9 @@ namespace OQSDrug
             checkBoxKeepXml.Checked = Properties.Settings.Default.KeepXml;
 
             checkBoxRSBreloadXml.Checked = Properties.Settings.Default.RSBXml;
+            checkBoxRSBXmlConvertToShiftJis.Checked = Properties.Settings.Default.RSBXmlConvertToShiftJis;
             textBoxRSBxmlURL.Text = Properties.Settings.Default.RSBXmlURL;
+            checkBoxKeepXml_CheckedChanged(this, EventArgs.Empty);
 
             //comboBoxDynaTable.SelectedItem = Properties.Settings.Default.DynaTable;
 
@@ -321,6 +323,7 @@ namespace OQSDrug
 
             Properties.Settings.Default.KeepXml = checkBoxKeepXml.Checked;
             Properties.Settings.Default.RSBXml = checkBoxRSBreloadXml.Checked;
+            Properties.Settings.Default.RSBXmlConvertToShiftJis = checkBoxRSBXmlConvertToShiftJis.Checked;
             Properties.Settings.Default.RSBXmlURL = textBoxRSBxmlURL.Text;
 
             //Properties.Settings.Default.DynaTable = comboBoxDynaTable.SelectedItem.ToString();
@@ -572,9 +575,14 @@ namespace OQSDrug
         private void checkBoxKeepXml_CheckedChanged(object sender, EventArgs e)
         {
             checkBoxRSBreloadXml.Enabled = checkBoxKeepXml.Checked;
+            checkBoxRSBXmlConvertToShiftJis.Enabled = checkBoxKeepXml.Checked;
             textBoxRSBxmlURL.Enabled = checkBoxKeepXml.Checked;
 
-            if(!checkBoxKeepXml.Checked ) checkBoxRSBreloadXml.Checked = false;
+            if(!checkBoxKeepXml.Checked )
+            {
+                checkBoxRSBreloadXml.Checked = false;
+                checkBoxRSBXmlConvertToShiftJis.Checked = false;
+            }
         }
 
         

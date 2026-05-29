@@ -50,6 +50,7 @@
             this.toolTipSetting = new System.Windows.Forms.ToolTip(this.components);
             this.checkBoxAutoStart = new System.Windows.Forms.CheckBox();
             this.checkBoxRSBreloadXml = new System.Windows.Forms.CheckBox();
+            this.checkBoxRSBXmlConvertToShiftJis = new System.Windows.Forms.CheckBox();
             this.textBoxRSBxmlURL = new System.Windows.Forms.TextBox();
             this.groupBoxDI = new System.Windows.Forms.GroupBox();
             this.radioButtonSGML = new System.Windows.Forms.RadioButton();
@@ -362,13 +363,25 @@
             this.toolTipSetting.SetToolTip(this.checkBoxRSBreloadXml, "xml薬歴や健診歴を取得後、RSBaseのxmlreloadを実行します。\r\nこのPCにRSBaseがインストールされている必要があります。");
             this.checkBoxRSBreloadXml.UseVisualStyleBackColor = true;
             // 
+            // checkBoxRSBXmlConvertToShiftJis
+            // 
+            this.checkBoxRSBXmlConvertToShiftJis.AutoSize = true;
+            this.checkBoxRSBXmlConvertToShiftJis.Enabled = false;
+            this.checkBoxRSBXmlConvertToShiftJis.Location = new System.Drawing.Point(126, 188);
+            this.checkBoxRSBXmlConvertToShiftJis.Name = "checkBoxRSBXmlConvertToShiftJis";
+            this.checkBoxRSBXmlConvertToShiftJis.Size = new System.Drawing.Size(138, 16);
+            this.checkBoxRSBXmlConvertToShiftJis.TabIndex = 76;
+            this.checkBoxRSBXmlConvertToShiftJis.Text = "UTF-8をSJISに変換";
+            this.toolTipSetting.SetToolTip(this.checkBoxRSBXmlConvertToShiftJis, "RSBaseのxml reload前に、処理済みのYZK/TKK xmlがUTF-8ならShift_JISへ変換します。");
+            this.checkBoxRSBXmlConvertToShiftJis.UseVisualStyleBackColor = true;
+            // 
             // textBoxRSBxmlURL
             // 
             this.textBoxRSBxmlURL.Enabled = false;
             this.textBoxRSBxmlURL.Location = new System.Drawing.Point(288, 165);
             this.textBoxRSBxmlURL.Name = "textBoxRSBxmlURL";
             this.textBoxRSBxmlURL.Size = new System.Drawing.Size(235, 19);
-            this.textBoxRSBxmlURL.TabIndex = 75;
+            this.textBoxRSBxmlURL.TabIndex = 77;
             this.toolTipSetting.SetToolTip(this.textBoxRSBxmlURL, "リロードするURLを指定します");
             // 
             // groupBoxDI
@@ -820,6 +833,7 @@
             this.tabPageMain.Controls.Add(this.comboBoxYZspan);
             this.tabPageMain.Controls.Add(this.label3);
             this.tabPageMain.Controls.Add(this.textBoxDatadyna);
+            this.tabPageMain.Controls.Add(this.checkBoxRSBXmlConvertToShiftJis);
             this.tabPageMain.Controls.Add(this.textBoxRSBxmlURL);
             this.tabPageMain.Controls.Add(this.textBoxOQSFolder);
             this.tabPageMain.Controls.Add(this.checkBoxRSBreloadXml);
@@ -1616,6 +1630,7 @@
         private System.Windows.Forms.Label label19;
         private System.Windows.Forms.CheckBox checkBoxAutoStart;
         private System.Windows.Forms.CheckBox checkBoxRSBreloadXml;
+        private System.Windows.Forms.CheckBox checkBoxRSBXmlConvertToShiftJis;
         private System.Windows.Forms.TextBox textBoxRSBxmlURL;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.TabControl tabControl1;

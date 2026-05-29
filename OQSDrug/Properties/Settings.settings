@@ -110,6 +110,9 @@
     <Setting Name="RSBXmlURL" Type="System.String" Scope="User">
       <Value Profile="(Default)">http://localhost/~rsn/R_uketuke.cgi?xml_drug</Value>
     </Setting>
+    <Setting Name="RSBXmlConvertToShiftJis" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
     <Setting Name="PGaddress" Type="System.String" Scope="User">
       <Value Profile="(Default)">192.168.0.1</Value>
     </Setting>
