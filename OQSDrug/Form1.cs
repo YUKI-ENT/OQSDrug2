@@ -482,16 +482,16 @@ namespace OQSDrug
 
             // Status check
             okSettings = await UpdateStatus();
-            Invoke(new Action(() =>
+            OnUI(() =>
             {
                 this.StartStop.Enabled = (okSettings == 0b111);
                 UpdateBulkExecutionAvailability();
-            }));
+            });
 
             //AutoStartStop
             if (Properties.Settings.Default.AutoStart)
             {
-                Invoke(new Action(() => StartStop.Checked = (okSettings == 0b111)));
+                OnUI(() => StartStop.Checked = (okSettings == 0b111));
             }
 
             //PGDump timer
@@ -512,7 +512,7 @@ namespace OQSDrug
             {
                 if (okSettings != 0b111)
                 {   // Running->NG->Stop
-                    Invoke(new Action(() => StartStop.Checked = false));
+                    OnUI(() => StartStop.Checked = false);
                 }
                 else
                 {
@@ -708,7 +708,8 @@ namespace OQSDrug
                 
                 try
                 {
-                    using (DataTable dt = new DataTable())
+                    DataTable dt = new DataTable();
+                    try
                     {
                         if (!skipSql)
                         {
@@ -739,13 +740,29 @@ namespace OQSDrug
 
                         if (isFormVisible)
                         {
-                            dataGridView1.Invoke(new Action(() =>
+                            OnUI(() =>
                             {
-                                dataGridView1.DataSource = reqResultsTable;
-                                ConfigureDataGridView(dataGridView1);
-                            }));
+                                if (dataGridView1.IsDisposed) return;
+
+                                dataGridView1.SuspendLayout();
+                                try
+                                {
+                                    dataGridView1.DataSource = reqResultsTable;
+                                    ConfigureDataGridView(dataGridView1);
+                                    ApplyReqResultsRowColors(dataGridView1);
+                                }
+                                finally
+                                {
+                                    dataGridView1.ResumeLayout();
+                                }
+                            });
                             AddLogAsync("DataGridViewを更新しました");
                         }
+                    }
+                    catch
+                    {
+                        dt.Dispose();
+                        throw;
                     }
                 }
                 catch (Exception ex)
@@ -1455,10 +1472,18 @@ namespace OQSDrug
                     // 対応するインデックスを取得
                     int index = taskIndexMap[completedTask];
                     taskIndexMap.Remove(completedTask);
-                    // UI を更新（インデックスに基づいて更新）
-                    Invoke((Action)(() =>
+
+                    bool isOk = result == "OK";
+                    if (isOk)
                     {
-                        if (result == "OK")
+                        // OKの場合、対応するビットを1にする
+                        resultCode |= (byte)(1 << index);
+                    }
+
+                    // UI を更新（インデックスに基づいて更新）
+                    OnUI(() =>
+                    {
+                        if (isOk)
                         {
                             // アイコンを緑チェックに
                             switch (index)
@@ -1467,9 +1492,6 @@ namespace OQSDrug
                                 case 1: pictureBoxDynamics.Image = Properties.Resources.Apply; break;
                                 case 2: pictureBoxOQSFolder.Image = Properties.Resources.Apply; break;
                             }
-
-                            // OKの場合、対応するビットを1にする
-                            resultCode |= (byte)(1 << index);
                         }
                         else
                         {
@@ -1481,7 +1503,7 @@ namespace OQSDrug
                                 case 2: pictureBoxOQSFolder.Image = Properties.Resources.Error; break;
                             }
                         }
-                    }));
+                    });
 
                 }
                 catch (Exception ex)
@@ -1661,8 +1683,12 @@ namespace OQSDrug
             }
 
             // スキーマ/バージョンチェック（重い・ネットワーク要素あり：タイムアウト短めに）
-            //bool dbOk = await TryRunAsync(() => CheckDBVersionAsync(CommonFunctions.DBversion), 8000, "CheckDBVersionAsync");
-            bool dbOk = await CheckDBVersionAsync(CommonFunctions.DBversion);
+            var dbVersionResult = await TryRunAsyncResult(
+                () => Task.Run(async () => await CheckDBVersionAsync(CommonFunctions.DBversion).ConfigureAwait(false)),
+                8000,
+                "CheckDBVersionAsync",
+                false).ConfigureAwait(false);
+            bool dbOk = dbVersionResult.Completed && dbVersionResult.Result;
 
             // 設定やステータス更新（DBに触るならdbOkで分岐）
             bool oqsDataReadyForInit = dbOk;
@@ -5617,20 +5643,25 @@ namespace OQSDrug
 
         private void ReinforceViewerTopMost(Form viewer)
         {
-            if (viewer == null || viewer.IsDisposed) return;
+            ReinforceViewerZOrder();
+        }
+
+        private void ReinforceViewerZOrder()
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated) return;
 
             try
             {
-                if (viewer.InvokeRequired)
+                if (InvokeRequired)
                 {
-                    viewer.BeginInvoke((Action)(() => ReinforceViewerTopMost(viewer)));
+                    BeginInvoke((Action)ReinforceViewerZOrder);
                     return;
                 }
 
-                ApplyViewerTopMostOnce(viewer);
-                viewer.BeginInvoke((Action)(() => ApplyViewerTopMostOnce(viewer)));
-                ScheduleViewerTopMostReinforce(viewer, 250);
-                ScheduleViewerTopMostReinforce(viewer, 1000);
+                ApplyViewerZOrderOnce();
+                BeginInvoke((Action)ApplyViewerZOrderOnce);
+                ScheduleViewerZOrderReinforce(250);
+                ScheduleViewerZOrderReinforce(1000);
             }
             catch (ObjectDisposedException)
             {
@@ -5638,6 +5669,15 @@ namespace OQSDrug
             catch (InvalidOperationException)
             {
             }
+        }
+
+        private void ApplyViewerZOrderOnce()
+        {
+            // Apply from back to front so the desired final order is:
+            // drug history, health checkup history, clinical information.
+            ApplyViewerTopMostOnce(formSRInstance);
+            ApplyViewerTopMostOnce(formTKKInstance);
+            ApplyViewerTopMostOnce(formDIInstance);
         }
 
         private void ApplyViewerTopMostOnce(Form viewer)
@@ -5667,16 +5707,16 @@ namespace OQSDrug
             }
         }
 
-        private void ScheduleViewerTopMostReinforce(Form viewer, int interval)
+        private void ScheduleViewerZOrderReinforce(int interval)
         {
-            if (viewer == null || viewer.IsDisposed) return;
+            if (IsDisposed || Disposing || !IsHandleCreated) return;
 
             var timer = new System.Windows.Forms.Timer { Interval = interval };
             timer.Tick += (s, e) =>
             {
                 timer.Stop();
                 timer.Dispose();
-                ApplyViewerTopMostOnce(viewer);
+                ApplyViewerZOrderOnce();
             };
             timer.Start();
         }
@@ -5889,6 +5929,7 @@ namespace OQSDrug
                         };
 
                         formSRInstance.Show(this);
+                        ReinforceViewerTopMost(formSRInstance);
                     }
                     else
                     {
@@ -5898,8 +5939,8 @@ namespace OQSDrug
                         {
                             Task.Run(async () => await currentForm.LoadDataIntoComboBoxes());
                         }
-                        // すでに開いている場合はアクティブにする
-                        currentForm?.Activate();
+                        // すでに開いている場合も患者遷移に合わせて前面化を再適用する
+                        ReinforceViewerTopMost(currentForm);
 
                     }
                 }));
@@ -6002,15 +6043,15 @@ namespace OQSDrug
         {
             if (dataGridView.InvokeRequired)
             {
-                dataGridView.Invoke((MethodInvoker)(() => ConfigureDataGridView(dataGridView)));
+                dataGridView.BeginInvoke((MethodInvoker)(() => ConfigureDataGridView(dataGridView)));
                 return;
             }
 
             // レコードセレクタを非表示にする
             dataGridView.RowHeadersVisible = false;
 
-            // カラム幅を自動調整する
-            dataGridView.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
+            // 全セル走査の自動幅調整はタイマー更新時に固まりやすいため、固定幅を優先する。
+            dataGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
             // 行の高さを変更できないようにする
             dataGridView.AllowUserToResizeRows = false;
@@ -6041,6 +6082,34 @@ namespace OQSDrug
             dataGridView.SelectionMode = DataGridViewSelectionMode.FullRowSelect; //行全体選択
             dataGridView.MultiSelect = false; // 複数行選択を無効にする
 
+        }
+
+        private static Color GetReqResultRowColor(int categoryValue)
+        {
+            if (categoryValue >= 10 && categoryValue <= 99) return Color.FromArgb(230, 255, 230);
+            if (categoryValue >= 100 && categoryValue <= 999) return Color.FromArgb(255, 230, 230);
+            return Color.White;
+        }
+
+        private void ApplyReqResultsRowColors(DataGridView dataGridView)
+        {
+            if (dataGridView == null || dataGridView.IsDisposed || dataGridView.Columns.Count == 0) return;
+            if (!dataGridView.Columns.Contains("category")) return;
+
+            int categoryIndex = dataGridView.Columns["category"].Index;
+            foreach (DataGridViewRow row in dataGridView.Rows)
+            {
+                if (row.IsNewRow) continue;
+
+                if (int.TryParse(row.Cells[categoryIndex].Value?.ToString(), out int categoryValue))
+                {
+                    row.DefaultCellStyle.BackColor = GetReqResultRowColor(categoryValue);
+                }
+                else
+                {
+                    row.DefaultCellStyle.BackColor = Color.White;
+                }
+            }
         }
 
 
@@ -6559,33 +6628,14 @@ namespace OQSDrug
 
         private void dataGridView1_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            Color YZcolor = Color.FromArgb(230, 255, 230);
-            Color TKcolor = Color.FromArgb(255, 230, 230);
+            if (e.RowIndex < 0 || dataGridView1.Columns.Count == 0 || !dataGridView1.Columns.Contains("category")) return;
 
             // "category"列のインデックスを取得
             int categoryIndex = dataGridView1.Columns["category"].Index;
 
-            // "category"列かどうかを確認
-            if (e.ColumnIndex == categoryIndex)
+            if (int.TryParse(dataGridView1.Rows[e.RowIndex].Cells[categoryIndex].Value?.ToString(), out int categoryValue))
             {
-                // 現在の行のcategory列の値を取得
-                if (int.TryParse(dataGridView1.Rows[e.RowIndex].Cells[categoryIndex].Value?.ToString(), out int categoryValue))
-                {
-                    // 行全体の背景色を変更
-                    if (categoryValue >= 10 && categoryValue <= 99) // 2桁の場合
-                    {
-                        dataGridView1.Rows[e.RowIndex].DefaultCellStyle.BackColor = YZcolor;
-                    }
-                    else if (categoryValue >= 100 && categoryValue <= 999) // 3桁の場合
-                    {
-                        dataGridView1.Rows[e.RowIndex].DefaultCellStyle.BackColor = TKcolor;
-                    }
-                    else
-                    {
-                        // デフォルトの色に戻す場合
-                        dataGridView1.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.White;
-                    }
-                }
+                e.CellStyle.BackColor = GetReqResultRowColor(categoryValue);
             }
         }
 
