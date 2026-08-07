@@ -202,6 +202,7 @@ namespace OQSDrug
             try
             {
                 DataTable dt = null;
+                DateTime startDate = DateTime.Today.AddMonths(-(int)numericDisplayMonths.Value);
 
                 if (Properties.Settings.Default.DBtype == "pg")
                 {
@@ -211,8 +212,12 @@ namespace OQSDrug
                         await ((DbConnection)conn).OpenAsync();
                         using (var cmd = conn.CreateCommand())
                         {
-                            // select limited rows, order by original timestamp column so sorting is correct
-                            cmd.CommandText = "SELECT * FROM public.dyna_sikaku ORDER BY \"処理実行日時\" DESC LIMIT 1000";
+                            // 件数上限ではなく、画面で指定された期間のデータを取得する。
+                            cmd.CommandText = "SELECT * FROM public.dyna_sikaku WHERE \"処理実行日時\" >= @startDate ORDER BY \"処理実行日時\" DESC";
+                            var startDateParameter = cmd.CreateParameter();
+                            startDateParameter.ParameterName = "@startDate";
+                            startDateParameter.Value = startDate;
+                            cmd.Parameters.Add(startDateParameter);
                             try
                             {
                                 using (var reader = await ((DbCommand)cmd).ExecuteReaderAsync())
@@ -228,6 +233,7 @@ namespace OQSDrug
                                 AddLogSafe("dyna_sikaku ORDER BY failed: " + ex.Message + " → fallback to simple SELECT");
                                 try
                                 {
+                                    cmd.Parameters.Clear();
                                     cmd.CommandText = "SELECT * FROM public.dyna_sikaku LIMIT 1000";
                                     using (var reader = await ((DbCommand)cmd).ExecuteReaderAsync())
                                     {
@@ -367,6 +373,13 @@ namespace OQSDrug
                             {
                                 displayDate = rawDateStr; // fallback to original representation
                             }
+                        }
+                        DateTime rowDate;
+                        if (Properties.Settings.Default.DBtype != "pg"
+                            && DateTime.TryParse(rawDateStr, out rowDate)
+                            && rowDate < startDate)
+                        {
+                            continue;
                         }
                         // try to obtain 照会 value from known column names if present
                         string muk = "";
@@ -535,6 +548,12 @@ namespace OQSDrug
             {
                 AddLogSafe("LoadDataAsyncでエラー: " + ex.Message);
             }
+        }
+
+        private async void buttonDisplayPeriod_Click(object sender, EventArgs e)
+        {
+            await LoadDataAsync();
+            ApplyFilter(txtSearch.Text);
         }
 
         private async Task<string> ResolveDynaTableAsync(string dbPath)

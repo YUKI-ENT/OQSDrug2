@@ -1247,7 +1247,9 @@ namespace OQSDrug
         {
             try
             {
-                var from = DateTime.Today.AddMonths(-months);
+                // 薬歴タブの All は 0 だが、相互作用は最大12か月分までを対象にする。
+                int interactionMonths = months <= 0 ? 12 : months;
+                var from = DateTime.Today.AddMonths(-interactionMonths);
                 DateTime fstDay = new DateTime(from.Year, from.Month, 1);
                 string startDate8 = fstDay.ToString("yyyyMMdd");
 
