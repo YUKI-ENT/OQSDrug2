@@ -271,6 +271,7 @@ namespace OQSDrug
         private string _currentDrugName = "";
         private string _currentThera = "";
         private string _currentYj = "";
+        private string _currentPackageInsertNo = "";
         private string _currentIndication;
 
         private readonly BindingSource _bsContra = new BindingSource();
@@ -286,6 +287,7 @@ namespace OQSDrug
         public FormSGML_DI(FormDI parentFormDI)
         {
             InitializeComponent();
+            InitializeWomenTab();
             _table = "public.sgml_rawdata";
 
             _parentForm = parentFormDI;
@@ -349,6 +351,8 @@ namespace OQSDrug
             _currentDrugName = "";
             _currentThera = "";
             _currentYj = "";
+            _currentPackageInsertNo = "";
+            ClearWomenInfo("薬剤を選択すると妊婦・授乳情報を表示します。");
 
             // 先に結果の yj_code を収集
             var yjs = new HashSet<string>(StringComparer.Ordinal);
@@ -449,8 +453,13 @@ namespace OQSDrug
             var pkg = GetCellValueByProp(dgvList, row, "pkg");
             _currentYj = GetCellValueByProp(dgvList, row, "yj");
             _currentDrugName = GetCellValueByProp(dgvList, row, "brand"); 
+            _currentPackageInsertNo = pkg;
 
-            if (string.IsNullOrWhiteSpace(pkg) || string.IsNullOrWhiteSpace(_currentYj)) return;
+            if (string.IsNullOrWhiteSpace(pkg) || string.IsNullOrWhiteSpace(_currentYj))
+            {
+                ClearWomenInfo("妊婦・授乳情報を照合できる添付文書番号がありません。");
+                return;
+            }
 
             try
             {
@@ -540,6 +549,10 @@ namespace OQSDrug
                         BuildSectionTabs();                 // 既存ロジック
 
                         await LoadInteractionsFromDbAsync(pkg, _currentYj);
+                        if (string.Equals(_currentPackageInsertNo, pkg, StringComparison.Ordinal))
+                        {
+                            await LoadWomenInfoAsync(pkg);
+                        }
                     }
                 }
             }
@@ -1213,8 +1226,9 @@ namespace OQSDrug
             }
         }
 
-        private void FormSGML_DI_Shown(object sender, EventArgs e)
+        private async void FormSGML_DI_Shown(object sender, EventArgs e)
         {
+            await EnsureWomenTabAvailabilityAsync();
             toolStripTextBoxSearch.Focus();
         }
 

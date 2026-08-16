@@ -232,6 +232,10 @@
     <Compile Include="FormSGML_DI.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="FormSGML_DI.Women.cs">
+      <DependentUpon>FormSGML_DI.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="FormSGML_DI.Designer.cs">
       <DependentUpon>FormSGML_DI.cs</DependentUpon>
     </Compile>
