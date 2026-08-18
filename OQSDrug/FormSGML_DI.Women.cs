@@ -40,13 +40,14 @@ namespace OQSDrug
         private DataGridView _dgvWomenStatements;
         private int _womenLoadSequence;
         private Task<bool> _womenAvailabilityTask;
+        private bool _womenTabAvailable;
 
         private void InitializeWomenTab()
         {
             _tabWomen = new TabPage
             {
                 Name = "tabWomen",
-                Text = "妊婦・授乳",
+                Text = "妊婦・授乳(AI)",
                 Padding = new Padding(8),
                 BackColor = Color.FromArgb(244, 246, 248),
                 UseVisualStyleBackColor = false
@@ -113,17 +114,8 @@ namespace OQSDrug
             }
 
             bool available = await _womenAvailabilityTask;
-            if (available)
-            {
-                if (!tabMain.TabPages.Contains(_tabWomen))
-                {
-                    tabMain.TabPages.Insert(Math.Min(1, tabMain.TabPages.Count), _tabWomen);
-                }
-            }
-            else if (tabMain.TabPages.Contains(_tabWomen))
-            {
-                tabMain.TabPages.Remove(_tabWomen);
-            }
+            _womenTabAvailable = available;
+            UpdateAiTabOrder();
 
             return available;
         }
@@ -482,12 +474,10 @@ namespace OQSDrug
                     return;
                 }
 
-                if (IsWomenTableMissing(ex))
+                if (IsAiTableMissing(ex))
                 {
-                    if (tabMain.TabPages.Contains(_tabWomen))
-                    {
-                        tabMain.TabPages.Remove(_tabWomen);
-                    }
+                    _womenTabAvailable = false;
+                    UpdateAiTabOrder();
                     _ = CommonFunctions.AddLogAsync("妊婦・授乳テーブルが存在しないためタブを非表示にしました: " + ex.Message);
                     return;
                 }
@@ -497,7 +487,7 @@ namespace OQSDrug
             }
         }
 
-        private static bool IsWomenTableMissing(Exception exception)
+        private static bool IsAiTableMissing(Exception exception)
         {
             Exception current = exception;
             while (current != null)
@@ -556,7 +546,7 @@ namespace OQSDrug
             else
             {
                 _labelWomenStatus.Text =
-                    "添付文書の記載を整理した参考情報です。GRAY（無記載・明確な推奨なし）は安全を意味しません。";
+                    "AIを用いて添付文書の記載を整理した参考情報です。GRAY（無記載・明確な推奨なし）は安全を意味しません。";
             }
         }
 

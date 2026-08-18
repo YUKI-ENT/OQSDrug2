@@ -288,6 +288,8 @@ namespace OQSDrug
         {
             InitializeComponent();
             InitializeWomenTab();
+            InitializeNoteTab();
+            InitializeXmlDocumentTab();
             _table = "public.sgml_rawdata";
 
             _parentForm = parentFormDI;
@@ -353,6 +355,8 @@ namespace OQSDrug
             _currentYj = "";
             _currentPackageInsertNo = "";
             ClearWomenInfo("薬剤を選択すると妊婦・授乳情報を表示します。");
+            ClearNoteInfo("薬剤を選択すると代謝・薬理情報を表示します。");
+            ClearXmlDocumentViewer("薬剤を選択するとXML形式の添付文書を表示します。");
 
             // 先に結果の yj_code を収集
             var yjs = new HashSet<string>(StringComparer.Ordinal);
@@ -458,6 +462,7 @@ namespace OQSDrug
             if (string.IsNullOrWhiteSpace(pkg) || string.IsNullOrWhiteSpace(_currentYj))
             {
                 ClearWomenInfo("妊婦・授乳情報を照合できる添付文書番号がありません。");
+                ClearXmlDocumentViewer("XML形式の添付文書を照合できる添付文書番号がありません。");
                 return;
             }
 
@@ -546,12 +551,17 @@ namespace OQSDrug
                         }
                         if (InvokeRequired) BeginInvoke((Action)UpdateUi); else UpdateUi();
 
+                        DisplayXmlDocument(xmlText, updatedAt);
                         BuildSectionTabs();                 // 既存ロジック
 
                         await LoadInteractionsFromDbAsync(pkg, _currentYj);
                         if (string.Equals(_currentPackageInsertNo, pkg, StringComparison.Ordinal))
                         {
                             await LoadWomenInfoAsync(pkg);
+                            if (string.Equals(_currentPackageInsertNo, pkg, StringComparison.Ordinal))
+                            {
+                                await LoadNoteInfoAsync(pkg);
+                            }
                         }
                     }
                 }
@@ -1229,6 +1239,7 @@ namespace OQSDrug
         private async void FormSGML_DI_Shown(object sender, EventArgs e)
         {
             await EnsureWomenTabAvailabilityAsync();
+            await EnsureNoteTabAvailabilityAsync();
             toolStripTextBoxSearch.Focus();
         }
 

@@ -26,6 +26,7 @@ namespace OQSDrug
         public Form2(Form1 parentForm)
         {
             InitializeComponent();
+            InitializePmdaDocumentSettingsTab();
             form1 = parentForm; // Form1のインスタンスを受け取る
         }
 
@@ -299,6 +300,8 @@ namespace OQSDrug
                 radioButtonSGML.Checked = true;
             }
 
+            LoadPmdaDocumentSettings();
+
         }
 
         private void SaveSettings()
@@ -393,6 +396,7 @@ namespace OQSDrug
             Properties.Settings.Default.BulkAutoSendToFaceEnabled = checkBoxBulkAutoSendToFaceEnabled.Checked;
 
             Properties.Settings.Default.DIviewer = (radioButtonRSB.Checked) ? "RSB" : "SGML"; 
+            SavePmdaDocumentSettings();
 
             Properties.Settings.Default.Save();
 

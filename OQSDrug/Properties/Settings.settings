@@ -236,5 +236,14 @@
     <Setting Name="YZRequeryHours" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">12</Value>
     </Setting>
+    <Setting Name="PMDASearchList" Type="System.String" Scope="User">
+      <Value Profile="(Default)">眼圧 OR 緑内障
+前立腺 OR 尿閉
+腎機能 OR 腎障害
+肝機能 OR 肝障害
+妊婦 OR 妊娠
+授乳婦 OR 授乳
+QT OR Torsade</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

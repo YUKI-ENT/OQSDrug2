@@ -958,5 +958,17 @@ namespace OQSDrug.Properties {
                 this["YZRequeryHours"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("眼圧 OR 緑内障\r\n前立腺 OR 尿閉\r\n腎機能 OR 腎障害\r\n肝機能 OR 肝障害\r\n妊婦 OR 妊娠\r\n授乳婦 OR 授乳\r\nQT OR Torsade")]
+        public string PMDASearchList {
+            get {
+                return ((string)(this["PMDASearchList"]));
+            }
+            set {
+                this["PMDASearchList"] = value;
+            }
+        }
     }
 }
