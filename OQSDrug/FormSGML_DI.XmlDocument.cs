@@ -26,6 +26,8 @@ namespace OQSDrug
         private Button _xmlSearchPreviousButton;
         private Button _xmlSearchNextButton;
         private Label _xmlSearchStatus;
+        private FlowLayoutPanel _xmlAutomaticMatchesPanel;
+        private RowStyle _xmlAutomaticMatchesRowStyle;
         private XDocument _xmlViewerDocument;
         private Dictionary<string, string> _xmlViewerBrandNames;
         private List<XmlViewerSection> _xmlViewerSections = new List<XmlViewerSection>();
@@ -79,15 +81,30 @@ namespace OQSDrug
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 2,
+                RowCount = 3,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty
             };
             renderedRoot.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+            _xmlAutomaticMatchesRowStyle = new RowStyle(SizeType.Absolute, 0F);
+            renderedRoot.RowStyles.Add(_xmlAutomaticMatchesRowStyle);
             renderedRoot.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             var searchPanel = CreateXmlSearchPanel();
             renderedRoot.Controls.Add(searchPanel, 0, 0);
+
+            _xmlAutomaticMatchesPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoScroll = true,
+                Padding = new Padding(7, 5, 7, 4),
+                Margin = Padding.Empty,
+                BackColor = Color.FromArgb(255, 244, 230),
+                Visible = false
+            };
+            renderedRoot.Controls.Add(_xmlAutomaticMatchesPanel, 0, 1);
 
             var documentSplit = new SplitContainer
             {
@@ -127,7 +144,7 @@ namespace OQSDrug
             };
             _xmlDocumentBrowser.DocumentCompleted += XmlDocumentBrowser_DocumentCompleted;
             documentSplit.Panel2.Controls.Add(_xmlDocumentBrowser);
-            renderedRoot.Controls.Add(documentSplit, 0, 1);
+            renderedRoot.Controls.Add(documentSplit, 0, 2);
             renderedPage.Controls.Add(renderedRoot);
 
             var sourcePage = new TabPage
@@ -242,6 +259,7 @@ namespace OQSDrug
                 _xmlSectionList.Items.Clear();
             if (_xmlSearchStatus != null)
                 _xmlSearchStatus.Text = string.Empty;
+            ClearAutomaticXmlSearchMatches();
             if (_xmlSourceText != null)
                 _xmlSourceText.Text = string.Empty;
 
@@ -280,6 +298,7 @@ namespace OQSDrug
                 _xmlViewerUpdatedAt = updatedAt;
                 _xmlViewerSections = BuildXmlViewerSections(_xmlViewerDocument);
                 PopulateXmlSectionList();
+                UpdateAutomaticXmlSearchMatches();
                 RenderCurrentXmlDocument();
             }
             catch (Exception ex)
@@ -380,6 +399,100 @@ namespace OQSDrug
                 .Distinct(StringComparer.CurrentCultureIgnoreCase)
                 .OrderByDescending(keyword => keyword.Length)
                 .ToArray();
+        }
+
+        private void UpdateAutomaticXmlSearchMatches()
+        {
+            ClearAutomaticXmlSearchMatches();
+            if (_xmlViewerDocument == null || _xmlViewerDocument.Root == null ||
+                _xmlAutomaticMatchesPanel == null) return;
+
+            string documentText = _xmlViewerDocument.Root.Value ?? string.Empty;
+            var matches = PmdaSearchListSettings.GetSearchItems()
+                .Select(item => new
+                {
+                    SearchText = item,
+                    HitCount = CountXmlSearchHits(documentText, ParseXmlSearchKeywords(item))
+                })
+                .Where(item => item.HitCount > 0)
+                .ToList();
+
+            if (matches.Count == 0) return;
+
+            _xmlAutomaticMatchesPanel.Controls.Add(new Label
+            {
+                AutoSize = true,
+                Font = new Font("Meiryo UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(138, 55, 18),
+                Margin = new Padding(0, 7, 8, 0),
+                Text = string.Format("要確認キーワード {0}項目", matches.Count)
+            });
+
+            foreach (var match in matches)
+            {
+                string searchText = match.SearchText;
+                var button = new Button
+                {
+                    AutoSize = true,
+                    Height = 27,
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(255, 224, 204),
+                    ForeColor = Color.FromArgb(126, 36, 18),
+                    Font = new Font("Meiryo UI", 9F, FontStyle.Bold),
+                    Margin = new Padding(3, 1, 3, 1),
+                    Text = string.Format("{0}  ({1}件)", searchText, match.HitCount),
+                    Tag = searchText
+                };
+                button.FlatAppearance.BorderColor = Color.FromArgb(218, 117, 76);
+                button.Click += delegate(object sender, EventArgs e)
+                {
+                    var clicked = sender as Button;
+                    if (clicked == null || _xmlSearchCombo == null) return;
+                    _xmlSearchCombo.Text = Convert.ToString(clicked.Tag);
+                    RunXmlDocumentSearch();
+                };
+                _xmlAutomaticMatchesPanel.Controls.Add(button);
+            }
+
+            _xmlAutomaticMatchesPanel.Visible = true;
+            if (_xmlAutomaticMatchesRowStyle != null)
+                _xmlAutomaticMatchesRowStyle.Height = 60F;
+        }
+
+        private void ClearAutomaticXmlSearchMatches()
+        {
+            if (_xmlAutomaticMatchesPanel != null)
+            {
+                while (_xmlAutomaticMatchesPanel.Controls.Count > 0)
+                {
+                    Control control = _xmlAutomaticMatchesPanel.Controls[0];
+                    _xmlAutomaticMatchesPanel.Controls.RemoveAt(0);
+                    control.Dispose();
+                }
+                _xmlAutomaticMatchesPanel.Visible = false;
+            }
+            if (_xmlAutomaticMatchesRowStyle != null)
+                _xmlAutomaticMatchesRowStyle.Height = 0F;
+        }
+
+        private static int CountXmlSearchHits(string text, IEnumerable<string> keywords)
+        {
+            if (string.IsNullOrEmpty(text) || keywords == null) return 0;
+
+            int count = 0;
+            foreach (string keyword in keywords)
+            {
+                if (string.IsNullOrEmpty(keyword)) continue;
+                int position = 0;
+                while (position < text.Length)
+                {
+                    int found = text.IndexOf(keyword, position, StringComparison.CurrentCultureIgnoreCase);
+                    if (found < 0) break;
+                    count++;
+                    position = found + keyword.Length;
+                }
+            }
+            return count;
         }
 
         private void RunXmlDocumentSearch()

@@ -2903,12 +2903,15 @@ namespace OQSDrug
             double weightColumn2 = 0.5;             // 2列目のスコアに対する重み
 
             // 正規表現で「」や【】に囲まれた部分を削除
-            string processedDrugName = RemoveCampany(drugName);
+            bool hasIngredientName = !string.IsNullOrWhiteSpace(ingreN);
+            string processedDrugName = NormalizeDrugSearchText(RemoveCampany(drugName));
 
             //数字アルファベットは除去しておく
             //string drugNameNoDigit = RemoveDigits(drugName);
 
-            if (string.IsNullOrEmpty(ingreN)) ingreN = processedDrugName;
+            ingreN = hasIngredientName
+                ? NormalizeDrugSearchText(RemoveCampany(ingreN))
+                : processedDrugName;
 
             string yjPrefix = (!string.IsNullOrEmpty(YJcode) && YJcode.Length >= 9)
                     ? YJcode.Substring(0, 9)
@@ -2922,6 +2925,8 @@ namespace OQSDrug
             {
                 string column1 = record.Length > 0 ? (record[0] ?? "") : "";  // 1列目（薬品名）
                 string column2 = record.Length > 1 ? (record[1] ?? "") : "";  // 2列目（成分名）
+                string normalizedColumn1 = NormalizeDrugSearchText(RemoveCampany(column1));
+                string normalizedColumn2 = NormalizeDrugSearchText(RemoveCampany(column2));
                 string column3 = record.Length > 2 ? (record[2] ?? "") : "";  // 3列目（YJコード）
                 string column4 = record.Length > 3 ? (record[3] ?? "") : "";  // 4列目（"先発" の確認）
                 //string column5 = record[4];  // 5列目（薬価文字列）
@@ -2945,32 +2950,32 @@ namespace OQSDrug
                 // あいまい検索の処理を非同期タスクで並列実行
                 fuzzyMatchTasks.Add(Task.Run(() =>
                 {
-                    double similarityColumn1 = CalculateNGramSimilarity(processedDrugName, column1);
-                    double similarityColumn2 = CalculateNGramSimilarity(ingreN, column2);
+                    double similarityColumn1 = CalculateNGramSimilarity(processedDrugName, normalizedColumn1);
+                    double similarityColumn2 = CalculateNGramSimilarity(ingreN, normalizedColumn2);
 
-                    double editDistanceScore = 1.0 - (double)CalculateLevenshteinDistance(processedDrugName, column1)
-                                               / Math.Max(processedDrugName.Length, column1.Length);
+                    double editDistanceScore = 1.0 - (double)CalculateLevenshteinDistance(processedDrugName, normalizedColumn1)
+                                               / Math.Max(processedDrugName.Length, normalizedColumn1.Length);
 
                     double similarity = weightColumn1 * Math.Max(similarityColumn1, editDistanceScore) +
                                         weightColumn2 * similarityColumn2;
 
                     bool exact = false;
-                    if (drugName == column1)
+                    if (processedDrugName == normalizedColumn1)
                     {
                         similarity = 1.0;
                         exact = true;
                     }
-                    else if (ingreN == column2)
+                    else if (hasIngredientName && ingreN == normalizedColumn2)
                     {
                         similarity = 0.9;
                         exact = true;
                     }
                     //部分一致
-                    else if (column1.Length > 0 && ( processedDrugName.Contains(column1) || column1.Contains(processedDrugName)))
+                    else if (normalizedColumn1.Length > 0 && (processedDrugName.Contains(normalizedColumn1) || normalizedColumn1.Contains(processedDrugName)))
                     {
                         similarity = 0.8;
                     }
-                    else if (column2.Length > 0 && ( ingreN.Contains(column2) || column2.Contains(ingreN)))
+                    else if (hasIngredientName && normalizedColumn2.Length > 0 && (ingreN.Contains(normalizedColumn2) || normalizedColumn2.Contains(ingreN)))
                     {
                         similarity = 0.7;
                     }
@@ -2980,7 +2985,9 @@ namespace OQSDrug
                         similarity += bonusForOriginator;
                     }
 
-                    if (!exact && !column2.Contains(ingreN) && !ingreN.Contains(column2))
+                    // 相互作用一覧には成分名がない。薬剤名を成分名の代用にした場合まで
+                    // 「成分名不一致」として減点すると、名称検索の候補がほぼ全て脱落する。
+                    if (hasIngredientName && !exact && !normalizedColumn2.Contains(ingreN) && !ingreN.Contains(normalizedColumn2))
                     {
                         similarity -= penaltyForMissingIngreN;
                     }
@@ -3010,7 +3017,11 @@ namespace OQSDrug
         public static async Task<List<Tuple<string[], double>>> SearchSgmlCandidatesAsync(string drugName, string ingreN, string yjCode, double fuzzyCutoffThreshold = 0.2)
         {
             string normalizedDrugName = RemoveCampany(drugName ?? "").Trim();
-            string normalizedIngreN = RemoveCampany(string.IsNullOrWhiteSpace(ingreN) ? normalizedDrugName : ingreN).Trim();
+            // 成分名が提供されていないこと自体がFuzzySearchの重要な情報。
+            // 薬剤名で埋めると、相互作用一覧からの検索が成分名不一致として扱われる。
+            string normalizedIngreN = string.IsNullOrWhiteSpace(ingreN)
+                ? ""
+                : RemoveCampany(ingreN).Trim();
 
             if (string.IsNullOrWhiteSpace(normalizedDrugName) && string.IsNullOrWhiteSpace(normalizedIngreN))
             {
@@ -3187,6 +3198,18 @@ namespace OQSDrug
             processedDrugName = processedDrugName.Trim();
 
             return processedDrugName;
+        }
+
+        private static string NormalizeDrugSearchText(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+            // FormKCで全角英数字・単位を半角化し、大文字小文字の表記差も吸収する。
+            return value.Normalize(NormalizationForm.FormKC)
+                        .ToLowerInvariant()
+                        .Replace(" ", "")
+                        .Replace("\u3000", "")
+                        .Trim();
         }
 
         private static HashSet<string> GenerateNGrams(string input, int n)

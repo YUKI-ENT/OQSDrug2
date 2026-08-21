@@ -1394,6 +1394,12 @@ namespace OQSDrug
             // 列名が "DrugN" だった場合に関数を実行
             if (columnName.Contains("partner_name_ja") || columnName.Contains("drugn"))
             {
+                // 検索処理が、以前選択されていた別セルではなく実際に
+                // ダブルクリックされた薬剤名を確実に取得できるようにする。
+                dataGridViewInteraction.ClearSelection();
+                dataGridViewInteraction.CurrentCell = dataGridViewInteraction.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                dataGridViewInteraction.CurrentCell.Selected = true;
+
                 if (Properties.Settings.Default.DIviewer == "RSB")
                 {
                     if (string.IsNullOrEmpty(_parentForm.RSBdrive))

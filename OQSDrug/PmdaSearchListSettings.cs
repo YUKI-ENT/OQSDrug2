@@ -19,9 +19,14 @@ namespace OQSDrug
 
         internal static object[] GetItems()
         {
-            return Parse(Properties.Settings.Default.PMDASearchList)
+            return GetSearchItems()
                 .Cast<object>()
                 .ToArray();
+        }
+
+        internal static string[] GetSearchItems()
+        {
+            return Parse(Properties.Settings.Default.PMDASearchList);
         }
 
         internal static string GetEditorText()

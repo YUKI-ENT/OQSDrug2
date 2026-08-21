@@ -45,7 +45,7 @@ namespace OQSDrug
                 Dock = DockStyle.Fill,
                 ForeColor = Color.FromArgb(65, 72, 82),
                 TextAlign = ContentAlignment.MiddleLeft,
-                Text = "XML添付文書の検索候補を1行に1項目ずつ入力します。複数語検索は OR で区切ってください。"
+                Text = "XML添付文書の表示時に全項目を自動検索します。1行に1項目、複数語は OR で区切ってください。ヒットした項目だけが要確認として表示されます。"
             }, 0, 1);
 
             _textBoxPmdaSearchList = new TextBox
