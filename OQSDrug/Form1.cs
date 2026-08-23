@@ -1776,7 +1776,7 @@ namespace OQSDrug
             }
 
 
-        // ====== 重い並列タスク（KORO取込 / RSB読込 / Ollamaモデル） ======
+        // ====== 重い並列タスク（KORO取込 / RSB読込 / LLMモデル） ======
         var tasks = new List<Task>();
 
             if (oqsDataReadyForInit) // OQSDrugData OK
@@ -1807,16 +1807,18 @@ namespace OQSDrug
             tasks.Add(rsbTask);
 
             
-            // Ollama モデル一覧
-            var ollamaTask = TryRunAsync(async () =>
+            // OpenAI互換APIのモデル一覧
+            var llmModelsTask = TryRunAsync(async () =>
             {
                 if (Properties.Settings.Default.LLMserver.Length > 4 && Properties.Settings.Default.LLMport > 1)
                 {
-                    string ollamaUrl = $"http://{Properties.Settings.Default.LLMserver.Trim()}:{Properties.Settings.Default.LLMport}";
-                    await CommonFunctions.GetOllamaModelsAsync(ollamaUrl).ConfigureAwait(false);
+                    string baseUrl = CommonFunctions.BuildLlmBaseUrl(
+                        Properties.Settings.Default.LLMserver,
+                        Properties.Settings.Default.LLMport);
+                    await CommonFunctions.GetLlmModelsAsync(baseUrl).ConfigureAwait(false);
                 }
-            }, 5000, "GetOllamaModelsAsync");
-            tasks.Add(ollamaTask);
+            }, 6000, "GetLlmModelsAsync");
+            tasks.Add(llmModelsTask);
 
             // 並列の待機（失敗しても落とさずログだけ出す）
             try

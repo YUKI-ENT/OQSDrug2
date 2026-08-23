@@ -314,7 +314,7 @@
             // 
             // comboBoxModel
             // 
-            this.comboBoxModel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxModel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
             this.comboBoxModel.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.comboBoxModel.FormattingEnabled = true;
             this.comboBoxModel.Location = new System.Drawing.Point(86, 49);

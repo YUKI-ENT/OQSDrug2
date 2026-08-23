@@ -131,8 +131,8 @@ namespace OQSDrug
 
             textBoxLLMserver.Text = Properties.Settings.Default.LLMserver;
             textBoxLLMport.Text = Properties.Settings.Default.LLMport.ToString();
-            //textBoxLLMmodel.Text = Properties.Settings.Default.LLMmodel;
             textBoxLLMtimeout.Text = Properties.Settings.Default.LLMtimeout.ToString();
+            textBoxLLMapikey.Text = decodePassword(Properties.Settings.Default.LLMapikey);
 
             checkBoxAI.Checked = Properties.Settings.Default.AIauto;
 
@@ -243,6 +243,7 @@ namespace OQSDrug
                 labelLLMport.Enabled = false;
                 labelLLMmodel.Enabled = false;
                 labelLLMtimeout.Enabled = false;
+                labelLLMapikey.Enabled = false;
 
                 textBoxPGaddress.Enabled = false;
                 textBoxPGport.Enabled = false;
@@ -252,6 +253,7 @@ namespace OQSDrug
                 textBoxLLMport.Enabled = false;
                 //textBoxLLMmodel.Enabled = false ;
                 textBoxLLMtimeout.Enabled = false;
+                textBoxLLMapikey.Enabled = false;
                 comboBoxLLMModels.Enabled = false;
                 buttonGetModels.Enabled = false;
 
@@ -273,6 +275,7 @@ namespace OQSDrug
                 labelLLMport.Enabled = true;
                 labelLLMmodel.Enabled = true;
                 labelLLMtimeout.Enabled = true;
+                labelLLMapikey.Enabled = true;
 
                 textBoxPGaddress.Enabled = true;
                 textBoxPGport.Enabled = true;
@@ -282,6 +285,7 @@ namespace OQSDrug
                 textBoxLLMport.Enabled = true;
                 //textBoxLLMmodel.Enabled = true;
                 textBoxLLMtimeout.Enabled = true;
+                textBoxLLMapikey.Enabled = true;
                 comboBoxLLMModels.Enabled = true;
                 buttonGetModels.Enabled = true;
 
@@ -366,8 +370,11 @@ namespace OQSDrug
             Properties.Settings.Default.AIauto = checkBoxAI.Checked;
             Properties.Settings.Default.LLMserver = textBoxLLMserver.Text;
             Properties.Settings.Default.LLMport = Convert.ToInt16(textBoxLLMport.Text);
-            //Properties.Settings.Default.LLMmodel = textBoxLLMmodel.Text;
             Properties.Settings.Default.LLMtimeout = Convert.ToInt16(textBoxLLMtimeout.Text);
+            string modelName = comboBoxLLMModels.Text?.Trim() ?? string.Empty;
+            if (!string.Equals(modelName, "(モデル未設定)", StringComparison.Ordinal))
+                Properties.Settings.Default.LLMmodel = modelName;
+            Properties.Settings.Default.LLMapikey = encodePassword(textBoxLLMapikey.Text ?? string.Empty);
 
             Properties.Settings.Default.BulkHoumonAutoEnabled = checkBoxBulkHoumonAutoEnabled.Checked;
             Properties.Settings.Default.BulkHoumonConsentDaysBack = Decimal.ToInt32(numericUpDownBulkHoumonConsentDaysBack.Value);
@@ -624,11 +631,13 @@ namespace OQSDrug
                 buttonGetModels.Enabled = false;
                 comboBoxLLMModels.Enabled = false;
                 textBoxLLMtimeout.Enabled = false;
+                textBoxLLMapikey.Enabled = false;
 
                 labelLLMserver.Enabled = false;
                 labelLLMmodel.Enabled = false;
                 labelLLMport.Enabled = false;
                 labelLLMtimeout.Enabled = false;
+                labelLLMapikey.Enabled = false;
 
             }
             else
@@ -652,11 +661,13 @@ namespace OQSDrug
                 buttonGetModels.Enabled = true;
                 comboBoxLLMModels.Enabled = true;
                 textBoxLLMtimeout.Enabled = true;
+                textBoxLLMapikey.Enabled = true;
 
                 labelLLMserver.Enabled = true;
                 labelLLMmodel.Enabled = true;
                 labelLLMport.Enabled = true;
                 labelLLMtimeout.Enabled = true;
+                labelLLMapikey.Enabled = true;
             }
         }
 
@@ -676,7 +687,7 @@ namespace OQSDrug
             {
                 if (textBoxLLMserver.Text.Length == 0 || textBoxLLMport.Text.Length == 0)
                 {
-                    MessageBox.Show("AI自動検索機能を利用するときは、先にLLMサーバーのAPIアドレスとポートを設定してください");
+                    MessageBox.Show("AI自動検索機能を利用するときは、先にLLMサーバーのBase URLとポートを設定してください");
                     checkBoxAI.Checked = false;
                 }
             }
@@ -695,7 +706,9 @@ namespace OQSDrug
             SaveSettings();
 
             // URL 組み立て
-            string ollamaUrl = $"http://{textBoxLLMserver.Text.Trim()}:{textBoxLLMport.Text.Trim()}";
+            string baseUrl = CommonFunctions.BuildLlmBaseUrl(
+                textBoxLLMserver.Text,
+                Convert.ToInt32(textBoxLLMport.Text));
 
             // UI保護
             buttonGetModels.Enabled = false;
@@ -705,13 +718,13 @@ namespace OQSDrug
             try
             {
                 // モデル一覧取得
-                List<ModelInfo> modelList = await CommonFunctions.GetOllamaModelsAsync(ollamaUrl); // ここでグローバルollamaListにもセットされる
+                List<ModelInfo> modelList = await CommonFunctions.GetLlmModelsAsync(baseUrl);
 
-                CommonFunctions.SetModelsToComboBox(comboBoxLLMModels, modelList, Properties.Settings.Default.LLMmodel);
+                await CommonFunctions.SetModelsToComboBox(comboBoxLLMModels, modelList, Properties.Settings.Default.LLMmodel);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"モデル一覧の取得に失敗しました。\n{ex.Message}", "Ollamaエラー");
+                MessageBox.Show($"モデル一覧の取得に失敗しました。\n{ex.Message}", "LLM APIエラー");
             }
             finally
             {

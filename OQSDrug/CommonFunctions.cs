@@ -172,8 +172,8 @@ namespace OQSDrug
 
         public static Action<string, string> UiLogCallback; // (timestamp, message)
 
-        // ollama models
-        public static List<ModelInfo> ollamaModelList = new List<ModelInfo>();
+        // OpenAI互換APIのモデル一覧
+        public static List<ModelInfo> llmModelList = new List<ModelInfo>();
 
         //PGDump
         public static DateTime? lastDumped = null;                   // 最後に成功した時刻（ローカル時刻）
@@ -1809,8 +1809,8 @@ namespace OQSDrug
             return Regex.Replace(half, @"\s{2,}", " ").Trim();
         }
 
-        // ---- 5) LLM呼び出し（Ollamaなどの汎用HTTP）----
-        // serverUrl: 例 "http://localhost:11434/api/generate" (Ollama)
+        // ---- 5) LLM呼び出し（OpenAI互換 Chat Completions API）----
+        // serverUrl: 例 "http://localhost:11434/v1/chat/completions"
         public static async Task<string> CallLlmAsync(
             string serverUrl,
             string modelName,
@@ -1819,17 +1819,15 @@ namespace OQSDrug
             CancellationToken ct = default(CancellationToken),
             Action<string> onStatus = null)   // ← 進捗やデバッグ文字列をUIに出すなら使う
         {
-            // URLの補正（よくある間違い対策）
             if (string.IsNullOrWhiteSpace(serverUrl))
-                throw new ArgumentException("serverUrl が空です。例: http://localhost:11434/api/generate");
+                throw new ArgumentException("serverUrl が空です。例: http://localhost:11434/v1/chat/completions");
 
-            // 末尾が /api/generate でなければ補う（http://host:11434 → http://host:11434/api/generate）
-            if (!serverUrl.EndsWith("/api/generate", StringComparison.OrdinalIgnoreCase))
+            if (!serverUrl.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
             {
                 serverUrl = serverUrl.TrimEnd('/');
-                if (!serverUrl.EndsWith("/api"))
-                    serverUrl += "/api";
-                serverUrl += "/generate";
+                if (!serverUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+                    serverUrl += "/v1";
+                serverUrl += "/chat/completions";
             }
 
             onStatus?.Invoke($"[CallLlmAsync] URL={serverUrl}");
@@ -1837,7 +1835,15 @@ namespace OQSDrug
             var payload = new Dictionary<string, object>
             {
                 { "model",  modelName ?? "" },
-                { "prompt", prompt    ?? "" },
+                { "messages", new object[]
+                    {
+                        new Dictionary<string, object>
+                        {
+                            { "role", "user" },
+                            { "content", prompt ?? "" }
+                        }
+                    }
+                },
                 { "stream", false }
             };
             var json = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(payload);
@@ -1845,11 +1851,11 @@ namespace OQSDrug
 
             try
             {
-                using (var http = new HttpClient() { Timeout = TimeSpan.FromMilliseconds(timeoutMs) })
+                using (var http = CreateLlmHttpClient(timeoutMs))
                 using (var req = new StringContent(json, Encoding.UTF8, "application/json"))
-                using (var resp = await http.PostAsync(serverUrl, req, ct))
+                using (var resp = await http.PostAsync(serverUrl, req, ct).ConfigureAwait(false))
                 {
-                    string body = await resp.Content.ReadAsStringAsync();
+                    string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                     // 非200系は詳細を投げる（本文は長いので先頭だけ）
                     if (!resp.IsSuccessStatusCode)
@@ -1864,25 +1870,17 @@ namespace OQSDrug
                         throw new HttpRequestException(msg);
                     }
 
-                    // Ollama {"response":"...","done":true,...}
                     try
                     {
-                        var dict = new System.Web.Script.Serialization.JavaScriptSerializer()
-                                   .Deserialize<Dictionary<string, object>>(body);
-                        if (dict != null && dict.TryGetValue("response", out var o) && o is string res)
-                        {
-                            onStatus?.Invoke($"[CallLlmAsync] OK response {res.Length} chars");
-                            return res.Trim();
-                        }
+                        string res = ExtractChatCompletionText(body);
+                        onStatus?.Invoke($"[CallLlmAsync] OK response {res.Length} chars");
+                        return res.Trim();
                     }
                     catch (Exception jx)
                     {
-                        // JSONパースに失敗 → 生の本文を返す（後段で扱うため）
                         onStatus?.Invoke("[CallLlmAsync] WARN JSON parse failed: " + jx.Message);
+                        throw new InvalidOperationException("LLM応答をChat Completions形式として解析できませんでした。", jx);
                     }
-
-                    onStatus?.Invoke($"[CallLlmAsync] OK (raw) {body?.Length ?? 0} chars");
-                    return body;
                 }
             }
             catch (TaskCanceledException tex)
@@ -1908,18 +1906,87 @@ namespace OQSDrug
             }
         }
 
+        public static string BuildLlmBaseUrl(string server, int port)
+        {
+            string value = (server ?? string.Empty).Trim().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("LLMアドレスが空です。");
+
+            if (!value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                value = $"http://{value}:{port}";
+            }
+
+            if (value.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
+                value = value.Substring(0, value.Length - "/chat/completions".Length);
+
+            if (!value.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+                value += "/v1";
+
+            return value;
+        }
+
+        private static HttpClient CreateLlmHttpClient(int timeoutMs)
+        {
+            var http = new HttpClient
+            {
+                Timeout = TimeSpan.FromMilliseconds(timeoutMs)
+            };
+
+            string apiKey = decodePassword(Properties.Settings.Default.LLMapikey);
+            if (!string.IsNullOrWhiteSpace(apiKey))
+                http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+            return http;
+        }
+
+        private static string ExtractChatCompletionText(string body)
+        {
+            var serializer = new JavaScriptSerializer();
+            var root = serializer.DeserializeObject(body) as Dictionary<string, object>;
+            if (root == null || !root.TryGetValue("choices", out var choicesObject) ||
+                !(choicesObject is object[] choices) || choices.Length == 0 ||
+                !(choices[0] is Dictionary<string, object> choice) ||
+                !choice.TryGetValue("message", out var messageObject) ||
+                !(messageObject is Dictionary<string, object> message) ||
+                !message.TryGetValue("content", out var contentObject))
+            {
+                throw new InvalidOperationException("choices[0].message.content がありません。");
+            }
+
+            if (contentObject is string text)
+                return text;
+
+            if (contentObject is object[] parts)
+            {
+                var builder = new StringBuilder();
+                foreach (var partObject in parts)
+                {
+                    if (partObject is Dictionary<string, object> part &&
+                        part.TryGetValue("text", out var textObject) && textObject is string partText)
+                    {
+                        builder.Append(partText);
+                    }
+                }
+
+                if (builder.Length > 0)
+                    return builder.ToString();
+            }
+
+            throw new InvalidOperationException("応答本文が文字列ではありません。");
+        }
+
 
         // ── 1回分の問い合わせ（DB更新まで一括） ──
         public static async Task<long> RunLlmOnceAndPersistAsync(long ptId, string prompt, string tplName ,string modelName, int? timeoutMsOverride = null)
         {
-            // 設定からURL組み立て
-            var server = $"http://{Properties.Settings.Default.LLMserver}";  // 例: "http://localhost"
-            var port = Properties.Settings.Default.LLMport;    // 例: 11434
-            //var model = Properties.Settings.Default.LLMmodel;   // 例: "gemma3:4b"
+            // 設定からOpenAI互換APIのURLを組み立て
+            var port = Properties.Settings.Default.LLMport;
             var tout = timeoutMsOverride ?? Properties.Settings.Default.LLMtimeout * 1000; // ms
 
-            // Ollama想定（/api/generate）。他APIなら適宜差し替え。
-            string serverUrl = $"{server}:{port}/api/generate";
+            string baseUrl = BuildLlmBaseUrl(Properties.Settings.Default.LLMserver, port);
+            string serverUrl = $"{baseUrl}/chat/completions";
 
             
             // 1) pending 挿入（長さ/トークンも記録）
@@ -1928,10 +1995,9 @@ namespace OQSDrug
             try
             {
                 // 2) 送信
-                //var res = await CallLlmAsync(serverUrl, modelName, prompt, tout);
                 string res = await CallLlmQueuedAsync(
                                 serverUrl, modelName, prompt,
-                                timeoutMs: 120000,
+                                timeoutMs: tout,
                                 ct: CancellationToken.None
                                 );
 
@@ -2447,62 +2513,72 @@ namespace OQSDrug
         }
 
         //
-        // ollamaのモデルリストを取得
+        // OpenAI互換APIのモデルリストを取得
         //
         public class ModelInfo
         {
             public string Name { get; set; }
-            public string Digest { get; set; }
-            public long Size { get; set; }
-            public DateTime ModifiedAt { get; set; }
+            public string Owner { get; set; }
         }
 
-        public static async Task<List<ModelInfo>> GetOllamaModelsAsync(string serverUrl)
+        public static async Task<List<ModelInfo>> GetLlmModelsAsync(string baseUrl)
         {
-            string url = $"{serverUrl.TrimEnd('/')}/api/tags";
+            string url = $"{baseUrl.TrimEnd('/')}/models";
             try
             {
-
-                using (var http = new HttpClient())
+                using (var http = CreateLlmHttpClient(5000))
                 {
-                    var resp = await http.GetStringAsync(url);
-
-                    var ser = new JavaScriptSerializer();
-                    var rootObj = ser.DeserializeObject(resp);  // 戻り値は object
-
-                    var modelList = new List<ModelInfo>();
-
-                    if (rootObj is Dictionary<string, object> root && root.ContainsKey("models"))
+                    using (var response = await http.GetAsync(url).ConfigureAwait(false))
                     {
-                        if (root["models"] is object[] arr)
+                        string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        if (!response.IsSuccessStatusCode)
                         {
-                            foreach (var item in arr)
+                            string head = body.Length > 500 ? body.Substring(0, 500) + "..." : body;
+                            throw new HttpRequestException(
+                                $"LLM HTTP {(int)response.StatusCode} {response.StatusCode} (GET {url})\nResponse-Head: {head}");
+                        }
+
+                        var serializer = new JavaScriptSerializer();
+                        var root = serializer.DeserializeObject(body) as Dictionary<string, object>;
+                        if (root == null || !root.TryGetValue("data", out var dataObject) ||
+                            !(dataObject is object[] data))
+                        {
+                            throw new InvalidOperationException("モデル一覧に data 配列がありません。");
+                        }
+
+                        var modelList = new List<ModelInfo>();
+                        foreach (var item in data)
+                        {
+                            if (item is Dictionary<string, object> model &&
+                                model.TryGetValue("id", out var idObject))
                             {
-                                if (item is Dictionary<string, object> dict)
+                                string id = idObject?.ToString() ?? string.Empty;
+                                if (!string.IsNullOrWhiteSpace(id))
                                 {
                                     var info = new ModelInfo
                                     {
-                                        Name = dict.ContainsKey("name") ? dict["name"].ToString() : "",
-                                        Digest = dict.ContainsKey("digest") ? dict["digest"].ToString() : "",
-                                        Size = dict.ContainsKey("size") ? Convert.ToInt64(dict["size"]) : 0,
-                                        ModifiedAt = dict.ContainsKey("modified_at")
-                                            ? DateTime.Parse(dict["modified_at"].ToString())
-                                            : DateTime.MinValue
+                                        Name = id,
+                                        Owner = model.TryGetValue("owned_by", out var ownerObject)
+                                            ? ownerObject?.ToString() ?? string.Empty
+                                            : string.Empty
                                     };
                                     modelList.Add(info);
                                 }
                             }
                         }
-                    }
-                    ollamaModelList = modelList;
 
-                    return modelList;
+                        modelList = modelList
+                            .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                        llmModelList = modelList;
+                        return modelList;
+                    }
                 }
             }
             catch (Exception ex)
             {
-                await AddLogAsync($"ollamaモデルの取得に失敗しました。{ex.Message}｝");
-                return null;
+                await AddLogAsync($"OpenAI互換APIのモデル取得に失敗しました。{ex.Message}");
+                throw;
             }
         }
 
@@ -2510,23 +2586,34 @@ namespace OQSDrug
         public static async Task SetModelsToComboBox(ComboBox cb, List<ModelInfo> modelList, string selectedModel = "")
         {
             cb.DataSource = null;
-            // バインド（表示＝Name、値＝Name でOK。Digestを使うなら ValueMember="Digest" に）
             cb.DisplayMember = "Name";
             cb.ValueMember = "Name";
-            cb.DataSource = modelList;
 
-            // 既存設定があれば選択
             try
             {
+                var items = (modelList ?? new List<ModelInfo>())
+                    .Where(m => m != null && !string.IsNullOrWhiteSpace(m.Name))
+                    .GroupBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .ToList();
+
+                if (!string.IsNullOrWhiteSpace(selectedModel) &&
+                    !items.Any(m => string.Equals(m.Name, selectedModel, StringComparison.OrdinalIgnoreCase)))
+                {
+                    items.Insert(0, new ModelInfo { Name = selectedModel });
+                }
+
+                cb.DataSource = items;
+
                 if (!string.IsNullOrWhiteSpace(selectedModel))
                 {
-                    int idx = modelList.FindIndex(m => string.Equals(m.Name, selectedModel, StringComparison.OrdinalIgnoreCase));
+                    int idx = items.FindIndex(m => string.Equals(m.Name, selectedModel, StringComparison.OrdinalIgnoreCase));
                     if (idx >= 0) cb.SelectedIndex = idx;
                 }
             }
             catch (Exception ex)
             {
-                await AddLogAsync("ollamaリスト一覧の設定に失敗しました" + ex.Message);
+                await AddLogAsync("LLMモデル一覧の設定に失敗しました" + ex.Message);
             }
         }
 

@@ -38,7 +38,7 @@ namespace OQSDrug
                 _tplTable = await LoadPromptTemplatesAsync(); // 2) 中身を取得
 
                 //models設定
-                SetModelsToComboBox(comboBoxModels, ollamaModelList);
+                await SetModelsToComboBox(comboBoxModels, llmModelList);
 
                 listBoxTemplates.SelectedIndexChanged -= listBoxTemplates_SelectedIndexChanged;
                 ShowListBox(_tplTable, 0);  // 3) コンボへバインド
@@ -143,7 +143,7 @@ namespace OQSDrug
         }
 
 
-        private void listBoxTemplates_SelectedIndexChanged(object sender, EventArgs e)
+        private async void listBoxTemplates_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (_loading) return;
 
@@ -170,7 +170,7 @@ namespace OQSDrug
                 var modelName = row.Table.Columns.Contains("model_name") && row["model_name"] != DBNull.Value
                               ? row["model_name"].ToString()
                               : "";
-                SetModelsToComboBox(comboBoxModels, ollamaModelList, modelName);
+                await SetModelsToComboBox(comboBoxModels, llmModelList, modelName);
 
                 // --- options_json → 各コントロールへ ---
                 string json = row.Table.Columns.Contains("options_json") && row["options_json"] != DBNull.Value
@@ -244,7 +244,7 @@ namespace OQSDrug
             return d;
         }
 
-        private void toolStripButtonAddnew_Click(object sender, EventArgs e)
+        private async void toolStripButtonAddnew_Click(object sender, EventArgs e)
         {
             _loading = true;
             try
@@ -254,7 +254,7 @@ namespace OQSDrug
 
                 textBoxTplTitle.Text = "";
                 
-                SetModelsToComboBox(comboBoxModels,ollamaModelList,Properties.Settings.Default.LLMmodel);
+                await SetModelsToComboBox(comboBoxModels,llmModelList,Properties.Settings.Default.LLMmodel);
 
                 checkBoxAutofetch.Checked = false;
                 textBoxPrompt.Text = "";

@@ -63,6 +63,8 @@
             this.labelLLMserver = new System.Windows.Forms.Label();
             this.comboBoxLLMModels = new System.Windows.Forms.ComboBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.textBoxLLMapikey = new System.Windows.Forms.TextBox();
+            this.labelLLMapikey = new System.Windows.Forms.Label();
             this.buttonGetModels = new System.Windows.Forms.Button();
             this.textBoxLLMtimeout = new System.Windows.Forms.TextBox();
             this.labelLLMtimeout = new System.Windows.Forms.Label();
@@ -467,7 +469,7 @@
             this.checkBoxAI.Size = new System.Drawing.Size(83, 16);
             this.checkBoxAI.TabIndex = 85;
             this.checkBoxAI.Text = "AI自動検索";
-            this.toolTipSetting.SetToolTip(this.checkBoxAI, "ONにすると、プロンプトテンプレートで自動取得が設定されたテンプレートで\r\nollamaに自動で問い合わせを行います。\r\n薬歴を取り込むPCでのみ有効です。");
+            this.toolTipSetting.SetToolTip(this.checkBoxAI, "ONにすると、プロンプトテンプレートで自動取得が設定されたテンプレートで\r\nLLMに自動で問い合わせを行います。\r\n薬歴を取り込むPCでのみ有効です。");
             this.checkBoxAI.UseVisualStyleBackColor = true;
             this.checkBoxAI.CheckedChanged += new System.EventHandler(this.checkBoxAI_CheckedChanged);
             // 
@@ -478,22 +480,24 @@
             this.labelLLMserver.Name = "labelLLMserver";
             this.labelLLMserver.Size = new System.Drawing.Size(62, 12);
             this.labelLLMserver.TabIndex = 87;
-            this.labelLLMserver.Text = "LLMアドレス";
-            this.toolTipSetting.SetToolTip(this.labelLLMserver, "通常はダイナミクスのdatadyna.mdbのあるフォルダに配置・設定してください");
+            this.labelLLMserver.Text = "LLM Base URL";
+            this.toolTipSetting.SetToolTip(this.labelLLMserver, "ホスト名、IPアドレス、または http(s):// から始まるURLを指定します。/v1 は自動で補われます。");
             // 
             // comboBoxLLMModels
             // 
-            this.comboBoxLLMModels.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxLLMModels.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
             this.comboBoxLLMModels.FormattingEnabled = true;
             this.comboBoxLLMModels.Location = new System.Drawing.Point(237, 122);
             this.comboBoxLLMModels.Name = "comboBoxLLMModels";
             this.comboBoxLLMModels.Size = new System.Drawing.Size(182, 20);
             this.comboBoxLLMModels.TabIndex = 95;
-            this.toolTipSetting.SetToolTip(this.comboBoxLLMModels, "LLMアドレスとポートを設定し、リスト取得を押すと\r\n一覧から選択できるようになります");
+            this.toolTipSetting.SetToolTip(this.comboBoxLLMModels, "一覧から選択するか、モデルIDを直接入力します。");
             this.comboBoxLLMModels.SelectionChangeCommitted += new System.EventHandler(this.comboBoxLLMModels_SelectionChangeCommitted);
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.textBoxLLMapikey);
+            this.groupBox1.Controls.Add(this.labelLLMapikey);
             this.groupBox1.Controls.Add(this.comboBoxLLMModels);
             this.groupBox1.Controls.Add(this.buttonGetModels);
             this.groupBox1.Controls.Add(this.textBoxLLMtimeout);
@@ -520,11 +524,29 @@
             this.groupBox1.Controls.Add(this.labelPG1);
             this.groupBox1.Location = new System.Drawing.Point(6, 6);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(555, 158);
+            this.groupBox1.Size = new System.Drawing.Size(555, 183);
             this.groupBox1.TabIndex = 85;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = " データベース形式";
             this.toolTipSetting.SetToolTip(this.groupBox1, "OQSDrugのバックエンドデータベースを設定します");
+            //
+            // textBoxLLMapikey
+            //
+            this.textBoxLLMapikey.Location = new System.Drawing.Point(237, 147);
+            this.textBoxLLMapikey.Name = "textBoxLLMapikey";
+            this.textBoxLLMapikey.PasswordChar = '*';
+            this.textBoxLLMapikey.Size = new System.Drawing.Size(306, 19);
+            this.textBoxLLMapikey.TabIndex = 97;
+            this.toolTipSetting.SetToolTip(this.textBoxLLMapikey, "認証不要のローカルLLMでは空欄にします。");
+            //
+            // labelLLMapikey
+            //
+            this.labelLLMapikey.AutoSize = true;
+            this.labelLLMapikey.Location = new System.Drawing.Point(150, 150);
+            this.labelLLMapikey.Name = "labelLLMapikey";
+            this.labelLLMapikey.Size = new System.Drawing.Size(45, 12);
+            this.labelLLMapikey.TabIndex = 96;
+            this.labelLLMapikey.Text = "API key";
             // 
             // buttonGetModels
             // 
@@ -690,7 +712,7 @@
             // checkBoxMinimumStart
             // 
             this.checkBoxMinimumStart.AutoSize = true;
-            this.checkBoxMinimumStart.Location = new System.Drawing.Point(14, 195);
+            this.checkBoxMinimumStart.Location = new System.Drawing.Point(14, 220);
             this.checkBoxMinimumStart.Name = "checkBoxMinimumStart";
             this.checkBoxMinimumStart.Size = new System.Drawing.Size(96, 16);
             this.checkBoxMinimumStart.TabIndex = 86;
@@ -700,7 +722,7 @@
             // 
             // textBoxMCode
             // 
-            this.textBoxMCode.Location = new System.Drawing.Point(98, 170);
+            this.textBoxMCode.Location = new System.Drawing.Point(98, 195);
             this.textBoxMCode.Name = "textBoxMCode";
             this.textBoxMCode.Size = new System.Drawing.Size(100, 19);
             this.textBoxMCode.TabIndex = 88;
@@ -819,7 +841,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(12, 173);
+            this.label5.Location = new System.Drawing.Point(12, 198);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(80, 12);
             this.label5.TabIndex = 87;
@@ -1690,6 +1712,8 @@
         private System.Windows.Forms.NumericUpDown numericUpDownBulkMedicalAidMaxRetryCount;
         private System.Windows.Forms.TabPage tabPageCommon;
         private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.TextBox textBoxLLMapikey;
+        private System.Windows.Forms.Label labelLLMapikey;
         private System.Windows.Forms.ComboBox comboBoxLLMModels;
         private System.Windows.Forms.Button buttonGetModels;
         private System.Windows.Forms.TextBox textBoxLLMtimeout;

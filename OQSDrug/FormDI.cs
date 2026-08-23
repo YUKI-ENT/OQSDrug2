@@ -1646,7 +1646,7 @@ namespace OQSDrug
                 {
                     // 取得できなかった場合はモデル一覧だけ既定値で表示 or クリア
                     var fallbackModel = Properties.Settings.Default.LLMmodel ?? string.Empty;
-                    await SetModelsToComboBox(comboBoxModel, ollamaModelList ?? new List<ModelInfo>(), fallbackModel);
+                    await SetModelsToComboBox(comboBoxModel, llmModelList ?? new List<ModelInfo>(), fallbackModel);
                     return;
                 }
 
@@ -1666,7 +1666,7 @@ namespace OQSDrug
                     : (Properties.Settings.Default.LLMmodel ?? string.Empty);
 
                 // 5) モデル一覧をバインド（null安全）
-                await SetModelsToComboBox(comboBoxModel, ollamaModelList ?? new List<ModelInfo>(), defaultModel);
+                await SetModelsToComboBox(comboBoxModel, llmModelList ?? new List<ModelInfo>(), defaultModel);
             }
             catch (Exception ex)
             {

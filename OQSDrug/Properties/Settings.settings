@@ -146,6 +146,9 @@
     <Setting Name="LLMtimeout" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">120</Value>
     </Setting>
+    <Setting Name="LLMapikey" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
     <Setting Name="DIviewer" Type="System.String" Scope="User">
       <Value Profile="(Default)">SGML</Value>
     </Setting>

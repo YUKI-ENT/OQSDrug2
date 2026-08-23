@@ -598,6 +598,18 @@ namespace OQSDrug.Properties {
                 this["LLMtimeout"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LLMapikey {
+            get {
+                return ((string)(this["LLMapikey"]));
+            }
+            set {
+                this["LLMapikey"] = value;
+            }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
