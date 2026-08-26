@@ -19,7 +19,6 @@ namespace OQSDrug
 
         private TabPage _tabXmlDocument;
         private WebBrowser _xmlDocumentBrowser;
-        private RichTextBox _xmlSourceText;
         private ListBox _xmlSectionList;
         private ComboBox _xmlSearchCombo;
         private Button _xmlSearchButton;
@@ -142,18 +141,6 @@ namespace OQSDrug
                 UseVisualStyleBackColor = true
             };
 
-            var viewTabs = new TabControl
-            {
-                Dock = DockStyle.Fill,
-                Font = new Font("Meiryo UI", 9F)
-            };
-
-            var renderedPage = new TabPage
-            {
-                Text = "文書表示",
-                Padding = new Padding(0),
-                UseVisualStyleBackColor = true
-            };
             var renderedRoot = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -174,7 +161,7 @@ namespace OQSDrug
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
+                WrapContents = true,
                 AutoScroll = true,
                 Padding = new Padding(7, 5, 7, 4),
                 Margin = Padding.Empty,
@@ -222,28 +209,7 @@ namespace OQSDrug
             _xmlDocumentBrowser.DocumentCompleted += XmlDocumentBrowser_DocumentCompleted;
             documentSplit.Panel2.Controls.Add(_xmlDocumentBrowser);
             renderedRoot.Controls.Add(documentSplit, 0, 2);
-            renderedPage.Controls.Add(renderedRoot);
-
-            var sourcePage = new TabPage
-            {
-                Text = "XML原文",
-                Padding = new Padding(3),
-                UseVisualStyleBackColor = true
-            };
-            _xmlSourceText = new RichTextBox
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                DetectUrls = false,
-                WordWrap = false,
-                BackColor = Color.White,
-                Font = new Font("Consolas", 9F)
-            };
-            sourcePage.Controls.Add(_xmlSourceText);
-
-            viewTabs.TabPages.Add(renderedPage);
-            viewTabs.TabPages.Add(sourcePage);
-            _tabXmlDocument.Controls.Add(viewTabs);
+            _tabXmlDocument.Controls.Add(renderedRoot);
             tabMain.TabPages.Add(_tabXmlDocument);
 
             ClearXmlDocumentViewer("薬剤を選択するとXML形式の添付文書を表示します。");
@@ -337,16 +303,13 @@ namespace OQSDrug
             if (_xmlSearchStatus != null)
                 _xmlSearchStatus.Text = string.Empty;
             ClearAutomaticXmlSearchMatches();
-            if (_xmlSourceText != null)
-                _xmlSourceText.Text = string.Empty;
-
             if (_xmlDocumentBrowser != null)
                 _xmlDocumentBrowser.DocumentText = BuildViewerMessageHtml(message, false);
         }
 
         private void DisplayXmlDocument(string xmlText, DateTime? updatedAt)
         {
-            if (_xmlSourceText == null || _xmlDocumentBrowser == null) return;
+            if (_xmlDocumentBrowser == null) return;
 
             bool useXmlViewer = updatedAt.HasValue && updatedAt.Value > RawXmlFormatThreshold;
             SetXmlDocumentMode(useXmlViewer);
@@ -366,7 +329,6 @@ namespace OQSDrug
             }
 
             ReloadXmlSearchItems();
-            _xmlSourceText.Text = xmlText;
 
             try
             {
@@ -381,7 +343,7 @@ namespace OQSDrug
             catch (Exception ex)
             {
                 _xmlDocumentBrowser.DocumentText = BuildViewerMessageHtml(
-                    "XMLを解析できませんでした。XML原文タブで内容を確認してください。\r\n" + ex.Message,
+                    "XMLを解析できませんでした。\r\n" + ex.Message,
                     true);
             }
         }
@@ -533,7 +495,7 @@ namespace OQSDrug
 
             _xmlAutomaticMatchesPanel.Visible = true;
             if (_xmlAutomaticMatchesRowStyle != null)
-                _xmlAutomaticMatchesRowStyle.Height = 60F;
+                _xmlAutomaticMatchesRowStyle.Height = 68F;
         }
 
         private void ClearAutomaticXmlSearchMatches()
@@ -1600,7 +1562,7 @@ namespace OQSDrug
                 "h1{font-size:24px;margin:0 0 4px;color:#20364f;}h2{font-size:19px;color:#234f7d;background:#eef4fa;border-left:6px solid #3d75aa;padding:7px 10px;margin:26px 0 12px;}" +
                 "h3{font-size:16px;margin:16px 0 6px;}.section{max-width:1100px;}p{margin:7px 0;}" +
                 ".table-scroll{max-width:100%;overflow-x:auto;margin:12px 0;}table{border-collapse:collapse;width:100%;margin:0;}th,td{border:1px solid #9da8b3;padding:7px 9px;vertical-align:top;}th{background:#edf2f6;font-weight:bold;}" +
-                ".pmda-table>tbody>tr:first-child>td{background:#f4f7fa;font-weight:bold;}.adverse-table>tbody>tr:first-child>td{background:#fff;font-weight:normal;}.adverse-table th[scope=row]{white-space:nowrap;text-align:left;}.align-center{text-align:center}.align-right{text-align:right}.align-left{text-align:left}" +
+                ".pmda-table>tbody>tr:first-child>td{background:#f4f7fa;font-weight:bold;}.interaction-table>tbody>tr:first-child>td,.adverse-table>tbody>tr:first-child>td{background:#fff;font-weight:normal;}.adverse-table th[scope=row]{white-space:nowrap;text-align:left;}.align-center{text-align:center}.align-right{text-align:right}.align-left{text-align:left}" +
                 "caption{text-align:left;font-size:16px;font-weight:bold;color:#234f7d;padding:6px 2px}.interaction-table th:first-child{width:25%}.property-table th[scope=row]{width:20%;text-align:left;white-space:nowrap}.property-table p,.interaction-table p,.adverse-table p{margin:0}.table-foot td{font-size:12px;background:#f8fafc}.sub-label{font-weight:bold;color:#46586a}.brand-block{margin:10px 0 18px}.brand-block h4{font-size:14px;margin:6px 0;color:#365f91}.xml-reference a{color:#245f9e;text-decoration:none}.xml-reference a:hover{text-decoration:underline}.xml-ref-target{display:inline;position:relative;top:-6px}" +
                 ".summary{max-width:1100px;margin-bottom:28px}.summary-item{border:1px solid #ccd6df;background:#f8fafc;margin:10px 0;padding:8px 12px}.summary-item.warning{border-color:#d8aaaa;background:#fff5f5;color:#7d2020;}" +
                 "span.search-hit{background-color:#ffea73;color:#111;border:1px solid #e0bd20;padding:1px 2px;}" +
