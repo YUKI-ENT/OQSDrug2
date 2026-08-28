@@ -7,7 +7,7 @@
 - バックエンドデータベースをAccess mdb形式からPostgreSQLに変更
 - 薬剤添付文書情報を持たせており、薬剤相互作用情報（併用禁忌や注意）のリスト形式表示が可能
 - **AI機能**：ローカルLLMである`ollama`が使える環境では、xml薬歴取得後、**自動で投薬内容から疾患状況を推論して表示**可能
-- 薬剤添付文書も本ツールから表示可能
+- 薬剤添付文書も本ツールからインターネット接続無しで表示可能
 - 添付文書情報もPostgreSQLに構造化した状態（JSON形式）で保存してありますので、今後LLMの学習等に利用加工が可能
   
 となっております。
@@ -32,12 +32,14 @@
 ![スクリーンショット 2025-11-25 234411](https://github.com/user-attachments/assets/a1bcc6d3-1914-4806-ae53-895b4d817eb0)
 
 <<AI推論表示画面>>
+- ローカルLLM(ollama)を使いますので、個人情報がインターネットにでることはありません。
 - プロンプト内容は自由に編集できます。こちらは投薬内容から疾患を推測させています。
 ![DI3](https://github.com/user-attachments/assets/a66d916c-3d1b-4d73-943d-30db991f9952)
 
  <<添付文書表示画面>>
  - PMDAから取得したSGML(XML)ファイルをタブ形式で表示しています。**文書内検索、薬剤相互作用のリスト表示、ダイナミクスKorodataに含まれる禁忌リスト**も表示可能です。
- ![y2](https://github.com/user-attachments/assets/8b5f7011-eaa3-4546-aa83-40ae7fe0d3c3)
+ - 事前に設定した「眼圧 OR 緑内障」や「QT OR Torsade」等のキーワードを自動で検索し、ヒットした項目だけ表示します。
+   <img width="957" height="974" alt="スクリーンショット 2026-08-28 104718" src="https://github.com/user-attachments/assets/46dac9a0-26fb-4b94-872e-6df702d1143b" />
 
 
 ---
@@ -125,6 +127,7 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
      - `設定`は`共通設定`、`取込設定`、`Viewer設定`、`Bulk Tool設定`に分かれています。
      - 取込機能を使うときは、`共通設定`、`取込設定`が必須で、Viewerとして使うときは、`共通設定`、`Viewer設定`が必須です。
      - **共通設定**
+       
        <img width="617" height="553" alt="setting1" src="https://github.com/user-attachments/assets/6a8d9bd3-5ab4-4b18-a794-5ea84840f6af" />
  
        - OQSDrug2ではデータベース形式mdbでも一部動作は可能ですが、薬剤添付文書機能や相互作用検索、AI機能、BulkTool機能はPostgreSQLにしか対応していないので、PostgreSQLを使うことをおすすめすます。 
@@ -158,6 +161,7 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
        ![PG16](https://github.com/user-attachments/assets/e44a9507-e1ad-429e-a3c7-ec4158029414)
 
   - **取込設定**
+  
     <img width="617" height="553" alt="setting2" src="https://github.com/user-attachments/assets/e6d7de6f-814e-4053-b439-626492741dd5" />
  
     - 取込を行うPCでは、ダイナミクスの場所（ダイナミクスクライアントを動かしていないPCではダイナミクスのdatadyna.mdbを、ダイナクライアントクライアントが動いている場合は稼働中のダイナクライアントを指定）、OQSフォルダ（オンライン資格確認端末のoqsフォルダの共有名）を指定。
@@ -165,8 +169,11 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
     - Viewerとしてしか使用しない場合は、これらの設定は不要です。
     
   - **Viewer設定**
-    - <img width="617" height="553" alt="setting3" src="https://github.com/user-attachments/assets/02ed90cd-35a0-4570-8527-70234d36ebc5" />
+  
+     <img width="617" height="553" alt="setting3" src="https://github.com/user-attachments/assets/02ed90cd-35a0-4570-8527-70234d36ebc5" />
+
   - **BulkTool設定**
+
     <img width="617" height="553" alt="setting4" src="https://github.com/user-attachments/assets/aebd7808-d6c5-40d2-89cf-4b8025c2ac7d" />
  
     - マイナ資格確認アプリや、マイナ資格確認Webで同意・確認を行ったオンライン診療、訪問診療情報や医療扶助の情報を取り込む設定をします。
@@ -189,14 +196,16 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
     ![DI22](https://github.com/user-attachments/assets/c83ecddf-64d8-4c0d-9b3d-5336f5b6bcd5)
 
     こんな感じの薬剤情報が表示できます。項目ごとにタブにしてあります。
+ 
+    <img width="957" height="974" alt="スクリーンショット 2026-08-28 104753" src="https://github.com/user-attachments/assets/610a3057-bdcd-4ba5-a1b6-012acae17688" />
 
-    ![y2](https://github.com/user-attachments/assets/a3322a55-37bd-4049-885e-5a12ecf4d29a)
 
     ① 検索したい薬剤名を入れると、ファジー検索します。
     
     ② 文書内検索もできます。項目タブをまたいで全文検索できます。
  
-      ![y3 ](https://github.com/user-attachments/assets/ff5a1a6a-772c-4dd4-974f-520ee72da0f9)
+      <img width="957" height="974" alt="スクリーンショット 2026-08-28 112324" src="https://github.com/user-attachments/assets/ba17fe17-aa7c-429b-a9ce-851f6ea52163" />
+
 
  
     ③ 相互作用薬のリスト表示はこちらでも可能です。
