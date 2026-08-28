@@ -97,9 +97,13 @@
       ```
       host    all             all             192.168.11.1/24         scram-sha-256
       ```
+
     - PostgreSQLサービスを再起動します
+    
       ![スクリーンショット 2025-11-25 225643](https://github.com/user-attachments/assets/13d02afe-97b6-4108-b0dc-bb1a47b29744)
+
     - それでも繋がらない場合は、Windowsファイヤーウォールの設定も確認します。普通は自動で許可されているはずです。
+    
       ![スクリーンショット 2025-11-25 225912](https://github.com/user-attachments/assets/fa68f8fe-8cba-4deb-bbe4-76abfcfbb8df)
 
 
