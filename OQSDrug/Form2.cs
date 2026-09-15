@@ -40,6 +40,9 @@ namespace OQSDrug
             // 設定値を読み込む
             textBoxOQSDrugData.Text = Properties.Settings.Default.OQSDrugData;
             textBoxDatadyna.Text = Properties.Settings.Default.Datadyna;
+            radioButtonDynamicsCom.Checked = Properties.Settings.Default.DynamicsUseCom;
+            radioButtonDynamicsMdb.Checked = !Properties.Settings.Default.DynamicsUseCom;
+            UpdateDynamicsSourceControls();
             textBoxOQSFolder.Text = Properties.Settings.Default.OQSFolder;
             
             textBoxMCode.Text = Properties.Settings.Default.MCode;
@@ -312,6 +315,7 @@ namespace OQSDrug
         {
             Properties.Settings.Default.OQSDrugData = textBoxOQSDrugData.Text;
             Properties.Settings.Default.Datadyna =textBoxDatadyna.Text;
+            Properties.Settings.Default.DynamicsUseCom = radioButtonDynamicsCom.Checked;
             Properties.Settings.Default.OQSFolder = textBoxOQSFolder.Text;
             
 
@@ -424,6 +428,21 @@ namespace OQSDrug
                 textBoxOQSDrugData.Text = openFileDialog.FileName;
             }
             
+        }
+
+        private void DynamicsSource_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateDynamicsSourceControls();
+        }
+
+        private void UpdateDynamicsSourceControls()
+        {
+            bool useCom = radioButtonDynamicsCom.Checked;
+            textBoxDatadyna.Enabled = !useCom;
+            buttonDatadyna.Enabled = !useCom;
+            label17.Text = useCom
+                ? "起動中の電カルから取得します。MDBの場所の指定は不要です。\r\n電カル未起動時は、タイマーで接続を再確認します。"
+                : "電カル稼働PCではクライアントダイナ、それ以外はdatadyna.mdbを指定。\r\nクライアント更新でファイル名が変わった場合は再指定してください。";
         }
 
         private void buttonDatadyna_Click(object sender, EventArgs e)

@@ -52,10 +52,10 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
-    <SignAssembly>true</SignAssembly>
+    <SignAssembly>false</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <SignManifests>true</SignManifests>
+    <SignManifests>false</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestCertificateThumbprint>89AA6D9BABBAAE6672A34DE9F07E47359389ACF2</ManifestCertificateThumbprint>
@@ -165,6 +165,10 @@
     <Compile Include="BulkQualificationAutomation.cs" />
     <Compile Include="BulkExecutionProgressModels.cs" />
     <Compile Include="CommonFunctions.cs" />
+    <Compile Include="DynamicsComReader.cs" />
+    <Compile Include="DynamicsDataSource.cs" />
+    <Compile Include="ResImportWorker.cs" />
+    <Compile Include="PatientViewLoadState.cs" />
     <Compile Include="CustomToolStripRenderer.cs" />
     <Compile Include="MonthNumericUpDown.cs">
       <SubType>Component</SubType>

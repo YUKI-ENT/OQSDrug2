@@ -251,6 +251,11 @@ namespace OQSDrug
                         }
                     }
                 }
+                else if (Properties.Settings.Default.DynamicsUseCom)
+                {
+                    dt = await DynamicsComReader.ReadAsync("SELECT * FROM [" + DynamicsComReader.QualificationTable + "]");
+                    AddLogSafe($"[DynaViewer] COM loaded rows={dt.Rows.Count} cols={dt.Columns.Count}");
+                }
                 else
                 {
                     // Access: read Datadyna table

@@ -5,7 +5,6 @@ using NpgsqlTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.Configuration;
 using System.Data;
 using System.Data.Common;
@@ -49,6 +48,9 @@ namespace OQSDrug
         private readonly SemaphoreSlim dynaTableResolveSemaphore = new SemaphoreSlim(1, 1);
         private string cachedDynaPath = null;
         private string cachedDynaTable = null;
+        private readonly SemaphoreSlim koroLoadSemaphore = new SemaphoreSlim(1, 1);
+        private bool comMastersLoaded;
+        private DateTime nextComMasterAttempt = DateTime.MinValue;
         private readonly SemaphoreSlim sgmlLoadSemaphore = new SemaphoreSlim(1, 1);
         private bool initBackgroundLoadCompleted = false;
 
@@ -63,7 +65,7 @@ namespace OQSDrug
 
         //private Timer timer;
         private bool isTimerRunning = false; // タイマーの状態フラグ
-        private bool isOQSRunnnig = false;   //取得開始しているか
+        private volatile bool isOQSRunnnig = false;   //取得開始しているか
         private bool isFormVisible = true;  //最小化
 
         private bool skipReload = false; //reqResult更新をスキップする 1回だけ
@@ -77,17 +79,7 @@ namespace OQSDrug
         int idStyle = 0;
         private readonly SemaphoreSlim idChangeSemaphore = new SemaphoreSlim(1, 1);
         int fileReadDelayms = 500;
-        // res folder watcher debounce and processing
-        private int resFileDelayms = 1000;
-        private bool resEventScheduled = false;
-        private readonly object resEventLock = new object();
-        private System.Threading.SemaphoreSlim resProcessingSemaphore = new System.Threading.SemaphoreSlim(1, 1);
-
-        // Plan B: lightweight queue + background consumer (non-invasive)
-        private ConcurrentQueue<string> resQueue = new ConcurrentQueue<string>();
-        private AutoResetEvent resQueueSignal = new AutoResetEvent(false);
-        private CancellationTokenSource resConsumerCts = new CancellationTokenSource();
-        private Task resConsumerTask = null;
+        private readonly ResImportWorker resImportWorker;
         // Plan C: bounded concurrency for LLM auto-queries
         private System.Threading.SemaphoreSlim llmSemaphore = new System.Threading.SemaphoreSlim(1, 1); // 1 concurrent by default
 
@@ -130,10 +122,14 @@ namespace OQSDrug
             // UIログ表示のコールバック登録
             CommonFunctions.UiLogCallback = AddLogAsyncToUi;
 
-            // Initialize res-folder watcher helpers (Plan A preparatory fields)
-            this.resEventLock = new object();
-            this.resProcessingSemaphore = new System.Threading.SemaphoreSlim(1, 1);
-            this.resFileDelayms = 2000; // debounce delay (ms)
+            resImportWorker = new ResImportWorker(
+                () => isOQSRunnnig && !IsDisposed && !Disposing,
+                async () =>
+                {
+                    await ProcessResAsync();
+                    await reloadDataAsync();
+                },
+                ex => AddLogAsync("resバックグラウンド取込エラー（次回再試行）: " + ex.Message));
 
             //InitializeTimer();
         }
@@ -386,60 +382,6 @@ namespace OQSDrug
             }
         }
 
-        // Background consumer loop for resQueue (Plan B)
-        private async Task ResQueueConsumerLoop(CancellationToken ct)
-        {
-            try
-            {
-                while (!ct.IsCancellationRequested)
-                {
-                    // Wait for signal or timeout
-                    resQueueSignal.WaitOne(5000);
-
-                    if (ct.IsCancellationRequested) break;
-
-                    // If processing is not running (StartStop unchecked), skip processing here
-                    if (!isOQSRunnnig)
-                    {
-                        // do not process while stopped; leave queue intact so items will be processed when started
-                        continue;
-                    }
-
-                    // Drain queue items (coalesce to single ProcessResAsync call to keep behavior similar)
-                    if (!resQueue.IsEmpty)
-                    {
-                        // Attempt to process; ProcessResAsync already handles DB locking and per-file logic
-                        try
-                        {
-                            await resProcessingSemaphore.WaitAsync(ct);
-                            try
-                            {
-                                await ProcessResAsync();
-                            }
-                            finally
-                            {
-                                resProcessingSemaphore.Release();
-                            }
-                        }
-                        catch (OperationCanceledException) { break; }
-                        catch (Exception ex)
-                        {
-                            AddLogAsync($"ResQueueConsumerLoopで処理中に例外: {ex.Message}");
-                        }
-                        finally
-                        {
-                            // clear queue best-effort
-                            while (resQueue.TryDequeue(out _)) { }
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                AddLogAsync("ResQueueConsumerLoopを終了します");
-            }
-        }
-
         // Plan C: enqueue AutoLLM operations with a simple bounded concurrency helper
         private void QueueAutoLLM(long ptId)
         {
@@ -477,11 +419,17 @@ namespace OQSDrug
 
         private async Task RunTimerLogicAsync()
         {
-            DateTime startTime = DateTime.Now;
             AddLogAsync("タイマーイベント開始");
 
             // Status check
             okSettings = await UpdateStatus();
+            // Also retry masters when Access was launched after OQSDrug, even while acquisition is stopped.
+            if (Properties.Settings.Default.DynamicsUseCom && !comMastersLoaded
+                && (okSettings & 0b011) == 0b011 && DateTime.UtcNow >= nextComMasterAttempt)
+            {
+                nextComMasterAttempt = DateTime.UtcNow.AddMinutes(1);
+                await LoadKoro2SQL();
+            }
             OnUI(() =>
             {
                 this.StartStop.Enabled = (okSettings == 0b111);
@@ -548,6 +496,8 @@ namespace OQSDrug
                     else
                     {
                         AddLogAsync("ダイナミクスMDBが一時的に利用できないため、この周期の取り込みはスキップしました。");
+                        if (Properties.Settings.Default.DynamicsUseCom)
+                            dynaTable = null; // Do not generate requests from old COM data after a failed read.
                     }
 
                     // Backup dynaTable into PostgreSQL when configured
@@ -591,43 +541,8 @@ namespace OQSDrug
                     }
                     await reloadDataAsync();
 
-                    // Resフォルダの処理
-                    bool processCompleted = false;
-                    bool isRemainRes = true;
-
-                    // 5秒ごとにProcessResAsyncを呼び出し
-                    while ((!processCompleted || isRemainRes) && isOQSRunnnig)
-                    {
-                        await Task.Delay(5000);
-
-                        if (!isTimerRunning || !isOQSRunnnig) break;
-
-                        // Try to drain lightweight queue first (Plan B). If consumer is running, avoid duplicate full scans.
-                        bool drained = false;
-                        if (resQueueSignal != null && resConsumerTask != null && !resConsumerTask.IsCompleted)
-                        {
-                            // signal consumer to wake (it will call ProcessResAsync on items)
-                            resQueueSignal.Set();
-                            drained = true;
-                        }
-
-                        if (!drained)
-                        {
-                            processCompleted = await ProcessResAsync();
-                            if (processCompleted) AddLogAsync("すべてのresファイルを処理しました");
-                        }
-
-                        isRemainRes = await RemainResTask();
-
-                        if (isRemainRes && (DateTime.Now - startTime).TotalSeconds > (Properties.Settings.Default.TimerInterval - 5))
-                        {
-                            processCompleted = true;
-                            isRemainRes = false;
-                            AddLogAsync("時間内に処理が終了しませんでしたので、タイマー処理を中止します");
-                        }
-
-                        await reloadDataAsync();
-                    }
+                    // Response import runs independently; never wait for it or impose the request timer's deadline.
+                    resImportWorker.Notify();
                 }
             }
             else if ((okSettings & 0b001) == 1)  //OQSDrugData OK
@@ -671,6 +586,9 @@ namespace OQSDrug
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
+            if (e.Cancel) return;
+            resImportWorker.Dispose();
+            StopResWatcher();
 
             //if (timer != null)
             //{
@@ -780,6 +698,7 @@ namespace OQSDrug
         private async void toolStripButtonSettings_Click(object sender, EventArgs e)
         {
             string previousDatadyna = Properties.Settings.Default.Datadyna;
+            bool previousDynamicsUseCom = Properties.Settings.Default.DynamicsUseCom;
             //動作中の場合は停止する
             if (isOQSRunnnig)
             {
@@ -798,9 +717,13 @@ namespace OQSDrug
 
             //Form2閉じたあと
 
-            if (!string.Equals(previousDatadyna, Properties.Settings.Default.Datadyna, StringComparison.OrdinalIgnoreCase))
+            if (previousDynamicsUseCom != Properties.Settings.Default.DynamicsUseCom
+                || !string.Equals(previousDatadyna, Properties.Settings.Default.Datadyna, StringComparison.OrdinalIgnoreCase))
             {
                 InvalidateDynaTableCache();
+                dynaTable = null;
+                comMastersLoaded = false;
+                nextComMasterAttempt = DateTime.MinValue;
             }
             await initializeForm();
 
@@ -823,6 +746,7 @@ namespace OQSDrug
 
                     //StartTimer();
                     isOQSRunnnig = true;
+                    resImportWorker.Notify();
 
                     AddLogAsync($"タイマー処理を開始します。間隔は{Properties.Settings.Default.TimerInterval}秒です");
 
@@ -1127,6 +1051,19 @@ namespace OQSDrug
 
         private async Task<DataTable> LoadDataFromDatabaseAsync(string dynaPath)
         {
+            if (Properties.Settings.Default.DynamicsUseCom)
+            {
+                DynaTable = DynamicsComReader.QualificationTable;
+                try
+                {
+                    return await DynamicsComReader.ReadAsync("SELECT * FROM [" + DynaTable + "]");
+                }
+                catch (Exception ex)
+                {
+                    await AddLogAsync("電カルCOM読み取りを延期します: " + ex.Message);
+                    return null;
+                }
+            }
             DynaTable = await ResolveCachedDynaTableAsync(dynaPath);
             string connectionString = $"Provider={CommonFunctions.DBProvider};Data Source={dynaPath};Mode={DynaReadMode};Persist Security Info=False;";
             string query = $"SELECT * FROM [{DynaTable}]"; // テーブル名をエスケープ
@@ -1206,6 +1143,7 @@ namespace OQSDrug
 
         private async Task<string> ResolveCachedDynaTableAsync(string dbPath, bool verboseLog = false, bool forceRefresh = false)
         {
+            if (Properties.Settings.Default.DynamicsUseCom) return DynamicsComReader.QualificationTable;
             string wkoTable = "WKO資格確認結果表示";
             string tTable = "T_資格確認結果表示";
 
@@ -1268,6 +1206,17 @@ namespace OQSDrug
 
         private async Task<string> CheckDynamicsAvailabilityAsync(string dbPath, bool verboseLog = false)
         {
+            if (Properties.Settings.Default.DynamicsUseCom)
+            {
+                string status = await DynamicsComReader.CheckAvailabilityAsync();
+                if (status != "OK")
+                {
+                    dynaTable = null;
+                    comMastersLoaded = false;
+                }
+                if (verboseLog) await AddLogAsync("[DynamicsCheck] " + status);
+                return status;
+            }
             if (string.IsNullOrWhiteSpace(dbPath))
             {
                 if (verboseLog) await AddLogAsync("[DynamicsCheck] エラー: Datadyna が未設定です。");
@@ -1870,6 +1819,7 @@ namespace OQSDrug
 
         private void checkAccessProcess()
         {
+            if (Properties.Settings.Default.DynamicsUseCom) return;
             // "msaccess" という名前のプロセスがあるかをチェック
             Process[] processes = Process.GetProcessesByName("msaccess");
 
@@ -3733,7 +3683,8 @@ namespace OQSDrug
             }
 
             string dynaPath = Properties.Settings.Default.Datadyna;
-            if (string.IsNullOrWhiteSpace(dynaPath) || !File.Exists(dynaPath))
+            if (!Properties.Settings.Default.DynamicsUseCom
+                && (string.IsNullOrWhiteSpace(dynaPath) || !File.Exists(dynaPath)))
             {
                 foreach (ImportedQualificationRecord record in session.Records)
                 {
@@ -3775,7 +3726,8 @@ namespace OQSDrug
 
             DataTable table = dynaTable;
             string dynaPath = Properties.Settings.Default.Datadyna;
-            if (!string.IsNullOrWhiteSpace(dynaPath) && File.Exists(dynaPath) && (table == null || table.Rows.Count == 0))
+            if ((Properties.Settings.Default.DynamicsUseCom || (!string.IsNullOrWhiteSpace(dynaPath) && File.Exists(dynaPath)))
+                && (table == null || table.Rows.Count == 0))
             {
                 table = await LoadDataFromDatabaseAsync(dynaPath);
             }
@@ -3812,7 +3764,8 @@ namespace OQSDrug
 
                 if (!await CommonFunctions.WaitForDbUnlock(1000))
                 {
-                    AddLogAsync("データベースがロックされています。ProcessResAsyncをスキップします");
+                    AddLogAsync("データベースがロックされています。res取込は次の走査で再試行します");
+                    return false;
                 }
                 else
                 {
@@ -4224,6 +4177,40 @@ namespace OQSDrug
 
 
 
+        // Post after successful DB import; viewer queries must not hold up the response worker.
+        private void NotifyImportedPatient(long patientId, bool healthCheckup)
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated) return;
+            try
+            {
+                BeginInvoke(new Action(async () =>
+                {
+                    try
+                    {
+                        if (IsDisposed || Disposing) return;
+                        if (healthCheckup)
+                        {
+                            var viewer = formTKKInstance;
+                            if (viewer != null && !viewer.IsDisposed && !viewer.Disposing)
+                                await viewer.RefreshImportedPatientAsync(patientId);
+                        }
+                        else
+                        {
+                            var viewer = formDIInstance;
+                            if (viewer != null && !viewer.IsDisposed && !viewer.Disposing)
+                                await viewer.RefreshImportedPatientAsync(patientId);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await AddLogAsync("取込後の表示更新に失敗しました: " + ex.Message);
+                    }
+                }));
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
+        }
+
         private async Task<string> ProcessTKKAsync(long ptID, XmlDocument xmlDoc, IDbConnection dbConnection)
         {
             AddLogAsync($"{ptID}の特定健診xmlを処理します");
@@ -4311,6 +4298,7 @@ namespace OQSDrug
                     }
                 }
 
+                NotifyImportedPatient(ptIDMain, healthCheckup: true);
                 if (recordCount > 0)
                 {
                     string message = $"{ptName}さんの特定健診{recordCount}件取得";
@@ -4803,6 +4791,7 @@ namespace OQSDrug
                     }
 
 
+                    NotifyImportedPatient(ptIDMain, healthCheckup: false);
                     if (insertedCount > 0) ShowNotification(ptIDMain.ToString(), ptName + "さんの薬歴" + insertedCount + "件取得");
                     return "成功：xml薬歴から" + insertedCount + "件,診療情報" + sinryoCount + "件,重複Revised"+ revisedCount +"件のレコードを読み込みました";
                 }
@@ -5115,54 +5104,6 @@ namespace OQSDrug
             }
         }
 
-        private async Task<bool> RemainResTask()
-        {
-            try
-            {
-                using (IDbConnection connection = CommonFunctions.GetDbConnection(false))
-                {
-                    await ((DbConnection)connection).OpenAsync();
-
-                    // 1. reqDate が1日以上前で resFile と result が NULL のレコードを削除
-                    string deleteSql = @"
-                        DELETE FROM reqResults
-                        WHERE reqDate < @cutoffDate AND resFile IS NULL AND result IS NULL";
-                    deleteSql = CommonFunctions.ConvertSqlForOleDb(deleteSql);
-
-                    using (IDbCommand deleteCommand = connection.CreateCommand())
-                    {
-                        deleteCommand.CommandText = deleteSql;
-                        CommonFunctions.AddDbParameter(deleteCommand, "@cutoffDate", DateTime.Now.AddDays(-1));
-
-                        int updatedRows = await ((DbCommand)deleteCommand).ExecuteNonQueryAsync();
-                        if (updatedRows > 0)
-                        {
-                            AddLogAsync($"タイムアウトデータ {updatedRows} 件削除しました");
-                        }
-                    }
-
-                    // 2. resFile と result が NULL のレコードを検索
-                    string checkSql = @"
-                        SELECT COUNT(*) FROM reqResults
-                        WHERE resFile IS NULL AND result IS NULL";
-                    checkSql = CommonFunctions.ConvertSqlForOleDb(checkSql);
-
-                    using (IDbCommand checkCommand = connection.CreateCommand())
-                    {
-                        checkCommand.CommandText = checkSql;
-                        object result = await ((DbCommand)checkCommand).ExecuteScalarAsync();
-                        return Convert.ToInt32(result) > 0;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogAsync($"RemainResTask でエラー: {ex.Message}");
-                return false;
-            }
-        }
-
-
         private long Name2ID(string ptName, string strBirth, DataTable dataTable)
         {
             long maxPtID = 0;
@@ -5220,7 +5161,7 @@ namespace OQSDrug
             else
             {
                 stopFileWatcher();
-                // also stop res watcher/consumer when auto RSBase is turned off
+                // Stop event notifications only; periodic response import remains independent.
                 try { StopResWatcher(); } catch { }
             }
         }
@@ -5258,24 +5199,8 @@ namespace OQSDrug
                 catch { }
                 resWatcher = null;
             }
-            // stop consumer
-            try
-            {
-                if (resConsumerCts != null && !resConsumerCts.IsCancellationRequested)
-                {
-                    resConsumerCts.Cancel();
-                    resQueueSignal.Set();
-                    if (resConsumerTask != null)
-                    {
-                        resConsumerTask.Wait(2000);
-                        resConsumerTask = null;
-                    }
-                    resConsumerCts.Dispose();
-                    resConsumerCts = null;
-                }
-            }
-            catch { }
         }
+
 
         private void InitializeFileWatcher()
         {
@@ -5385,20 +5310,6 @@ namespace OQSDrug
                 AddLogAsync($"resフォルダ監視の初期化に失敗しました: {ex.Message}");
             }
 
-            // Start lightweight background consumer (Plan B) if not started
-            try
-            {
-                if (resConsumerTask == null || resConsumerTask.IsCompleted)
-                {
-                    resConsumerCts = new CancellationTokenSource();
-                    resConsumerTask = Task.Run(() => ResQueueConsumerLoop(resConsumerCts.Token));
-                    AddLogAsync("resフォルダバックグラウンドコンシューマを起動しました(PlanB)");
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogAsync($"resコンシューマ起動失敗: {ex.Message}");
-            }
         }
 
         // ファイルが変更されたときに呼ばれるイベントハンドラ
@@ -5455,52 +5366,10 @@ namespace OQSDrug
             }
         }
 
-        // Minimal debounced handler for res folder events (Plan A)
+        // Keep a pending wake-up even when a response pass is already running.
         private void ResWatcher_Changed(object sender, FileSystemEventArgs e)
         {
-            // schedule a delayed processing to allow file to be written completely
-            lock (resEventLock)
-            {
-                if (resEventScheduled) return;
-                resEventScheduled = true;
-            }
-
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(resFileDelayms);
-
-                    // Try to enter semaphore briefly to avoid overlapping processing
-                    if (await resProcessingSemaphore.WaitAsync(0))
-                    {
-                        try
-                        {
-                            // Only enqueue when processing is running (StartStop checked)
-                            if (isOQSRunnnig)
-                            {
-                                try { resQueue.Enqueue(e.FullPath); } catch { }
-                                resQueueSignal.Set();
-                            }
-                        }
-                        finally
-                        {
-                            resProcessingSemaphore.Release();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AddLogAsync($"ResWatcher_Changed例外: {ex.Message}");
-                }
-                finally
-                {
-                    lock (resEventLock)
-                    {
-                        resEventScheduled = false;
-                    }
-                }
-            });
+            resImportWorker.Notify();
         }
 
         private async Task ReadIdAsync(string filePath, int style)
@@ -7000,12 +6869,22 @@ namespace OQSDrug
 
         public async Task LoadKoro2SQL()
         {
+            if (!await koroLoadSemaphore.WaitAsync(0)) return;
+            try
+            {
+                await LoadKoro2SQLCore();
+            }
+            finally { koroLoadSemaphore.Release(); }
+        }
+
+        private async Task LoadKoro2SQLCore()
+        {
             bool shouldLoadSgml = Properties.Settings.Default.DBtype == "pg";
             bool sgmlLoadTriggered = false;
             try
             {
                 string Dynamics = Properties.Settings.Default.Datadyna;
-                if (string.IsNullOrWhiteSpace(Dynamics))
+                if (!Properties.Settings.Default.DynamicsUseCom && string.IsNullOrWhiteSpace(Dynamics))
                 {
                     await AddLogAsync("エラー: Datadyna が未設定です。");
                     if (shouldLoadSgml)
@@ -7021,12 +6900,12 @@ namespace OQSDrug
                 }
 
                 // === 0) KOROdata.mdb パス確認 ===
-                string koroPath = Path.Combine(
+                string koroPath = Properties.Settings.Default.DynamicsUseCom ? null : Path.Combine(
                     Path.GetDirectoryName(Dynamics),
                     "KOROdata.mdb"
                 );
 
-                if (!File.Exists(koroPath))
+                if (!Properties.Settings.Default.DynamicsUseCom && !File.Exists(koroPath))
                 {
                     //KOROを読めないときは、SGMLDIの読み込みだけ行う
                     await AddLogAsync("KOROdata.mdb が見つかりませんでした");
@@ -7107,12 +6986,14 @@ namespace OQSDrug
                         sgmlLoadTriggered = true;
                         await LoadSGMLDIAsync();
                         await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
+                        comMastersLoaded = Properties.Settings.Default.DynamicsUseCom;
                     }
                 }
                 else // Accessの場合はDictionaryのみロード
                 {
                     CommonFunctions.ReceptToMedisCodeMap = await ReadKoroMapAsync(koroPath);
                     await AddLogAsync($"KOROdataから {CommonFunctions.ReceptToMedisCodeMap.Count} 件のマッピングを取得。");
+                    comMastersLoaded = Properties.Settings.Default.DynamicsUseCom;
                 }
             }
             catch (Exception ex)
@@ -7123,6 +7004,11 @@ namespace OQSDrug
             {
                 try
                 {
+                    if (Properties.Settings.Default.DynamicsUseCom)
+                    {
+                        // Access may not be running yet; keep the existing PG cache available until it is.
+                        await CommonFunctions.RefreshReceptToMedisCodeMapFromDbAsync();
+                    }
                     await AddLogAsync("SGML薬情インデックスの事後読み込みを試行します。");
                     await LoadSGMLDIAsync();
                     await AddLogAsync("SGML薬剤情報インデックスをDBから読み込みました。");
@@ -7178,10 +7064,7 @@ namespace OQSDrug
                 }
 
                 // KORO (Access) から読み出し
-                string koroConnStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;Jet OLEDB:Database Locking Mode=1;";
-                using (var koro = new System.Data.OleDb.OleDbConnection(koroConnStr))
                 {
-                    await koro.OpenAsync();
 
                     const string sql = @"
                         SELECT 
@@ -7193,8 +7076,8 @@ namespace OQSDrug
                         FROM TG医薬品マスター
                         WHERE 薬価基準コード IS NOT NULL";
 
-                    using (var kcmd = new System.Data.OleDb.OleDbCommand(sql, koro))
-                    using (var r = await kcmd.ExecuteReaderAsync())
+                    using (var source = await DynamicsDataSource.OpenReaderAsync(koroPath, sql, rowLevelLocking: true))
+                    using (var r = source.Reader)
                     using (var writer = pgConn.BeginBinaryImport(@"
                         COPY public.drug_code_map 
                         (drugc, yj_code, yj7, drugn, is_generic, price, updated_at) 
@@ -7311,8 +7194,6 @@ namespace OQSDrug
 
         private async Task BulkLoadPostgresFromMedisAsync(NpgsqlConnection pgConn, string koroPath, DateTime medisVersion)
         {
-            // Access接続（Koroと同じプロバイダ指定）
-            string accConnStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;";
 
             // Postgres: 同期Tx
             using (var tx = pgConn.BeginTransaction())
@@ -7352,9 +7233,7 @@ namespace OQSDrug
                     ddl.ExecuteNonQuery();
                 }
 
-                using (var acc = new OleDbConnection(accConnStr))
                 {
-                    await acc.OpenAsync();
 
                     const string sql = @"
                         SELECT
@@ -7371,8 +7250,8 @@ namespace OQSDrug
                         WHERE [薬価基準コード] IS NOT NULL
                     ";
 
-                    using (var cmd = new OleDbCommand(sql, acc))
-                    using (var r = await cmd.ExecuteReaderAsync())
+                    using (var source = await DynamicsDataSource.OpenReaderAsync(koroPath, sql))
+                    using (var r = source.Reader)
                     using (var writer = pgConn.BeginBinaryImport(@"
                         COPY public.drug_medis_generic
                         (yakka_code, yj_code, generic_name, brand_name, unit, company_name,
@@ -7488,10 +7367,7 @@ namespace OQSDrug
                 }
 
                 // Access (MDB) 側に接続
-                string koroConnStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;";
-                using (var koro = new System.Data.OleDb.OleDbConnection(koroConnStr))
                 {
-                    await koro.OpenAsync();
 
                     const string sql = @"
                         SELECT
@@ -7505,8 +7381,8 @@ namespace OQSDrug
                             [症状処置機序]
                         FROM T_厚生禁忌";
 
-                    using (var kcmd = new System.Data.OleDb.OleDbCommand(sql, koro))
-                    using (var r = await kcmd.ExecuteReaderAsync())
+                    using (var source = await DynamicsDataSource.OpenReaderAsync(koroPath, sql))
+                    using (var r = source.Reader)
                     using (var writer = pgConn.BeginBinaryImport(@"
                         COPY drug_contraindication
                         (self_code, self_name, self_generic, target_code, target_name, target_generic, symptom_action, mechanism, updated_at)
@@ -7626,14 +7502,11 @@ namespace OQSDrug
         // KORO: 最新の更新日（先頭行）を取得
         private async Task<DateTime?> GetKoroLatestVersionAsync(string koroPath)
         {
-            string connStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;";
             const string sql = "SELECT TOP 1 更新日 AS Ver FROM T_更新日 ORDER BY 更新日 DESC";
 
-            using (var cn = new OleDbConnection(connStr))
+            using (var source = await DynamicsDataSource.OpenReaderAsync(koroPath, sql))
             {
-                await cn.OpenAsync();
-                using (var cmd = new OleDbCommand(sql, cn))
-                using (var r = await cmd.ExecuteReaderAsync())
+                using (var r = source.Reader)
                 {
                     if (await r.ReadAsync())
                     {
@@ -7649,18 +7522,15 @@ namespace OQSDrug
         private async Task<Dictionary<string, string>> ReadKoroMapAsync(string koroPath)
         {
             var map = new Dictionary<string, string>();
-            string connStr = $"Provider={CommonFunctions.DBProvider};Data Source={koroPath};Mode=Read;";
             const string sql = @"
                 SELECT 医薬品コード AS ReceptCode, 薬価基準コード AS MedisCode
                 FROM TG医薬品マスター
                 WHERE 薬価基準コード IS NOT NULL
             ";
 
-            using (var cn = new OleDbConnection(connStr))
+            using (var source = await DynamicsDataSource.OpenReaderAsync(koroPath, sql))
             {
-                await cn.OpenAsync();
-                using (var cmd = new OleDbCommand(sql, cn))
-                using (var r = await cmd.ExecuteReaderAsync())
+                using (var r = source.Reader)
                 {
                     while (await r.ReadAsync())
                     {

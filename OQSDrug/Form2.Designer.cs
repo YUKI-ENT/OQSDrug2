@@ -31,6 +31,9 @@
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form2));
             this.textBoxDatadyna = new System.Windows.Forms.TextBox();
+            this.panelDynamicsSource = new System.Windows.Forms.Panel();
+            this.radioButtonDynamicsMdb = new System.Windows.Forms.RadioButton();
+            this.radioButtonDynamicsCom = new System.Windows.Forms.RadioButton();
             this.textBoxOQSFolder = new System.Windows.Forms.TextBox();
             this.checkBoxKeepXml = new System.Windows.Forms.CheckBox();
             this.label1 = new System.Windows.Forms.Label();
@@ -102,53 +105,55 @@
             this.tabPageViewer = new System.Windows.Forms.TabPage();
             this.checkBoxOmitMyOrg = new System.Windows.Forms.CheckBox();
             this.tabPageBulktool = new System.Windows.Forms.TabPage();
-            this.checkBoxBulkAutoSendToFaceEnabled = new System.Windows.Forms.CheckBox();
-            this.numericUpDownBulkMedicalAidMaxRetryCount = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkMedicalAidMaxRetryCount = new System.Windows.Forms.Label();
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkMedicalAidAutoIntervalMinutes = new System.Windows.Forms.Label();
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkMedicalAidPollIntervalSeconds = new System.Windows.Forms.Label();
-            this.numericUpDownBulkMedicalAidMonthForward = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkMedicalAidMonthForward = new System.Windows.Forms.Label();
-            this.numericUpDownBulkMedicalAidMonthBack = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkMedicalAidMonthBack = new System.Windows.Forms.Label();
-            this.labelBulkMedicalAidDescription = new System.Windows.Forms.Label();
-            this.checkBoxBulkMedicalAidAutoEnabled = new System.Windows.Forms.CheckBox();
-            this.numericUpDownBulkOnlineMaxRetryCount = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkOnlineMaxRetryCount = new System.Windows.Forms.Label();
-            this.numericUpDownBulkOnlineAutoIntervalMinutes = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkOnlineAutoIntervalMinutes = new System.Windows.Forms.Label();
-            this.numericUpDownBulkOnlinePollIntervalSeconds = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkOnlinePollIntervalSeconds = new System.Windows.Forms.Label();
-            this.numericUpDownBulkOnlineExaminationDaysForward = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkOnlineExaminationDaysForward = new System.Windows.Forms.Label();
-            this.numericUpDownBulkOnlineExaminationDaysBack = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkOnlineExaminationDaysBack = new System.Windows.Forms.Label();
-            this.numericUpDownBulkOnlineConsentDaysForward = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkOnlineConsentDaysForward = new System.Windows.Forms.Label();
-            this.numericUpDownBulkOnlineConsentDaysBack = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkOnlineConsentDaysBack = new System.Windows.Forms.Label();
-            this.radioButtonBulkOnlineExaminationDates = new System.Windows.Forms.RadioButton();
-            this.radioButtonBulkOnlineConsentDates = new System.Windows.Forms.RadioButton();
-            this.labelBulkOnlineMode = new System.Windows.Forms.Label();
-            this.checkBoxBulkOnlineAutoEnabled = new System.Windows.Forms.CheckBox();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.labelBulkHoumonAutoDescription = new System.Windows.Forms.Label();
+            this.labelBulkHoumonConsentDaysBack = new System.Windows.Forms.Label();
+            this.numericUpDownBulkHoumonConsentDaysBack = new System.Windows.Forms.NumericUpDown();
             this.numericUpDownBulkHoumonMaxRetryCount = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkHoumonConsentDaysForward = new System.Windows.Forms.Label();
             this.labelBulkHoumonMaxRetryCount = new System.Windows.Forms.Label();
-            this.comboBoxBulkStatusWindowMode = new System.Windows.Forms.ComboBox();
-            this.labelBulkStatusWindowMode = new System.Windows.Forms.Label();
+            this.numericUpDownBulkHoumonConsentDaysForward = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkHoumonPollIntervalSeconds = new System.Windows.Forms.Label();
+            this.numericUpDownBulkHoumonPollIntervalSeconds = new System.Windows.Forms.NumericUpDown();
             this.numericUpDownBulkHoumonAutoIntervalMinutes = new System.Windows.Forms.NumericUpDown();
             this.labelBulkHoumonAutoIntervalMinutes = new System.Windows.Forms.Label();
-            this.numericUpDownBulkHoumonPollIntervalSeconds = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkHoumonPollIntervalSeconds = new System.Windows.Forms.Label();
-            this.numericUpDownBulkHoumonConsentDaysForward = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkHoumonConsentDaysForward = new System.Windows.Forms.Label();
-            this.numericUpDownBulkHoumonConsentDaysBack = new System.Windows.Forms.NumericUpDown();
-            this.labelBulkHoumonConsentDaysBack = new System.Windows.Forms.Label();
-            this.labelBulkHoumonAutoDescription = new System.Windows.Forms.Label();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.checkBoxBulkOnlineAutoEnabled = new System.Windows.Forms.CheckBox();
+            this.labelBulkOnlineMode = new System.Windows.Forms.Label();
+            this.radioButtonBulkOnlineConsentDates = new System.Windows.Forms.RadioButton();
+            this.numericUpDownBulkOnlineMaxRetryCount = new System.Windows.Forms.NumericUpDown();
+            this.radioButtonBulkOnlineExaminationDates = new System.Windows.Forms.RadioButton();
+            this.labelBulkOnlineMaxRetryCount = new System.Windows.Forms.Label();
+            this.labelBulkOnlineConsentDaysBack = new System.Windows.Forms.Label();
+            this.numericUpDownBulkOnlineAutoIntervalMinutes = new System.Windows.Forms.NumericUpDown();
+            this.numericUpDownBulkOnlineConsentDaysBack = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkOnlineAutoIntervalMinutes = new System.Windows.Forms.Label();
+            this.labelBulkOnlineConsentDaysForward = new System.Windows.Forms.Label();
+            this.numericUpDownBulkOnlinePollIntervalSeconds = new System.Windows.Forms.NumericUpDown();
+            this.numericUpDownBulkOnlineConsentDaysForward = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkOnlinePollIntervalSeconds = new System.Windows.Forms.Label();
+            this.labelBulkOnlineExaminationDaysBack = new System.Windows.Forms.Label();
+            this.numericUpDownBulkOnlineExaminationDaysForward = new System.Windows.Forms.NumericUpDown();
+            this.numericUpDownBulkOnlineExaminationDaysBack = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkOnlineExaminationDaysForward = new System.Windows.Forms.Label();
+            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.checkBoxBulkMedicalAidAutoEnabled = new System.Windows.Forms.CheckBox();
+            this.labelBulkMedicalAidDescription = new System.Windows.Forms.Label();
+            this.numericUpDownBulkMedicalAidMaxRetryCount = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkMedicalAidMonthBack = new System.Windows.Forms.Label();
+            this.labelBulkMedicalAidMaxRetryCount = new System.Windows.Forms.Label();
+            this.numericUpDownBulkMedicalAidMonthBack = new System.Windows.Forms.NumericUpDown();
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkMedicalAidMonthForward = new System.Windows.Forms.Label();
+            this.labelBulkMedicalAidAutoIntervalMinutes = new System.Windows.Forms.Label();
+            this.numericUpDownBulkMedicalAidMonthForward = new System.Windows.Forms.NumericUpDown();
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds = new System.Windows.Forms.NumericUpDown();
+            this.labelBulkMedicalAidPollIntervalSeconds = new System.Windows.Forms.Label();
+            this.checkBoxBulkAutoSendToFaceEnabled = new System.Windows.Forms.CheckBox();
+            this.comboBoxBulkStatusWindowMode = new System.Windows.Forms.ComboBox();
+            this.labelBulkStatusWindowMode = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
+            this.panelDynamicsSource.SuspendLayout();
             this.groupBoxDI.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.tabControl1.SuspendLayout();
@@ -156,39 +161,70 @@
             this.tabPageMain.SuspendLayout();
             this.tabPageViewer.SuspendLayout();
             this.tabPageBulktool.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMaxRetryCount)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidAutoIntervalMinutes)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidPollIntervalSeconds)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthForward)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthBack)).BeginInit();
+            this.groupBox4.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysBack)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonMaxRetryCount)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysForward)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonPollIntervalSeconds)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonAutoIntervalMinutes)).BeginInit();
+            this.groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineMaxRetryCount)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineAutoIntervalMinutes)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysBack)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlinePollIntervalSeconds)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysForward)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineExaminationDaysForward)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineExaminationDaysBack)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysForward)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysBack)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonMaxRetryCount)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonAutoIntervalMinutes)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonPollIntervalSeconds)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysForward)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysBack)).BeginInit();
             this.groupBox2.SuspendLayout();
-            this.groupBox3.SuspendLayout();
-            this.groupBox4.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMaxRetryCount)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthBack)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidAutoIntervalMinutes)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthForward)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidPollIntervalSeconds)).BeginInit();
             this.SuspendLayout();
             // 
             // textBoxDatadyna
             // 
-            this.textBoxDatadyna.Location = new System.Drawing.Point(160, 6);
+            this.textBoxDatadyna.Location = new System.Drawing.Point(160, 30);
             this.textBoxDatadyna.Name = "textBoxDatadyna";
             this.textBoxDatadyna.Size = new System.Drawing.Size(365, 19);
             this.textBoxDatadyna.TabIndex = 2;
             this.toolTipSetting.SetToolTip(this.textBoxDatadyna, resources.GetString("textBoxDatadyna.ToolTip"));
             // 
+            // panelDynamicsSource
+            // 
+            this.panelDynamicsSource.Controls.Add(this.radioButtonDynamicsMdb);
+            this.panelDynamicsSource.Controls.Add(this.radioButtonDynamicsCom);
+            this.panelDynamicsSource.Location = new System.Drawing.Point(160, 3);
+            this.panelDynamicsSource.Name = "panelDynamicsSource";
+            this.panelDynamicsSource.Size = new System.Drawing.Size(392, 24);
+            this.panelDynamicsSource.TabIndex = 0;
+            // 
+            // radioButtonDynamicsMdb
+            // 
+            this.radioButtonDynamicsMdb.AutoSize = true;
+            this.radioButtonDynamicsMdb.Checked = true;
+            this.radioButtonDynamicsMdb.Location = new System.Drawing.Point(0, 3);
+            this.radioButtonDynamicsMdb.Name = "radioButtonDynamicsMdb";
+            this.radioButtonDynamicsMdb.Size = new System.Drawing.Size(105, 16);
+            this.radioButtonDynamicsMdb.TabIndex = 0;
+            this.radioButtonDynamicsMdb.TabStop = true;
+            this.radioButtonDynamicsMdb.Text = "mdbから読み取り";
+            this.radioButtonDynamicsMdb.CheckedChanged += new System.EventHandler(this.DynamicsSource_CheckedChanged);
+            // 
+            // radioButtonDynamicsCom
+            // 
+            this.radioButtonDynamicsCom.AutoSize = true;
+            this.radioButtonDynamicsCom.Location = new System.Drawing.Point(150, 3);
+            this.radioButtonDynamicsCom.Name = "radioButtonDynamicsCom";
+            this.radioButtonDynamicsCom.Size = new System.Drawing.Size(91, 16);
+            this.radioButtonDynamicsCom.TabIndex = 1;
+            this.radioButtonDynamicsCom.Text = "COM読み取り";
+            this.radioButtonDynamicsCom.CheckedChanged += new System.EventHandler(this.DynamicsSource_CheckedChanged);
+            // 
             // textBoxOQSFolder
             // 
-            this.textBoxOQSFolder.Location = new System.Drawing.Point(160, 75);
+            this.textBoxOQSFolder.Location = new System.Drawing.Point(160, 133);
             this.textBoxOQSFolder.Name = "textBoxOQSFolder";
             this.textBoxOQSFolder.Size = new System.Drawing.Size(365, 19);
             this.textBoxOQSFolder.TabIndex = 4;
@@ -197,7 +233,7 @@
             // checkBoxKeepXml
             // 
             this.checkBoxKeepXml.AutoSize = true;
-            this.checkBoxKeepXml.Location = new System.Drawing.Point(16, 167);
+            this.checkBoxKeepXml.Location = new System.Drawing.Point(16, 225);
             this.checkBoxKeepXml.Name = "checkBoxKeepXml";
             this.checkBoxKeepXml.Size = new System.Drawing.Size(104, 16);
             this.checkBoxKeepXml.TabIndex = 29;
@@ -219,7 +255,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(9, 78);
+            this.label2.Location = new System.Drawing.Point(9, 136);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(97, 12);
             this.label2.TabIndex = 6;
@@ -229,7 +265,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(9, 129);
+            this.label4.Location = new System.Drawing.Point(9, 187);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(85, 12);
             this.label4.TabIndex = 8;
@@ -238,7 +274,7 @@
             // comboBoxTimerSecond
             // 
             this.comboBoxTimerSecond.FormattingEnabled = true;
-            this.comboBoxTimerSecond.Location = new System.Drawing.Point(160, 126);
+            this.comboBoxTimerSecond.Location = new System.Drawing.Point(160, 184);
             this.comboBoxTimerSecond.Name = "comboBoxTimerSecond";
             this.comboBoxTimerSecond.Size = new System.Drawing.Size(53, 20);
             this.comboBoxTimerSecond.TabIndex = 14;
@@ -246,7 +282,7 @@
             // 
             // buttonDatadyna
             // 
-            this.buttonDatadyna.Location = new System.Drawing.Point(531, 6);
+            this.buttonDatadyna.Location = new System.Drawing.Point(531, 30);
             this.buttonDatadyna.Name = "buttonDatadyna";
             this.buttonDatadyna.Size = new System.Drawing.Size(21, 19);
             this.buttonDatadyna.TabIndex = 3;
@@ -256,7 +292,7 @@
             // 
             // buttonOQSFolder
             // 
-            this.buttonOQSFolder.Location = new System.Drawing.Point(531, 79);
+            this.buttonOQSFolder.Location = new System.Drawing.Point(531, 137);
             this.buttonOQSFolder.Name = "buttonOQSFolder";
             this.buttonOQSFolder.Size = new System.Drawing.Size(21, 19);
             this.buttonOQSFolder.TabIndex = 5;
@@ -345,7 +381,7 @@
             // checkBoxAutoStart
             // 
             this.checkBoxAutoStart.AutoSize = true;
-            this.checkBoxAutoStart.Location = new System.Drawing.Point(224, 128);
+            this.checkBoxAutoStart.Location = new System.Drawing.Point(224, 186);
             this.checkBoxAutoStart.Name = "checkBoxAutoStart";
             this.checkBoxAutoStart.Size = new System.Drawing.Size(102, 16);
             this.checkBoxAutoStart.TabIndex = 70;
@@ -357,7 +393,7 @@
             // 
             this.checkBoxRSBreloadXml.AutoSize = true;
             this.checkBoxRSBreloadXml.Enabled = false;
-            this.checkBoxRSBreloadXml.Location = new System.Drawing.Point(126, 167);
+            this.checkBoxRSBreloadXml.Location = new System.Drawing.Point(126, 225);
             this.checkBoxRSBreloadXml.Name = "checkBoxRSBreloadXml";
             this.checkBoxRSBreloadXml.Size = new System.Drawing.Size(164, 16);
             this.checkBoxRSBreloadXml.TabIndex = 74;
@@ -369,9 +405,9 @@
             // 
             this.checkBoxRSBXmlConvertToShiftJis.AutoSize = true;
             this.checkBoxRSBXmlConvertToShiftJis.Enabled = false;
-            this.checkBoxRSBXmlConvertToShiftJis.Location = new System.Drawing.Point(126, 188);
+            this.checkBoxRSBXmlConvertToShiftJis.Location = new System.Drawing.Point(126, 246);
             this.checkBoxRSBXmlConvertToShiftJis.Name = "checkBoxRSBXmlConvertToShiftJis";
-            this.checkBoxRSBXmlConvertToShiftJis.Size = new System.Drawing.Size(138, 16);
+            this.checkBoxRSBXmlConvertToShiftJis.Size = new System.Drawing.Size(124, 16);
             this.checkBoxRSBXmlConvertToShiftJis.TabIndex = 76;
             this.checkBoxRSBXmlConvertToShiftJis.Text = "UTF-8をSJISに変換";
             this.toolTipSetting.SetToolTip(this.checkBoxRSBXmlConvertToShiftJis, "RSBaseのxml reload前に、処理済みのYZK/TKK xmlがUTF-8ならShift_JISへ変換します。");
@@ -380,7 +416,7 @@
             // textBoxRSBxmlURL
             // 
             this.textBoxRSBxmlURL.Enabled = false;
-            this.textBoxRSBxmlURL.Location = new System.Drawing.Point(288, 165);
+            this.textBoxRSBxmlURL.Location = new System.Drawing.Point(288, 223);
             this.textBoxRSBxmlURL.Name = "textBoxRSBxmlURL";
             this.textBoxRSBxmlURL.Size = new System.Drawing.Size(235, 19);
             this.textBoxRSBxmlURL.TabIndex = 77;
@@ -478,14 +514,13 @@
             this.labelLLMserver.AutoSize = true;
             this.labelLLMserver.Location = new System.Drawing.Point(150, 100);
             this.labelLLMserver.Name = "labelLLMserver";
-            this.labelLLMserver.Size = new System.Drawing.Size(62, 12);
+            this.labelLLMserver.Size = new System.Drawing.Size(82, 12);
             this.labelLLMserver.TabIndex = 87;
             this.labelLLMserver.Text = "LLM Base URL";
             this.toolTipSetting.SetToolTip(this.labelLLMserver, "ホスト名、IPアドレス、または http(s):// から始まるURLを指定します。/v1 は自動で補われます。");
             // 
             // comboBoxLLMModels
             // 
-            this.comboBoxLLMModels.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
             this.comboBoxLLMModels.FormattingEnabled = true;
             this.comboBoxLLMModels.Location = new System.Drawing.Point(237, 122);
             this.comboBoxLLMModels.Name = "comboBoxLLMModels";
@@ -529,18 +564,18 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = " データベース形式";
             this.toolTipSetting.SetToolTip(this.groupBox1, "OQSDrugのバックエンドデータベースを設定します");
-            //
+            // 
             // textBoxLLMapikey
-            //
+            // 
             this.textBoxLLMapikey.Location = new System.Drawing.Point(237, 147);
             this.textBoxLLMapikey.Name = "textBoxLLMapikey";
             this.textBoxLLMapikey.PasswordChar = '*';
             this.textBoxLLMapikey.Size = new System.Drawing.Size(306, 19);
             this.textBoxLLMapikey.TabIndex = 97;
             this.toolTipSetting.SetToolTip(this.textBoxLLMapikey, "認証不要のローカルLLMでは空欄にします。");
-            //
+            // 
             // labelLLMapikey
-            //
+            // 
             this.labelLLMapikey.AutoSize = true;
             this.labelLLMapikey.Location = new System.Drawing.Point(150, 150);
             this.labelLLMapikey.Name = "labelLLMapikey";
@@ -731,7 +766,7 @@
             // comboBoxYZspan
             // 
             this.comboBoxYZspan.FormattingEnabled = true;
-            this.comboBoxYZspan.Location = new System.Drawing.Point(160, 100);
+            this.comboBoxYZspan.Location = new System.Drawing.Point(160, 158);
             this.comboBoxYZspan.Name = "comboBoxYZspan";
             this.comboBoxYZspan.Size = new System.Drawing.Size(65, 20);
             this.comboBoxYZspan.TabIndex = 88;
@@ -745,7 +780,7 @@
             "12",
             "24"});
             this.comboBoxYZRequeryHours.FormattingEnabled = true;
-            this.comboBoxYZRequeryHours.Location = new System.Drawing.Point(457, 100);
+            this.comboBoxYZRequeryHours.Location = new System.Drawing.Point(457, 158);
             this.comboBoxYZRequeryHours.Name = "comboBoxYZRequeryHours";
             this.comboBoxYZRequeryHours.Size = new System.Drawing.Size(65, 20);
             this.comboBoxYZRequeryHours.TabIndex = 89;
@@ -768,11 +803,10 @@
             // 
             // label17
             // 
-            this.label17.AutoSize = true;
             this.label17.Font = new System.Drawing.Font("MS UI Gothic", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.label17.Location = new System.Drawing.Point(158, 28);
+            this.label17.Location = new System.Drawing.Point(158, 51);
             this.label17.Name = "label17";
-            this.label17.Size = new System.Drawing.Size(364, 33);
+            this.label17.Size = new System.Drawing.Size(392, 38);
             this.label17.TabIndex = 64;
             this.label17.Text = "本アプリを動かすPCでダイナミクスクライアントが稼働中の場合はクライアントダイナを、\r\nクライアントが稼働してない場合は、サーバーのdatadyna.mdbを指定" +
     "してください。\r\nクライアントを指定した場合は、クライアントアップデート後再指定が必要です";
@@ -806,7 +840,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(9, 152);
+            this.label3.Location = new System.Drawing.Point(9, 210);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(111, 12);
             this.label3.TabIndex = 86;
@@ -849,6 +883,8 @@
             // 
             // tabPageMain
             // 
+            this.tabPageMain.Controls.Add(this.label7);
+            this.tabPageMain.Controls.Add(this.panelDynamicsSource);
             this.tabPageMain.Controls.Add(this.label6);
             this.tabPageMain.Controls.Add(this.comboBoxYZRequeryHours);
             this.tabPageMain.Controls.Add(this.labelYZspan);
@@ -879,7 +915,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(294, 103);
+            this.label6.Location = new System.Drawing.Point(294, 161);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(157, 12);
             this.label6.TabIndex = 90;
@@ -888,7 +924,7 @@
             // labelYZspan
             // 
             this.labelYZspan.AutoSize = true;
-            this.labelYZspan.Location = new System.Drawing.Point(9, 103);
+            this.labelYZspan.Location = new System.Drawing.Point(9, 161);
             this.labelYZspan.Name = "labelYZspan";
             this.labelYZspan.Size = new System.Drawing.Size(97, 12);
             this.labelYZspan.TabIndex = 87;
@@ -941,399 +977,57 @@
             this.tabPageBulktool.Text = "BulkTool設定";
             this.tabPageBulktool.UseVisualStyleBackColor = true;
             // 
-            // checkBoxBulkAutoSendToFaceEnabled
+            // groupBox4
             // 
-            this.checkBoxBulkAutoSendToFaceEnabled.AutoSize = true;
-            this.checkBoxBulkAutoSendToFaceEnabled.Location = new System.Drawing.Point(8, 32);
-            this.checkBoxBulkAutoSendToFaceEnabled.Name = "checkBoxBulkAutoSendToFaceEnabled";
-            this.checkBoxBulkAutoSendToFaceEnabled.Size = new System.Drawing.Size(280, 16);
-            this.checkBoxBulkAutoSendToFaceEnabled.TabIndex = 44;
-            this.checkBoxBulkAutoSendToFaceEnabled.Text = "自動実行の取得成功後にダイナミクスへ自動送信する";
-            this.checkBoxBulkAutoSendToFaceEnabled.UseVisualStyleBackColor = true;
+            this.groupBox4.Controls.Add(this.checkBoxBulkHoumonAutoEnabled);
+            this.groupBox4.Controls.Add(this.labelBulkHoumonAutoDescription);
+            this.groupBox4.Controls.Add(this.labelBulkHoumonConsentDaysBack);
+            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonConsentDaysBack);
+            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonMaxRetryCount);
+            this.groupBox4.Controls.Add(this.labelBulkHoumonConsentDaysForward);
+            this.groupBox4.Controls.Add(this.labelBulkHoumonMaxRetryCount);
+            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonConsentDaysForward);
+            this.groupBox4.Controls.Add(this.labelBulkHoumonPollIntervalSeconds);
+            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonPollIntervalSeconds);
+            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonAutoIntervalMinutes);
+            this.groupBox4.Controls.Add(this.labelBulkHoumonAutoIntervalMinutes);
+            this.groupBox4.Location = new System.Drawing.Point(8, 68);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(543, 289);
+            this.groupBox4.TabIndex = 47;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "訪問診療";
             // 
-            // numericUpDownBulkMedicalAidMaxRetryCount
+            // labelBulkHoumonAutoDescription
             // 
-            this.numericUpDownBulkMedicalAidMaxRetryCount.Location = new System.Drawing.Point(270, 228);
-            this.numericUpDownBulkMedicalAidMaxRetryCount.Maximum = new decimal(new int[] {
-            200,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidMaxRetryCount.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidMaxRetryCount.Name = "numericUpDownBulkMedicalAidMaxRetryCount";
-            this.numericUpDownBulkMedicalAidMaxRetryCount.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkMedicalAidMaxRetryCount.TabIndex = 43;
-            this.numericUpDownBulkMedicalAidMaxRetryCount.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.numericUpDownBulkMedicalAidMaxRetryCount.Value = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
+            this.labelBulkHoumonAutoDescription.AutoSize = true;
+            this.labelBulkHoumonAutoDescription.Location = new System.Drawing.Point(6, 49);
+            this.labelBulkHoumonAutoDescription.Name = "labelBulkHoumonAutoDescription";
+            this.labelBulkHoumonAutoDescription.Size = new System.Drawing.Size(434, 24);
+            this.labelBulkHoumonAutoDescription.TabIndex = 1;
+            this.labelBulkHoumonAutoDescription.Text = "訪問診療Bulkの自動実行時に使用する既定値です。\r\n同意日範囲から要求を作成し、受付番号を保持して結果取得・再問い合わせを行います。";
             // 
-            // labelBulkMedicalAidMaxRetryCount
+            // labelBulkHoumonConsentDaysBack
             // 
-            this.labelBulkMedicalAidMaxRetryCount.AutoSize = true;
-            this.labelBulkMedicalAidMaxRetryCount.Location = new System.Drawing.Point(31, 230);
-            this.labelBulkMedicalAidMaxRetryCount.Name = "labelBulkMedicalAidMaxRetryCount";
-            this.labelBulkMedicalAidMaxRetryCount.Size = new System.Drawing.Size(171, 12);
-            this.labelBulkMedicalAidMaxRetryCount.TabIndex = 42;
-            this.labelBulkMedicalAidMaxRetryCount.Text = "医療扶助 最大再問い合わせ回数";
+            this.labelBulkHoumonConsentDaysBack.AutoSize = true;
+            this.labelBulkHoumonConsentDaysBack.Location = new System.Drawing.Point(6, 107);
+            this.labelBulkHoumonConsentDaysBack.Name = "labelBulkHoumonConsentDaysBack";
+            this.labelBulkHoumonConsentDaysBack.Size = new System.Drawing.Size(199, 12);
+            this.labelBulkHoumonConsentDaysBack.TabIndex = 2;
+            this.labelBulkHoumonConsentDaysBack.Text = "同意開始日: 今日から何日前まで含める";
             // 
-            // numericUpDownBulkMedicalAidAutoIntervalMinutes
+            // numericUpDownBulkHoumonConsentDaysBack
             // 
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Location = new System.Drawing.Point(270, 193);
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Maximum = new decimal(new int[] {
-            1440,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Name = "numericUpDownBulkMedicalAidAutoIntervalMinutes";
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.TabIndex = 41;
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Value = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            // 
-            // labelBulkMedicalAidAutoIntervalMinutes
-            // 
-            this.labelBulkMedicalAidAutoIntervalMinutes.AutoSize = true;
-            this.labelBulkMedicalAidAutoIntervalMinutes.Location = new System.Drawing.Point(31, 195);
-            this.labelBulkMedicalAidAutoIntervalMinutes.Name = "labelBulkMedicalAidAutoIntervalMinutes";
-            this.labelBulkMedicalAidAutoIntervalMinutes.Size = new System.Drawing.Size(208, 12);
-            this.labelBulkMedicalAidAutoIntervalMinutes.TabIndex = 40;
-            this.labelBulkMedicalAidAutoIntervalMinutes.Text = "医療扶助 新規ジョブ作成の最小間隔(分)";
-            // 
-            // numericUpDownBulkMedicalAidPollIntervalSeconds
-            // 
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Location = new System.Drawing.Point(270, 158);
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Maximum = new decimal(new int[] {
-            600,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Minimum = new decimal(new int[] {
-            5,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Name = "numericUpDownBulkMedicalAidPollIntervalSeconds";
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.TabIndex = 39;
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Value = new decimal(new int[] {
-            5,
-            0,
-            0,
-            0});
-            // 
-            // labelBulkMedicalAidPollIntervalSeconds
-            // 
-            this.labelBulkMedicalAidPollIntervalSeconds.AutoSize = true;
-            this.labelBulkMedicalAidPollIntervalSeconds.Location = new System.Drawing.Point(31, 160);
-            this.labelBulkMedicalAidPollIntervalSeconds.Name = "labelBulkMedicalAidPollIntervalSeconds";
-            this.labelBulkMedicalAidPollIntervalSeconds.Size = new System.Drawing.Size(167, 12);
-            this.labelBulkMedicalAidPollIntervalSeconds.TabIndex = 38;
-            this.labelBulkMedicalAidPollIntervalSeconds.Text = "医療扶助 再問い合わせ間隔(秒)";
-            // 
-            // numericUpDownBulkMedicalAidMonthForward
-            // 
-            this.numericUpDownBulkMedicalAidMonthForward.Location = new System.Drawing.Point(270, 123);
-            this.numericUpDownBulkMedicalAidMonthForward.Maximum = new decimal(new int[] {
-            24,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidMonthForward.Name = "numericUpDownBulkMedicalAidMonthForward";
-            this.numericUpDownBulkMedicalAidMonthForward.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkMedicalAidMonthForward.TabIndex = 37;
-            this.numericUpDownBulkMedicalAidMonthForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkMedicalAidMonthForward
-            // 
-            this.labelBulkMedicalAidMonthForward.AutoSize = true;
-            this.labelBulkMedicalAidMonthForward.Location = new System.Drawing.Point(31, 125);
-            this.labelBulkMedicalAidMonthForward.Name = "labelBulkMedicalAidMonthForward";
-            this.labelBulkMedicalAidMonthForward.Size = new System.Drawing.Size(190, 12);
-            this.labelBulkMedicalAidMonthForward.TabIndex = 36;
-            this.labelBulkMedicalAidMonthForward.Text = "診療年月終了: 今月から何か月先まで";
-            // 
-            // numericUpDownBulkMedicalAidMonthBack
-            // 
-            this.numericUpDownBulkMedicalAidMonthBack.Location = new System.Drawing.Point(270, 88);
-            this.numericUpDownBulkMedicalAidMonthBack.Maximum = new decimal(new int[] {
-            24,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkMedicalAidMonthBack.Name = "numericUpDownBulkMedicalAidMonthBack";
-            this.numericUpDownBulkMedicalAidMonthBack.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkMedicalAidMonthBack.TabIndex = 35;
-            this.numericUpDownBulkMedicalAidMonthBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkMedicalAidMonthBack
-            // 
-            this.labelBulkMedicalAidMonthBack.AutoSize = true;
-            this.labelBulkMedicalAidMonthBack.Location = new System.Drawing.Point(31, 90);
-            this.labelBulkMedicalAidMonthBack.Name = "labelBulkMedicalAidMonthBack";
-            this.labelBulkMedicalAidMonthBack.Size = new System.Drawing.Size(190, 12);
-            this.labelBulkMedicalAidMonthBack.TabIndex = 34;
-            this.labelBulkMedicalAidMonthBack.Text = "診療年月開始: 今月から何か月前まで";
-            // 
-            // labelBulkMedicalAidDescription
-            // 
-            this.labelBulkMedicalAidDescription.AutoSize = true;
-            this.labelBulkMedicalAidDescription.Location = new System.Drawing.Point(31, 55);
-            this.labelBulkMedicalAidDescription.Name = "labelBulkMedicalAidDescription";
-            this.labelBulkMedicalAidDescription.Size = new System.Drawing.Size(438, 24);
-            this.labelBulkMedicalAidDescription.TabIndex = 33;
-            this.labelBulkMedicalAidDescription.Text = "医療扶助Bulkの既定値です。\r\n診療年月単位で要求を作成し、受付番号を保持して結果取得・再問い合わせを行います。";
-            // 
-            // checkBoxBulkMedicalAidAutoEnabled
-            // 
-            this.checkBoxBulkMedicalAidAutoEnabled.AutoSize = true;
-            this.checkBoxBulkMedicalAidAutoEnabled.Location = new System.Drawing.Point(31, 27);
-            this.checkBoxBulkMedicalAidAutoEnabled.Name = "checkBoxBulkMedicalAidAutoEnabled";
-            this.checkBoxBulkMedicalAidAutoEnabled.Size = new System.Drawing.Size(196, 16);
-            this.checkBoxBulkMedicalAidAutoEnabled.TabIndex = 32;
-            this.checkBoxBulkMedicalAidAutoEnabled.Text = "医療扶助 Bulk 自動実行を有効化";
-            this.checkBoxBulkMedicalAidAutoEnabled.UseVisualStyleBackColor = true;
-            // 
-            // numericUpDownBulkOnlineMaxRetryCount
-            // 
-            this.numericUpDownBulkOnlineMaxRetryCount.Location = new System.Drawing.Point(250, 319);
-            this.numericUpDownBulkOnlineMaxRetryCount.Maximum = new decimal(new int[] {
-            200,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlineMaxRetryCount.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlineMaxRetryCount.Name = "numericUpDownBulkOnlineMaxRetryCount";
-            this.numericUpDownBulkOnlineMaxRetryCount.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkOnlineMaxRetryCount.TabIndex = 31;
-            this.numericUpDownBulkOnlineMaxRetryCount.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.numericUpDownBulkOnlineMaxRetryCount.Value = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            // 
-            // labelBulkOnlineMaxRetryCount
-            // 
-            this.labelBulkOnlineMaxRetryCount.AutoSize = true;
-            this.labelBulkOnlineMaxRetryCount.Location = new System.Drawing.Point(11, 321);
-            this.labelBulkOnlineMaxRetryCount.Name = "labelBulkOnlineMaxRetryCount";
-            this.labelBulkOnlineMaxRetryCount.Size = new System.Drawing.Size(167, 12);
-            this.labelBulkOnlineMaxRetryCount.TabIndex = 30;
-            this.labelBulkOnlineMaxRetryCount.Text = "オンライン 最大再問い合わせ回数";
-            // 
-            // numericUpDownBulkOnlineAutoIntervalMinutes
-            // 
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.Location = new System.Drawing.Point(250, 284);
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.Maximum = new decimal(new int[] {
-            1440,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.Name = "numericUpDownBulkOnlineAutoIntervalMinutes";
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.TabIndex = 29;
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.numericUpDownBulkOnlineAutoIntervalMinutes.Value = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            // 
-            // labelBulkOnlineAutoIntervalMinutes
-            // 
-            this.labelBulkOnlineAutoIntervalMinutes.AutoSize = true;
-            this.labelBulkOnlineAutoIntervalMinutes.Location = new System.Drawing.Point(11, 286);
-            this.labelBulkOnlineAutoIntervalMinutes.Name = "labelBulkOnlineAutoIntervalMinutes";
-            this.labelBulkOnlineAutoIntervalMinutes.Size = new System.Drawing.Size(204, 12);
-            this.labelBulkOnlineAutoIntervalMinutes.TabIndex = 28;
-            this.labelBulkOnlineAutoIntervalMinutes.Text = "オンライン 新規ジョブ作成の最小間隔(分)";
-            // 
-            // numericUpDownBulkOnlinePollIntervalSeconds
-            // 
-            this.numericUpDownBulkOnlinePollIntervalSeconds.Location = new System.Drawing.Point(250, 249);
-            this.numericUpDownBulkOnlinePollIntervalSeconds.Maximum = new decimal(new int[] {
-            600,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlinePollIntervalSeconds.Minimum = new decimal(new int[] {
-            5,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlinePollIntervalSeconds.Name = "numericUpDownBulkOnlinePollIntervalSeconds";
-            this.numericUpDownBulkOnlinePollIntervalSeconds.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkOnlinePollIntervalSeconds.TabIndex = 27;
-            this.numericUpDownBulkOnlinePollIntervalSeconds.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.numericUpDownBulkOnlinePollIntervalSeconds.Value = new decimal(new int[] {
-            5,
-            0,
-            0,
-            0});
-            // 
-            // labelBulkOnlinePollIntervalSeconds
-            // 
-            this.labelBulkOnlinePollIntervalSeconds.AutoSize = true;
-            this.labelBulkOnlinePollIntervalSeconds.Location = new System.Drawing.Point(11, 251);
-            this.labelBulkOnlinePollIntervalSeconds.Name = "labelBulkOnlinePollIntervalSeconds";
-            this.labelBulkOnlinePollIntervalSeconds.Size = new System.Drawing.Size(163, 12);
-            this.labelBulkOnlinePollIntervalSeconds.TabIndex = 26;
-            this.labelBulkOnlinePollIntervalSeconds.Text = "オンライン 再問い合わせ間隔(秒)";
-            // 
-            // numericUpDownBulkOnlineExaminationDaysForward
-            // 
-            this.numericUpDownBulkOnlineExaminationDaysForward.Location = new System.Drawing.Point(250, 214);
-            this.numericUpDownBulkOnlineExaminationDaysForward.Maximum = new decimal(new int[] {
+            this.numericUpDownBulkHoumonConsentDaysBack.Location = new System.Drawing.Point(245, 105);
+            this.numericUpDownBulkHoumonConsentDaysBack.Maximum = new decimal(new int[] {
             365,
             0,
             0,
             0});
-            this.numericUpDownBulkOnlineExaminationDaysForward.Name = "numericUpDownBulkOnlineExaminationDaysForward";
-            this.numericUpDownBulkOnlineExaminationDaysForward.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkOnlineExaminationDaysForward.TabIndex = 25;
-            this.numericUpDownBulkOnlineExaminationDaysForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkOnlineExaminationDaysForward
-            // 
-            this.labelBulkOnlineExaminationDaysForward.AutoSize = true;
-            this.labelBulkOnlineExaminationDaysForward.Location = new System.Drawing.Point(11, 216);
-            this.labelBulkOnlineExaminationDaysForward.Name = "labelBulkOnlineExaminationDaysForward";
-            this.labelBulkOnlineExaminationDaysForward.Size = new System.Drawing.Size(199, 12);
-            this.labelBulkOnlineExaminationDaysForward.TabIndex = 24;
-            this.labelBulkOnlineExaminationDaysForward.Text = "受診終了日: 今日から何日先まで含める";
-            // 
-            // numericUpDownBulkOnlineExaminationDaysBack
-            // 
-            this.numericUpDownBulkOnlineExaminationDaysBack.Location = new System.Drawing.Point(250, 179);
-            this.numericUpDownBulkOnlineExaminationDaysBack.Maximum = new decimal(new int[] {
-            365,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlineExaminationDaysBack.Name = "numericUpDownBulkOnlineExaminationDaysBack";
-            this.numericUpDownBulkOnlineExaminationDaysBack.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkOnlineExaminationDaysBack.TabIndex = 23;
-            this.numericUpDownBulkOnlineExaminationDaysBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkOnlineExaminationDaysBack
-            // 
-            this.labelBulkOnlineExaminationDaysBack.AutoSize = true;
-            this.labelBulkOnlineExaminationDaysBack.Location = new System.Drawing.Point(11, 181);
-            this.labelBulkOnlineExaminationDaysBack.Name = "labelBulkOnlineExaminationDaysBack";
-            this.labelBulkOnlineExaminationDaysBack.Size = new System.Drawing.Size(199, 12);
-            this.labelBulkOnlineExaminationDaysBack.TabIndex = 22;
-            this.labelBulkOnlineExaminationDaysBack.Text = "受診開始日: 今日から何日前まで含める";
-            // 
-            // numericUpDownBulkOnlineConsentDaysForward
-            // 
-            this.numericUpDownBulkOnlineConsentDaysForward.Location = new System.Drawing.Point(250, 144);
-            this.numericUpDownBulkOnlineConsentDaysForward.Maximum = new decimal(new int[] {
-            365,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlineConsentDaysForward.Name = "numericUpDownBulkOnlineConsentDaysForward";
-            this.numericUpDownBulkOnlineConsentDaysForward.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkOnlineConsentDaysForward.TabIndex = 21;
-            this.numericUpDownBulkOnlineConsentDaysForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkOnlineConsentDaysForward
-            // 
-            this.labelBulkOnlineConsentDaysForward.AutoSize = true;
-            this.labelBulkOnlineConsentDaysForward.Location = new System.Drawing.Point(11, 146);
-            this.labelBulkOnlineConsentDaysForward.Name = "labelBulkOnlineConsentDaysForward";
-            this.labelBulkOnlineConsentDaysForward.Size = new System.Drawing.Size(199, 12);
-            this.labelBulkOnlineConsentDaysForward.TabIndex = 20;
-            this.labelBulkOnlineConsentDaysForward.Text = "同意終了日: 今日から何日先まで含める";
-            // 
-            // numericUpDownBulkOnlineConsentDaysBack
-            // 
-            this.numericUpDownBulkOnlineConsentDaysBack.Location = new System.Drawing.Point(250, 109);
-            this.numericUpDownBulkOnlineConsentDaysBack.Maximum = new decimal(new int[] {
-            365,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkOnlineConsentDaysBack.Name = "numericUpDownBulkOnlineConsentDaysBack";
-            this.numericUpDownBulkOnlineConsentDaysBack.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkOnlineConsentDaysBack.TabIndex = 19;
-            this.numericUpDownBulkOnlineConsentDaysBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkOnlineConsentDaysBack
-            // 
-            this.labelBulkOnlineConsentDaysBack.AutoSize = true;
-            this.labelBulkOnlineConsentDaysBack.Location = new System.Drawing.Point(11, 111);
-            this.labelBulkOnlineConsentDaysBack.Name = "labelBulkOnlineConsentDaysBack";
-            this.labelBulkOnlineConsentDaysBack.Size = new System.Drawing.Size(199, 12);
-            this.labelBulkOnlineConsentDaysBack.TabIndex = 18;
-            this.labelBulkOnlineConsentDaysBack.Text = "同意開始日: 今日から何日前まで含める";
-            // 
-            // radioButtonBulkOnlineExaminationDates
-            // 
-            this.radioButtonBulkOnlineExaminationDates.AutoSize = true;
-            this.radioButtonBulkOnlineExaminationDates.Location = new System.Drawing.Point(132, 80);
-            this.radioButtonBulkOnlineExaminationDates.Name = "radioButtonBulkOnlineExaminationDates";
-            this.radioButtonBulkOnlineExaminationDates.Size = new System.Drawing.Size(93, 16);
-            this.radioButtonBulkOnlineExaminationDates.TabIndex = 17;
-            this.radioButtonBulkOnlineExaminationDates.TabStop = true;
-            this.radioButtonBulkOnlineExaminationDates.Text = "受診日で照会";
-            this.radioButtonBulkOnlineExaminationDates.UseVisualStyleBackColor = true;
-            // 
-            // radioButtonBulkOnlineConsentDates
-            // 
-            this.radioButtonBulkOnlineConsentDates.AutoSize = true;
-            this.radioButtonBulkOnlineConsentDates.Location = new System.Drawing.Point(13, 80);
-            this.radioButtonBulkOnlineConsentDates.Name = "radioButtonBulkOnlineConsentDates";
-            this.radioButtonBulkOnlineConsentDates.Size = new System.Drawing.Size(93, 16);
-            this.radioButtonBulkOnlineConsentDates.TabIndex = 16;
-            this.radioButtonBulkOnlineConsentDates.TabStop = true;
-            this.radioButtonBulkOnlineConsentDates.Text = "同意日で照会";
-            this.radioButtonBulkOnlineConsentDates.UseVisualStyleBackColor = true;
-            // 
-            // labelBulkOnlineMode
-            // 
-            this.labelBulkOnlineMode.AutoSize = true;
-            this.labelBulkOnlineMode.Location = new System.Drawing.Point(11, 46);
-            this.labelBulkOnlineMode.Name = "labelBulkOnlineMode";
-            this.labelBulkOnlineMode.Size = new System.Drawing.Size(400, 24);
-            this.labelBulkOnlineMode.TabIndex = 15;
-            this.labelBulkOnlineMode.Text = "オンライン診療Bulkの既定値です。\r\n同意日または受診日を使って要求を作成し、受付番号を保持して結果取得します。";
-            // 
-            // checkBoxBulkOnlineAutoEnabled
-            // 
-            this.checkBoxBulkOnlineAutoEnabled.AutoSize = true;
-            this.checkBoxBulkOnlineAutoEnabled.Location = new System.Drawing.Point(11, 18);
-            this.checkBoxBulkOnlineAutoEnabled.Name = "checkBoxBulkOnlineAutoEnabled";
-            this.checkBoxBulkOnlineAutoEnabled.Size = new System.Drawing.Size(216, 16);
-            this.checkBoxBulkOnlineAutoEnabled.TabIndex = 14;
-            this.checkBoxBulkOnlineAutoEnabled.Text = "オンライン診療 Bulk 自動実行を有効化";
-            this.checkBoxBulkOnlineAutoEnabled.UseVisualStyleBackColor = true;
+            this.numericUpDownBulkHoumonConsentDaysBack.Name = "numericUpDownBulkHoumonConsentDaysBack";
+            this.numericUpDownBulkHoumonConsentDaysBack.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkHoumonConsentDaysBack.TabIndex = 3;
+            this.numericUpDownBulkHoumonConsentDaysBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             // 
             // numericUpDownBulkHoumonMaxRetryCount
             // 
@@ -1358,6 +1052,15 @@
             0,
             0});
             // 
+            // labelBulkHoumonConsentDaysForward
+            // 
+            this.labelBulkHoumonConsentDaysForward.AutoSize = true;
+            this.labelBulkHoumonConsentDaysForward.Location = new System.Drawing.Point(6, 142);
+            this.labelBulkHoumonConsentDaysForward.Name = "labelBulkHoumonConsentDaysForward";
+            this.labelBulkHoumonConsentDaysForward.Size = new System.Drawing.Size(199, 12);
+            this.labelBulkHoumonConsentDaysForward.TabIndex = 4;
+            this.labelBulkHoumonConsentDaysForward.Text = "同意終了日: 今日から何日先まで含める";
+            // 
             // labelBulkHoumonMaxRetryCount
             // 
             this.labelBulkHoumonMaxRetryCount.AutoSize = true;
@@ -1367,23 +1070,50 @@
             this.labelBulkHoumonMaxRetryCount.TabIndex = 10;
             this.labelBulkHoumonMaxRetryCount.Text = "最大再問い合わせ回数";
             // 
-            // comboBoxBulkStatusWindowMode
+            // numericUpDownBulkHoumonConsentDaysForward
             // 
-            this.comboBoxBulkStatusWindowMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBoxBulkStatusWindowMode.FormattingEnabled = true;
-            this.comboBoxBulkStatusWindowMode.Location = new System.Drawing.Point(135, 6);
-            this.comboBoxBulkStatusWindowMode.Name = "comboBoxBulkStatusWindowMode";
-            this.comboBoxBulkStatusWindowMode.Size = new System.Drawing.Size(128, 20);
-            this.comboBoxBulkStatusWindowMode.TabIndex = 13;
+            this.numericUpDownBulkHoumonConsentDaysForward.Location = new System.Drawing.Point(245, 140);
+            this.numericUpDownBulkHoumonConsentDaysForward.Maximum = new decimal(new int[] {
+            365,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkHoumonConsentDaysForward.Name = "numericUpDownBulkHoumonConsentDaysForward";
+            this.numericUpDownBulkHoumonConsentDaysForward.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkHoumonConsentDaysForward.TabIndex = 5;
+            this.numericUpDownBulkHoumonConsentDaysForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             // 
-            // labelBulkStatusWindowMode
+            // labelBulkHoumonPollIntervalSeconds
             // 
-            this.labelBulkStatusWindowMode.AutoSize = true;
-            this.labelBulkStatusWindowMode.Location = new System.Drawing.Point(6, 9);
-            this.labelBulkStatusWindowMode.Name = "labelBulkStatusWindowMode";
-            this.labelBulkStatusWindowMode.Size = new System.Drawing.Size(123, 12);
-            this.labelBulkStatusWindowMode.TabIndex = 12;
-            this.labelBulkStatusWindowMode.Text = "自動実行時の表示方法";
+            this.labelBulkHoumonPollIntervalSeconds.AutoSize = true;
+            this.labelBulkHoumonPollIntervalSeconds.Location = new System.Drawing.Point(6, 177);
+            this.labelBulkHoumonPollIntervalSeconds.Name = "labelBulkHoumonPollIntervalSeconds";
+            this.labelBulkHoumonPollIntervalSeconds.Size = new System.Drawing.Size(115, 12);
+            this.labelBulkHoumonPollIntervalSeconds.TabIndex = 6;
+            this.labelBulkHoumonPollIntervalSeconds.Text = "再問い合わせ間隔(秒)";
+            // 
+            // numericUpDownBulkHoumonPollIntervalSeconds
+            // 
+            this.numericUpDownBulkHoumonPollIntervalSeconds.Location = new System.Drawing.Point(245, 175);
+            this.numericUpDownBulkHoumonPollIntervalSeconds.Maximum = new decimal(new int[] {
+            600,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkHoumonPollIntervalSeconds.Minimum = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkHoumonPollIntervalSeconds.Name = "numericUpDownBulkHoumonPollIntervalSeconds";
+            this.numericUpDownBulkHoumonPollIntervalSeconds.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkHoumonPollIntervalSeconds.TabIndex = 7;
+            this.numericUpDownBulkHoumonPollIntervalSeconds.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownBulkHoumonPollIntervalSeconds.Value = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
             // 
             // numericUpDownBulkHoumonAutoIntervalMinutes
             // 
@@ -1417,112 +1147,6 @@
             this.labelBulkHoumonAutoIntervalMinutes.TabIndex = 8;
             this.labelBulkHoumonAutoIntervalMinutes.Text = "新規ジョブ作成の最小間隔(分)";
             // 
-            // numericUpDownBulkHoumonPollIntervalSeconds
-            // 
-            this.numericUpDownBulkHoumonPollIntervalSeconds.Location = new System.Drawing.Point(245, 175);
-            this.numericUpDownBulkHoumonPollIntervalSeconds.Maximum = new decimal(new int[] {
-            600,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkHoumonPollIntervalSeconds.Minimum = new decimal(new int[] {
-            5,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkHoumonPollIntervalSeconds.Name = "numericUpDownBulkHoumonPollIntervalSeconds";
-            this.numericUpDownBulkHoumonPollIntervalSeconds.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkHoumonPollIntervalSeconds.TabIndex = 7;
-            this.numericUpDownBulkHoumonPollIntervalSeconds.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.numericUpDownBulkHoumonPollIntervalSeconds.Value = new decimal(new int[] {
-            5,
-            0,
-            0,
-            0});
-            // 
-            // labelBulkHoumonPollIntervalSeconds
-            // 
-            this.labelBulkHoumonPollIntervalSeconds.AutoSize = true;
-            this.labelBulkHoumonPollIntervalSeconds.Location = new System.Drawing.Point(6, 177);
-            this.labelBulkHoumonPollIntervalSeconds.Name = "labelBulkHoumonPollIntervalSeconds";
-            this.labelBulkHoumonPollIntervalSeconds.Size = new System.Drawing.Size(115, 12);
-            this.labelBulkHoumonPollIntervalSeconds.TabIndex = 6;
-            this.labelBulkHoumonPollIntervalSeconds.Text = "再問い合わせ間隔(秒)";
-            // 
-            // numericUpDownBulkHoumonConsentDaysForward
-            // 
-            this.numericUpDownBulkHoumonConsentDaysForward.Location = new System.Drawing.Point(245, 140);
-            this.numericUpDownBulkHoumonConsentDaysForward.Maximum = new decimal(new int[] {
-            365,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkHoumonConsentDaysForward.Name = "numericUpDownBulkHoumonConsentDaysForward";
-            this.numericUpDownBulkHoumonConsentDaysForward.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkHoumonConsentDaysForward.TabIndex = 5;
-            this.numericUpDownBulkHoumonConsentDaysForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkHoumonConsentDaysForward
-            // 
-            this.labelBulkHoumonConsentDaysForward.AutoSize = true;
-            this.labelBulkHoumonConsentDaysForward.Location = new System.Drawing.Point(6, 142);
-            this.labelBulkHoumonConsentDaysForward.Name = "labelBulkHoumonConsentDaysForward";
-            this.labelBulkHoumonConsentDaysForward.Size = new System.Drawing.Size(199, 12);
-            this.labelBulkHoumonConsentDaysForward.TabIndex = 4;
-            this.labelBulkHoumonConsentDaysForward.Text = "同意終了日: 今日から何日先まで含める";
-            // 
-            // numericUpDownBulkHoumonConsentDaysBack
-            // 
-            this.numericUpDownBulkHoumonConsentDaysBack.Location = new System.Drawing.Point(245, 105);
-            this.numericUpDownBulkHoumonConsentDaysBack.Maximum = new decimal(new int[] {
-            365,
-            0,
-            0,
-            0});
-            this.numericUpDownBulkHoumonConsentDaysBack.Name = "numericUpDownBulkHoumonConsentDaysBack";
-            this.numericUpDownBulkHoumonConsentDaysBack.Size = new System.Drawing.Size(72, 19);
-            this.numericUpDownBulkHoumonConsentDaysBack.TabIndex = 3;
-            this.numericUpDownBulkHoumonConsentDaysBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            // 
-            // labelBulkHoumonConsentDaysBack
-            // 
-            this.labelBulkHoumonConsentDaysBack.AutoSize = true;
-            this.labelBulkHoumonConsentDaysBack.Location = new System.Drawing.Point(6, 107);
-            this.labelBulkHoumonConsentDaysBack.Name = "labelBulkHoumonConsentDaysBack";
-            this.labelBulkHoumonConsentDaysBack.Size = new System.Drawing.Size(199, 12);
-            this.labelBulkHoumonConsentDaysBack.TabIndex = 2;
-            this.labelBulkHoumonConsentDaysBack.Text = "同意開始日: 今日から何日前まで含める";
-            // 
-            // labelBulkHoumonAutoDescription
-            // 
-            this.labelBulkHoumonAutoDescription.AutoSize = true;
-            this.labelBulkHoumonAutoDescription.Location = new System.Drawing.Point(6, 49);
-            this.labelBulkHoumonAutoDescription.Name = "labelBulkHoumonAutoDescription";
-            this.labelBulkHoumonAutoDescription.Size = new System.Drawing.Size(434, 24);
-            this.labelBulkHoumonAutoDescription.TabIndex = 1;
-            this.labelBulkHoumonAutoDescription.Text = "訪問診療Bulkの自動実行時に使用する既定値です。\r\n同意日範囲から要求を作成し、受付番号を保持して結果取得・再問い合わせを行います。";
-            // 
-            // groupBox2
-            // 
-            this.groupBox2.Controls.Add(this.checkBoxBulkMedicalAidAutoEnabled);
-            this.groupBox2.Controls.Add(this.labelBulkMedicalAidDescription);
-            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidMaxRetryCount);
-            this.groupBox2.Controls.Add(this.labelBulkMedicalAidMonthBack);
-            this.groupBox2.Controls.Add(this.labelBulkMedicalAidMaxRetryCount);
-            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidMonthBack);
-            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidAutoIntervalMinutes);
-            this.groupBox2.Controls.Add(this.labelBulkMedicalAidMonthForward);
-            this.groupBox2.Controls.Add(this.labelBulkMedicalAidAutoIntervalMinutes);
-            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidMonthForward);
-            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidPollIntervalSeconds);
-            this.groupBox2.Controls.Add(this.labelBulkMedicalAidPollIntervalSeconds);
-            this.groupBox2.Location = new System.Drawing.Point(8, 740);
-            this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(543, 272);
-            this.groupBox2.TabIndex = 45;
-            this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "医療扶助";
-            // 
             // groupBox3
             // 
             this.groupBox3.Controls.Add(this.checkBoxBulkOnlineAutoEnabled);
@@ -1550,26 +1174,448 @@
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "オンライン診療";
             // 
-            // groupBox4
+            // checkBoxBulkOnlineAutoEnabled
             // 
-            this.groupBox4.Controls.Add(this.checkBoxBulkHoumonAutoEnabled);
-            this.groupBox4.Controls.Add(this.labelBulkHoumonAutoDescription);
-            this.groupBox4.Controls.Add(this.labelBulkHoumonConsentDaysBack);
-            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonConsentDaysBack);
-            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonMaxRetryCount);
-            this.groupBox4.Controls.Add(this.labelBulkHoumonConsentDaysForward);
-            this.groupBox4.Controls.Add(this.labelBulkHoumonMaxRetryCount);
-            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonConsentDaysForward);
-            this.groupBox4.Controls.Add(this.labelBulkHoumonPollIntervalSeconds);
-            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonPollIntervalSeconds);
-            this.groupBox4.Controls.Add(this.numericUpDownBulkHoumonAutoIntervalMinutes);
-            this.groupBox4.Controls.Add(this.labelBulkHoumonAutoIntervalMinutes);
-            this.groupBox4.Location = new System.Drawing.Point(8, 68);
-            this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new System.Drawing.Size(543, 289);
-            this.groupBox4.TabIndex = 47;
-            this.groupBox4.TabStop = false;
-            this.groupBox4.Text = "訪問診療";
+            this.checkBoxBulkOnlineAutoEnabled.AutoSize = true;
+            this.checkBoxBulkOnlineAutoEnabled.Location = new System.Drawing.Point(11, 18);
+            this.checkBoxBulkOnlineAutoEnabled.Name = "checkBoxBulkOnlineAutoEnabled";
+            this.checkBoxBulkOnlineAutoEnabled.Size = new System.Drawing.Size(216, 16);
+            this.checkBoxBulkOnlineAutoEnabled.TabIndex = 14;
+            this.checkBoxBulkOnlineAutoEnabled.Text = "オンライン診療 Bulk 自動実行を有効化";
+            this.checkBoxBulkOnlineAutoEnabled.UseVisualStyleBackColor = true;
+            // 
+            // labelBulkOnlineMode
+            // 
+            this.labelBulkOnlineMode.AutoSize = true;
+            this.labelBulkOnlineMode.Location = new System.Drawing.Point(11, 46);
+            this.labelBulkOnlineMode.Name = "labelBulkOnlineMode";
+            this.labelBulkOnlineMode.Size = new System.Drawing.Size(400, 24);
+            this.labelBulkOnlineMode.TabIndex = 15;
+            this.labelBulkOnlineMode.Text = "オンライン診療Bulkの既定値です。\r\n同意日または受診日を使って要求を作成し、受付番号を保持して結果取得します。";
+            // 
+            // radioButtonBulkOnlineConsentDates
+            // 
+            this.radioButtonBulkOnlineConsentDates.AutoSize = true;
+            this.radioButtonBulkOnlineConsentDates.Location = new System.Drawing.Point(13, 80);
+            this.radioButtonBulkOnlineConsentDates.Name = "radioButtonBulkOnlineConsentDates";
+            this.radioButtonBulkOnlineConsentDates.Size = new System.Drawing.Size(93, 16);
+            this.radioButtonBulkOnlineConsentDates.TabIndex = 16;
+            this.radioButtonBulkOnlineConsentDates.TabStop = true;
+            this.radioButtonBulkOnlineConsentDates.Text = "同意日で照会";
+            this.radioButtonBulkOnlineConsentDates.UseVisualStyleBackColor = true;
+            // 
+            // numericUpDownBulkOnlineMaxRetryCount
+            // 
+            this.numericUpDownBulkOnlineMaxRetryCount.Location = new System.Drawing.Point(250, 319);
+            this.numericUpDownBulkOnlineMaxRetryCount.Maximum = new decimal(new int[] {
+            200,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineMaxRetryCount.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineMaxRetryCount.Name = "numericUpDownBulkOnlineMaxRetryCount";
+            this.numericUpDownBulkOnlineMaxRetryCount.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkOnlineMaxRetryCount.TabIndex = 31;
+            this.numericUpDownBulkOnlineMaxRetryCount.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownBulkOnlineMaxRetryCount.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            // 
+            // radioButtonBulkOnlineExaminationDates
+            // 
+            this.radioButtonBulkOnlineExaminationDates.AutoSize = true;
+            this.radioButtonBulkOnlineExaminationDates.Location = new System.Drawing.Point(132, 80);
+            this.radioButtonBulkOnlineExaminationDates.Name = "radioButtonBulkOnlineExaminationDates";
+            this.radioButtonBulkOnlineExaminationDates.Size = new System.Drawing.Size(93, 16);
+            this.radioButtonBulkOnlineExaminationDates.TabIndex = 17;
+            this.radioButtonBulkOnlineExaminationDates.TabStop = true;
+            this.radioButtonBulkOnlineExaminationDates.Text = "受診日で照会";
+            this.radioButtonBulkOnlineExaminationDates.UseVisualStyleBackColor = true;
+            // 
+            // labelBulkOnlineMaxRetryCount
+            // 
+            this.labelBulkOnlineMaxRetryCount.AutoSize = true;
+            this.labelBulkOnlineMaxRetryCount.Location = new System.Drawing.Point(11, 321);
+            this.labelBulkOnlineMaxRetryCount.Name = "labelBulkOnlineMaxRetryCount";
+            this.labelBulkOnlineMaxRetryCount.Size = new System.Drawing.Size(167, 12);
+            this.labelBulkOnlineMaxRetryCount.TabIndex = 30;
+            this.labelBulkOnlineMaxRetryCount.Text = "オンライン 最大再問い合わせ回数";
+            // 
+            // labelBulkOnlineConsentDaysBack
+            // 
+            this.labelBulkOnlineConsentDaysBack.AutoSize = true;
+            this.labelBulkOnlineConsentDaysBack.Location = new System.Drawing.Point(11, 111);
+            this.labelBulkOnlineConsentDaysBack.Name = "labelBulkOnlineConsentDaysBack";
+            this.labelBulkOnlineConsentDaysBack.Size = new System.Drawing.Size(199, 12);
+            this.labelBulkOnlineConsentDaysBack.TabIndex = 18;
+            this.labelBulkOnlineConsentDaysBack.Text = "同意開始日: 今日から何日前まで含める";
+            // 
+            // numericUpDownBulkOnlineAutoIntervalMinutes
+            // 
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.Location = new System.Drawing.Point(250, 284);
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.Maximum = new decimal(new int[] {
+            1440,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.Name = "numericUpDownBulkOnlineAutoIntervalMinutes";
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.TabIndex = 29;
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownBulkOnlineAutoIntervalMinutes.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            // 
+            // numericUpDownBulkOnlineConsentDaysBack
+            // 
+            this.numericUpDownBulkOnlineConsentDaysBack.Location = new System.Drawing.Point(250, 109);
+            this.numericUpDownBulkOnlineConsentDaysBack.Maximum = new decimal(new int[] {
+            365,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineConsentDaysBack.Name = "numericUpDownBulkOnlineConsentDaysBack";
+            this.numericUpDownBulkOnlineConsentDaysBack.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkOnlineConsentDaysBack.TabIndex = 19;
+            this.numericUpDownBulkOnlineConsentDaysBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            // 
+            // labelBulkOnlineAutoIntervalMinutes
+            // 
+            this.labelBulkOnlineAutoIntervalMinutes.AutoSize = true;
+            this.labelBulkOnlineAutoIntervalMinutes.Location = new System.Drawing.Point(11, 286);
+            this.labelBulkOnlineAutoIntervalMinutes.Name = "labelBulkOnlineAutoIntervalMinutes";
+            this.labelBulkOnlineAutoIntervalMinutes.Size = new System.Drawing.Size(204, 12);
+            this.labelBulkOnlineAutoIntervalMinutes.TabIndex = 28;
+            this.labelBulkOnlineAutoIntervalMinutes.Text = "オンライン 新規ジョブ作成の最小間隔(分)";
+            // 
+            // labelBulkOnlineConsentDaysForward
+            // 
+            this.labelBulkOnlineConsentDaysForward.AutoSize = true;
+            this.labelBulkOnlineConsentDaysForward.Location = new System.Drawing.Point(11, 146);
+            this.labelBulkOnlineConsentDaysForward.Name = "labelBulkOnlineConsentDaysForward";
+            this.labelBulkOnlineConsentDaysForward.Size = new System.Drawing.Size(199, 12);
+            this.labelBulkOnlineConsentDaysForward.TabIndex = 20;
+            this.labelBulkOnlineConsentDaysForward.Text = "同意終了日: 今日から何日先まで含める";
+            // 
+            // numericUpDownBulkOnlinePollIntervalSeconds
+            // 
+            this.numericUpDownBulkOnlinePollIntervalSeconds.Location = new System.Drawing.Point(250, 249);
+            this.numericUpDownBulkOnlinePollIntervalSeconds.Maximum = new decimal(new int[] {
+            600,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlinePollIntervalSeconds.Minimum = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlinePollIntervalSeconds.Name = "numericUpDownBulkOnlinePollIntervalSeconds";
+            this.numericUpDownBulkOnlinePollIntervalSeconds.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkOnlinePollIntervalSeconds.TabIndex = 27;
+            this.numericUpDownBulkOnlinePollIntervalSeconds.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownBulkOnlinePollIntervalSeconds.Value = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
+            // 
+            // numericUpDownBulkOnlineConsentDaysForward
+            // 
+            this.numericUpDownBulkOnlineConsentDaysForward.Location = new System.Drawing.Point(250, 144);
+            this.numericUpDownBulkOnlineConsentDaysForward.Maximum = new decimal(new int[] {
+            365,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineConsentDaysForward.Name = "numericUpDownBulkOnlineConsentDaysForward";
+            this.numericUpDownBulkOnlineConsentDaysForward.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkOnlineConsentDaysForward.TabIndex = 21;
+            this.numericUpDownBulkOnlineConsentDaysForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            // 
+            // labelBulkOnlinePollIntervalSeconds
+            // 
+            this.labelBulkOnlinePollIntervalSeconds.AutoSize = true;
+            this.labelBulkOnlinePollIntervalSeconds.Location = new System.Drawing.Point(11, 251);
+            this.labelBulkOnlinePollIntervalSeconds.Name = "labelBulkOnlinePollIntervalSeconds";
+            this.labelBulkOnlinePollIntervalSeconds.Size = new System.Drawing.Size(163, 12);
+            this.labelBulkOnlinePollIntervalSeconds.TabIndex = 26;
+            this.labelBulkOnlinePollIntervalSeconds.Text = "オンライン 再問い合わせ間隔(秒)";
+            // 
+            // labelBulkOnlineExaminationDaysBack
+            // 
+            this.labelBulkOnlineExaminationDaysBack.AutoSize = true;
+            this.labelBulkOnlineExaminationDaysBack.Location = new System.Drawing.Point(11, 181);
+            this.labelBulkOnlineExaminationDaysBack.Name = "labelBulkOnlineExaminationDaysBack";
+            this.labelBulkOnlineExaminationDaysBack.Size = new System.Drawing.Size(199, 12);
+            this.labelBulkOnlineExaminationDaysBack.TabIndex = 22;
+            this.labelBulkOnlineExaminationDaysBack.Text = "受診開始日: 今日から何日前まで含める";
+            // 
+            // numericUpDownBulkOnlineExaminationDaysForward
+            // 
+            this.numericUpDownBulkOnlineExaminationDaysForward.Location = new System.Drawing.Point(250, 214);
+            this.numericUpDownBulkOnlineExaminationDaysForward.Maximum = new decimal(new int[] {
+            365,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineExaminationDaysForward.Name = "numericUpDownBulkOnlineExaminationDaysForward";
+            this.numericUpDownBulkOnlineExaminationDaysForward.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkOnlineExaminationDaysForward.TabIndex = 25;
+            this.numericUpDownBulkOnlineExaminationDaysForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            // 
+            // numericUpDownBulkOnlineExaminationDaysBack
+            // 
+            this.numericUpDownBulkOnlineExaminationDaysBack.Location = new System.Drawing.Point(250, 179);
+            this.numericUpDownBulkOnlineExaminationDaysBack.Maximum = new decimal(new int[] {
+            365,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkOnlineExaminationDaysBack.Name = "numericUpDownBulkOnlineExaminationDaysBack";
+            this.numericUpDownBulkOnlineExaminationDaysBack.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkOnlineExaminationDaysBack.TabIndex = 23;
+            this.numericUpDownBulkOnlineExaminationDaysBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            // 
+            // labelBulkOnlineExaminationDaysForward
+            // 
+            this.labelBulkOnlineExaminationDaysForward.AutoSize = true;
+            this.labelBulkOnlineExaminationDaysForward.Location = new System.Drawing.Point(11, 216);
+            this.labelBulkOnlineExaminationDaysForward.Name = "labelBulkOnlineExaminationDaysForward";
+            this.labelBulkOnlineExaminationDaysForward.Size = new System.Drawing.Size(199, 12);
+            this.labelBulkOnlineExaminationDaysForward.TabIndex = 24;
+            this.labelBulkOnlineExaminationDaysForward.Text = "受診終了日: 今日から何日先まで含める";
+            // 
+            // groupBox2
+            // 
+            this.groupBox2.Controls.Add(this.checkBoxBulkMedicalAidAutoEnabled);
+            this.groupBox2.Controls.Add(this.labelBulkMedicalAidDescription);
+            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidMaxRetryCount);
+            this.groupBox2.Controls.Add(this.labelBulkMedicalAidMonthBack);
+            this.groupBox2.Controls.Add(this.labelBulkMedicalAidMaxRetryCount);
+            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidMonthBack);
+            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidAutoIntervalMinutes);
+            this.groupBox2.Controls.Add(this.labelBulkMedicalAidMonthForward);
+            this.groupBox2.Controls.Add(this.labelBulkMedicalAidAutoIntervalMinutes);
+            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidMonthForward);
+            this.groupBox2.Controls.Add(this.numericUpDownBulkMedicalAidPollIntervalSeconds);
+            this.groupBox2.Controls.Add(this.labelBulkMedicalAidPollIntervalSeconds);
+            this.groupBox2.Location = new System.Drawing.Point(8, 740);
+            this.groupBox2.Name = "groupBox2";
+            this.groupBox2.Size = new System.Drawing.Size(543, 272);
+            this.groupBox2.TabIndex = 45;
+            this.groupBox2.TabStop = false;
+            this.groupBox2.Text = "医療扶助";
+            // 
+            // checkBoxBulkMedicalAidAutoEnabled
+            // 
+            this.checkBoxBulkMedicalAidAutoEnabled.AutoSize = true;
+            this.checkBoxBulkMedicalAidAutoEnabled.Location = new System.Drawing.Point(31, 27);
+            this.checkBoxBulkMedicalAidAutoEnabled.Name = "checkBoxBulkMedicalAidAutoEnabled";
+            this.checkBoxBulkMedicalAidAutoEnabled.Size = new System.Drawing.Size(196, 16);
+            this.checkBoxBulkMedicalAidAutoEnabled.TabIndex = 32;
+            this.checkBoxBulkMedicalAidAutoEnabled.Text = "医療扶助 Bulk 自動実行を有効化";
+            this.checkBoxBulkMedicalAidAutoEnabled.UseVisualStyleBackColor = true;
+            // 
+            // labelBulkMedicalAidDescription
+            // 
+            this.labelBulkMedicalAidDescription.AutoSize = true;
+            this.labelBulkMedicalAidDescription.Location = new System.Drawing.Point(31, 55);
+            this.labelBulkMedicalAidDescription.Name = "labelBulkMedicalAidDescription";
+            this.labelBulkMedicalAidDescription.Size = new System.Drawing.Size(438, 24);
+            this.labelBulkMedicalAidDescription.TabIndex = 33;
+            this.labelBulkMedicalAidDescription.Text = "医療扶助Bulkの既定値です。\r\n診療年月単位で要求を作成し、受付番号を保持して結果取得・再問い合わせを行います。";
+            // 
+            // numericUpDownBulkMedicalAidMaxRetryCount
+            // 
+            this.numericUpDownBulkMedicalAidMaxRetryCount.Location = new System.Drawing.Point(270, 228);
+            this.numericUpDownBulkMedicalAidMaxRetryCount.Maximum = new decimal(new int[] {
+            200,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidMaxRetryCount.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidMaxRetryCount.Name = "numericUpDownBulkMedicalAidMaxRetryCount";
+            this.numericUpDownBulkMedicalAidMaxRetryCount.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkMedicalAidMaxRetryCount.TabIndex = 43;
+            this.numericUpDownBulkMedicalAidMaxRetryCount.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownBulkMedicalAidMaxRetryCount.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            // 
+            // labelBulkMedicalAidMonthBack
+            // 
+            this.labelBulkMedicalAidMonthBack.AutoSize = true;
+            this.labelBulkMedicalAidMonthBack.Location = new System.Drawing.Point(31, 90);
+            this.labelBulkMedicalAidMonthBack.Name = "labelBulkMedicalAidMonthBack";
+            this.labelBulkMedicalAidMonthBack.Size = new System.Drawing.Size(190, 12);
+            this.labelBulkMedicalAidMonthBack.TabIndex = 34;
+            this.labelBulkMedicalAidMonthBack.Text = "診療年月開始: 今月から何か月前まで";
+            // 
+            // labelBulkMedicalAidMaxRetryCount
+            // 
+            this.labelBulkMedicalAidMaxRetryCount.AutoSize = true;
+            this.labelBulkMedicalAidMaxRetryCount.Location = new System.Drawing.Point(31, 230);
+            this.labelBulkMedicalAidMaxRetryCount.Name = "labelBulkMedicalAidMaxRetryCount";
+            this.labelBulkMedicalAidMaxRetryCount.Size = new System.Drawing.Size(171, 12);
+            this.labelBulkMedicalAidMaxRetryCount.TabIndex = 42;
+            this.labelBulkMedicalAidMaxRetryCount.Text = "医療扶助 最大再問い合わせ回数";
+            // 
+            // numericUpDownBulkMedicalAidMonthBack
+            // 
+            this.numericUpDownBulkMedicalAidMonthBack.Location = new System.Drawing.Point(270, 88);
+            this.numericUpDownBulkMedicalAidMonthBack.Maximum = new decimal(new int[] {
+            24,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidMonthBack.Name = "numericUpDownBulkMedicalAidMonthBack";
+            this.numericUpDownBulkMedicalAidMonthBack.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkMedicalAidMonthBack.TabIndex = 35;
+            this.numericUpDownBulkMedicalAidMonthBack.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            // 
+            // numericUpDownBulkMedicalAidAutoIntervalMinutes
+            // 
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Location = new System.Drawing.Point(270, 193);
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Maximum = new decimal(new int[] {
+            1440,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Name = "numericUpDownBulkMedicalAidAutoIntervalMinutes";
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.TabIndex = 41;
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownBulkMedicalAidAutoIntervalMinutes.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            // 
+            // labelBulkMedicalAidMonthForward
+            // 
+            this.labelBulkMedicalAidMonthForward.AutoSize = true;
+            this.labelBulkMedicalAidMonthForward.Location = new System.Drawing.Point(31, 125);
+            this.labelBulkMedicalAidMonthForward.Name = "labelBulkMedicalAidMonthForward";
+            this.labelBulkMedicalAidMonthForward.Size = new System.Drawing.Size(190, 12);
+            this.labelBulkMedicalAidMonthForward.TabIndex = 36;
+            this.labelBulkMedicalAidMonthForward.Text = "診療年月終了: 今月から何か月先まで";
+            // 
+            // labelBulkMedicalAidAutoIntervalMinutes
+            // 
+            this.labelBulkMedicalAidAutoIntervalMinutes.AutoSize = true;
+            this.labelBulkMedicalAidAutoIntervalMinutes.Location = new System.Drawing.Point(31, 195);
+            this.labelBulkMedicalAidAutoIntervalMinutes.Name = "labelBulkMedicalAidAutoIntervalMinutes";
+            this.labelBulkMedicalAidAutoIntervalMinutes.Size = new System.Drawing.Size(208, 12);
+            this.labelBulkMedicalAidAutoIntervalMinutes.TabIndex = 40;
+            this.labelBulkMedicalAidAutoIntervalMinutes.Text = "医療扶助 新規ジョブ作成の最小間隔(分)";
+            // 
+            // numericUpDownBulkMedicalAidMonthForward
+            // 
+            this.numericUpDownBulkMedicalAidMonthForward.Location = new System.Drawing.Point(270, 123);
+            this.numericUpDownBulkMedicalAidMonthForward.Maximum = new decimal(new int[] {
+            24,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidMonthForward.Name = "numericUpDownBulkMedicalAidMonthForward";
+            this.numericUpDownBulkMedicalAidMonthForward.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkMedicalAidMonthForward.TabIndex = 37;
+            this.numericUpDownBulkMedicalAidMonthForward.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            // 
+            // numericUpDownBulkMedicalAidPollIntervalSeconds
+            // 
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Location = new System.Drawing.Point(270, 158);
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Maximum = new decimal(new int[] {
+            600,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Minimum = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Name = "numericUpDownBulkMedicalAidPollIntervalSeconds";
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Size = new System.Drawing.Size(72, 19);
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.TabIndex = 39;
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownBulkMedicalAidPollIntervalSeconds.Value = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
+            // 
+            // labelBulkMedicalAidPollIntervalSeconds
+            // 
+            this.labelBulkMedicalAidPollIntervalSeconds.AutoSize = true;
+            this.labelBulkMedicalAidPollIntervalSeconds.Location = new System.Drawing.Point(31, 160);
+            this.labelBulkMedicalAidPollIntervalSeconds.Name = "labelBulkMedicalAidPollIntervalSeconds";
+            this.labelBulkMedicalAidPollIntervalSeconds.Size = new System.Drawing.Size(167, 12);
+            this.labelBulkMedicalAidPollIntervalSeconds.TabIndex = 38;
+            this.labelBulkMedicalAidPollIntervalSeconds.Text = "医療扶助 再問い合わせ間隔(秒)";
+            // 
+            // checkBoxBulkAutoSendToFaceEnabled
+            // 
+            this.checkBoxBulkAutoSendToFaceEnabled.AutoSize = true;
+            this.checkBoxBulkAutoSendToFaceEnabled.Location = new System.Drawing.Point(8, 32);
+            this.checkBoxBulkAutoSendToFaceEnabled.Name = "checkBoxBulkAutoSendToFaceEnabled";
+            this.checkBoxBulkAutoSendToFaceEnabled.Size = new System.Drawing.Size(280, 16);
+            this.checkBoxBulkAutoSendToFaceEnabled.TabIndex = 44;
+            this.checkBoxBulkAutoSendToFaceEnabled.Text = "自動実行の取得成功後にダイナミクスへ自動送信する";
+            this.checkBoxBulkAutoSendToFaceEnabled.UseVisualStyleBackColor = true;
+            // 
+            // comboBoxBulkStatusWindowMode
+            // 
+            this.comboBoxBulkStatusWindowMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxBulkStatusWindowMode.FormattingEnabled = true;
+            this.comboBoxBulkStatusWindowMode.Location = new System.Drawing.Point(135, 6);
+            this.comboBoxBulkStatusWindowMode.Name = "comboBoxBulkStatusWindowMode";
+            this.comboBoxBulkStatusWindowMode.Size = new System.Drawing.Size(128, 20);
+            this.comboBoxBulkStatusWindowMode.TabIndex = 13;
+            // 
+            // labelBulkStatusWindowMode
+            // 
+            this.labelBulkStatusWindowMode.AutoSize = true;
+            this.labelBulkStatusWindowMode.Location = new System.Drawing.Point(6, 9);
+            this.labelBulkStatusWindowMode.Name = "labelBulkStatusWindowMode";
+            this.labelBulkStatusWindowMode.Size = new System.Drawing.Size(123, 12);
+            this.labelBulkStatusWindowMode.TabIndex = 12;
+            this.labelBulkStatusWindowMode.Text = "自動実行時の表示方法";
+            // 
+            // label7
+            // 
+            this.label7.Font = new System.Drawing.Font("MS UI Gothic", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.label7.Location = new System.Drawing.Point(158, 89);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(392, 41);
+            this.label7.TabIndex = 91;
+            this.label7.Text = "COM読み取りは、同じPCでダイナミクスクライアントを動作させ、\r\n患者マスターフォームを開いた状態のときにダイナミクス側から\r\nデータの受信を行う方式ですので、" +
+    "ダイナクライアントを開いておく必要があります。";
             // 
             // Form2
             // 
@@ -1585,6 +1631,8 @@
             this.Name = "Form2";
             this.Text = "設定";
             this.Load += new System.EventHandler(this.Form2_Load);
+            this.panelDynamicsSource.ResumeLayout(false);
+            this.panelDynamicsSource.PerformLayout();
             this.groupBoxDI.ResumeLayout(false);
             this.groupBoxDI.PerformLayout();
             this.groupBox1.ResumeLayout(false);
@@ -1598,29 +1646,29 @@
             this.tabPageViewer.PerformLayout();
             this.tabPageBulktool.ResumeLayout(false);
             this.tabPageBulktool.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMaxRetryCount)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidAutoIntervalMinutes)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidPollIntervalSeconds)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthForward)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthBack)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineMaxRetryCount)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineAutoIntervalMinutes)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlinePollIntervalSeconds)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineExaminationDaysForward)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineExaminationDaysBack)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysForward)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysBack)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonMaxRetryCount)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonAutoIntervalMinutes)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonPollIntervalSeconds)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysForward)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysBack)).EndInit();
-            this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
-            this.groupBox3.ResumeLayout(false);
-            this.groupBox3.PerformLayout();
             this.groupBox4.ResumeLayout(false);
             this.groupBox4.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysBack)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonMaxRetryCount)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonConsentDaysForward)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonPollIntervalSeconds)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkHoumonAutoIntervalMinutes)).EndInit();
+            this.groupBox3.ResumeLayout(false);
+            this.groupBox3.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineMaxRetryCount)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineAutoIntervalMinutes)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysBack)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlinePollIntervalSeconds)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineConsentDaysForward)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineExaminationDaysForward)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkOnlineExaminationDaysBack)).EndInit();
+            this.groupBox2.ResumeLayout(false);
+            this.groupBox2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMaxRetryCount)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthBack)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidAutoIntervalMinutes)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidMonthForward)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownBulkMedicalAidPollIntervalSeconds)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1628,6 +1676,9 @@
         #endregion
 
         private System.Windows.Forms.TextBox textBoxDatadyna;
+        private System.Windows.Forms.Panel panelDynamicsSource;
+        private System.Windows.Forms.RadioButton radioButtonDynamicsMdb;
+        private System.Windows.Forms.RadioButton radioButtonDynamicsCom;
         private System.Windows.Forms.TextBox textBoxOQSFolder;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
@@ -1746,5 +1797,6 @@
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.Label label7;
     }
 }

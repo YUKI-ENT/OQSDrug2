@@ -248,8 +248,19 @@ namespace OQSDrug
 
         }
 
+        private readonly PatientViewLoadState historyLoadState = new PatientViewLoadState();
+
+        internal Task RefreshImportedPatientAsync(long patientId)
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated
+                || !(toolStripComboBoxPt.SelectedItem is PtItem patient) || patient.PtID != patientId)
+                return Task.CompletedTask;
+            return ShowDrugData(patientId, preserveView: true);
+        }
+
         private async void toolStripComboBoxPt_SelectedIndexChanged(object sender, EventArgs e)
         {
+            historyLoadState.Begin(); // Includes clearing the patient selection.
             try
             {
                 if (toolStripComboBoxPt.SelectedItem is PtItem selectedPt)
@@ -288,8 +299,9 @@ namespace OQSDrug
             }
         }
 
-        private async Task ShowDrugData(long PtID)
+        private async Task ShowDrugData(long PtID, bool preserveView = false)
         {
+            int loadRevision = historyLoadState.Begin();
             if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
                 MessageBox.Show("データベースがロックされており、ShowDrugDataに失敗しました。もう一度やり直してみてください。");
@@ -416,12 +428,6 @@ namespace OQSDrug
                         }
 
                         // --- DataTable を保持 & BindingSource 経由でバインド ---
-                        DrugHistoryData = pivoted;
-
-                        if (bsHistory == null)
-                            bsHistory = new BindingSource();
-                        bsHistory.DataSource = DrugHistoryData;
-
                         // DataGridViewへ反映
                         if (IsDisposed || Disposing || !IsHandleCreated ||
                             dataGridViewFixed.IsDisposed || dataGridViewDH.IsDisposed) return;
@@ -431,6 +437,14 @@ namespace OQSDrug
                             Invoke(new Action(() =>
                             {
                                 if (IsDisposed || Disposing || dataGridViewFixed.IsDisposed || dataGridViewDH.IsDisposed) return;
+                                if (!historyLoadState.IsCurrent(loadRevision)
+                                    || !(toolStripComboBoxPt.SelectedItem is PtItem selected) || selected.PtID != PtID) return;
+
+                                int vertical = vScrollBar1.Value;
+                                int horizontal = hScrollBar1.Value;
+                                DrugHistoryData = pivoted;
+                                if (bsHistory == null) bsHistory = new BindingSource();
+                                bsHistory.DataSource = DrugHistoryData;
 
                                 InitializeDataGridView(dataGridViewFixed);
                                 InitializeDataGridView(dataGridViewDH);
@@ -438,6 +452,14 @@ namespace OQSDrug
                                 dataGridViewDH.DataSource = bsHistory;
                                 ConfigureDataGridView(dataGridViewFixed);
                                 ConfigureDataGridView(dataGridViewDH);
+                                if (preserveView)
+                                {
+                                    RecalcScrollbars();
+                                    vScrollBar1.Value = Math.Max(vScrollBar1.Minimum, Math.Min(vertical,
+                                        vScrollBar1.Maximum - vScrollBar1.LargeChange + 1));
+                                    hScrollBar1.Value = Math.Max(hScrollBar1.Minimum, Math.Min(horizontal,
+                                        hScrollBar1.Maximum - hScrollBar1.LargeChange + 1));
+                                }
                             }));
                         }
                         catch (ObjectDisposedException)

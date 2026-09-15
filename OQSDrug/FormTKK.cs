@@ -161,8 +161,19 @@ namespace OQSDrug
             await LoadToolStripComboBox();
         }
 
+        private readonly PatientViewLoadState historyLoadState = new PatientViewLoadState();
+
+        internal Task RefreshImportedPatientAsync(long patientId)
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated
+                || !(toolStripComboBoxPt.SelectedItem is PtItem patient) || patient.PtID != patientId)
+                return Task.CompletedTask;
+            return ShowTKKData(patientId, preserveView: true);
+        }
+
         private async void toolStripComboBoxPt_SelectedIndexChanged(object sender, EventArgs e)
         {
+            historyLoadState.Begin();
             try
             {
                 if (toolStripComboBoxPt.SelectedItem is PtItem selectedPt)
@@ -180,8 +191,9 @@ namespace OQSDrug
             }
         }
 
-        private async Task ShowTKKData(long ptID)
+        private async Task ShowTKKData(long ptID, bool preserveView = false)
         {
+            int loadRevision = historyLoadState.Begin();
             if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
                 MessageBox.Show("データベースがロックされており、ShowTKKData に失敗しました。もう一度やり直してください。");
@@ -248,9 +260,19 @@ namespace OQSDrug
                                 dataGridViewTKK.Invoke(new Action(() =>
                                 {
                                     if (IsDisposed || Disposing || dataGridViewTKK.IsDisposed) return;
+                                    if (!historyLoadState.IsCurrent(loadRevision)
+                                        || !(toolStripComboBoxPt.SelectedItem is PtItem selected) || selected.PtID != ptID) return;
 
+                                    int firstRow = dataGridViewTKK.FirstDisplayedScrollingRowIndex;
+                                    int horizontal = dataGridViewTKK.HorizontalScrollingOffset;
                                     dataGridViewTKK.DataSource = pivot;
                                     ConfigureDataGridView(dataGridViewTKK);
+                                    if (preserveView)
+                                    {
+                                        if (firstRow >= 0 && dataGridViewTKK.RowCount > 0)
+                                            dataGridViewTKK.FirstDisplayedScrollingRowIndex = Math.Min(firstRow, dataGridViewTKK.RowCount - 1);
+                                        dataGridViewTKK.HorizontalScrollingOffset = horizontal;
+                                    }
                                 }));
                             }
                             catch (ObjectDisposedException)
