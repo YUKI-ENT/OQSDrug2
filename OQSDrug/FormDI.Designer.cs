@@ -53,11 +53,11 @@
             this.comboBoxLLMtemplates = new System.Windows.Forms.ComboBox();
             this.buttonDiseaseRemakePrompt = new System.Windows.Forms.Button();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.buttonCopySummary = new System.Windows.Forms.Button();
+            this.panel1 = new System.Windows.Forms.Panel();
             this.labelStatus = new System.Windows.Forms.Label();
+            this.buttonCopySummary = new System.Windows.Forms.Button();
             this.comboBoxAIresults = new System.Windows.Forms.ComboBox();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.panel1 = new System.Windows.Forms.Panel();
             this.toolStrip1 = new OQSDrug.ClickThroughToolStrip();
             this.toolStripComboBoxPt = new System.Windows.Forms.ToolStripComboBox();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -78,6 +78,7 @@
             this.toolStripButtonTKK = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator7 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripButtonSGMLDI = new System.Windows.Forms.ToolStripButton();
+            this.toolStripButtonReload = new System.Windows.Forms.ToolStripButton();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewFixed)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewDH)).BeginInit();
             this.tabControl1.SuspendLayout();
@@ -314,7 +315,6 @@
             // 
             // comboBoxModel
             // 
-            this.comboBoxModel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
             this.comboBoxModel.Font = new System.Drawing.Font("Meiryo UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.comboBoxModel.FormattingEnabled = true;
             this.comboBoxModel.Location = new System.Drawing.Point(86, 49);
@@ -379,17 +379,15 @@
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "AI回答";
             // 
-            // buttonCopySummary
+            // panel1
             // 
-            this.buttonCopySummary.Dock = System.Windows.Forms.DockStyle.Right;
-            this.buttonCopySummary.Image = global::OQSDrug.Properties.Resources.Copy;
-            this.buttonCopySummary.Location = new System.Drawing.Point(905, 0);
-            this.buttonCopySummary.Name = "buttonCopySummary";
-            this.buttonCopySummary.Size = new System.Drawing.Size(27, 27);
-            this.buttonCopySummary.TabIndex = 8;
-            this.toolTip1.SetToolTip(this.buttonCopySummary, "AI回答をクリップボードにコピー");
-            this.buttonCopySummary.UseVisualStyleBackColor = true;
-            this.buttonCopySummary.Click += new System.EventHandler(this.buttonCopySummary_Click);
+            this.panel1.Controls.Add(this.labelStatus);
+            this.panel1.Controls.Add(this.buttonCopySummary);
+            this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panel1.Location = new System.Drawing.Point(3, 47);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(932, 27);
+            this.panel1.TabIndex = 9;
             // 
             // labelStatus
             // 
@@ -403,6 +401,18 @@
             this.labelStatus.Text = "(Ready)";
             this.labelStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
+            // buttonCopySummary
+            // 
+            this.buttonCopySummary.Dock = System.Windows.Forms.DockStyle.Right;
+            this.buttonCopySummary.Image = global::OQSDrug.Properties.Resources.Copy;
+            this.buttonCopySummary.Location = new System.Drawing.Point(905, 0);
+            this.buttonCopySummary.Name = "buttonCopySummary";
+            this.buttonCopySummary.Size = new System.Drawing.Size(27, 27);
+            this.buttonCopySummary.TabIndex = 8;
+            this.toolTip1.SetToolTip(this.buttonCopySummary, "AI回答をクリップボードにコピー");
+            this.buttonCopySummary.UseVisualStyleBackColor = true;
+            this.buttonCopySummary.Click += new System.EventHandler(this.buttonCopySummary_Click);
+            // 
             // comboBoxAIresults
             // 
             this.comboBoxAIresults.Dock = System.Windows.Forms.DockStyle.Top;
@@ -415,21 +425,12 @@
             this.comboBoxAIresults.TabIndex = 5;
             this.comboBoxAIresults.SelectedIndexChanged += new System.EventHandler(this.comboBoxAIresults_SelectedIndexChanged);
             // 
-            // panel1
-            // 
-            this.panel1.Controls.Add(this.labelStatus);
-            this.panel1.Controls.Add(this.buttonCopySummary);
-            this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel1.Location = new System.Drawing.Point(3, 47);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(932, 27);
-            this.panel1.TabIndex = 9;
-            // 
             // toolStrip1
             // 
             this.toolStrip1.Font = new System.Drawing.Font("Yu Gothic UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolStripComboBoxPt,
+            this.toolStripButtonReload,
             this.toolStripSeparator1,
             this.toolStripSeparator4,
             this.toolStripButtonSum,
@@ -460,7 +461,7 @@
             this.toolStripComboBoxPt.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.toolStripComboBoxPt.Font = new System.Drawing.Font("ＭＳ ゴシック", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.toolStripComboBoxPt.Name = "toolStripComboBoxPt";
-            this.toolStripComboBoxPt.Size = new System.Drawing.Size(200, 21);
+            this.toolStripComboBoxPt.Size = new System.Drawing.Size(180, 21);
             this.toolStripComboBoxPt.SelectedIndexChanged += new System.EventHandler(this.toolStripComboBoxPt_SelectedIndexChanged);
             // 
             // toolStripSeparator1
@@ -637,6 +638,17 @@
             this.toolStripButtonSGMLDI.Visible = false;
             this.toolStripButtonSGMLDI.Click += new System.EventHandler(this.toolStripButtonSGMLDI_Click);
             // 
+            // toolStripButtonReload
+            // 
+            this.toolStripButtonReload.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.toolStripButtonReload.Image = global::OQSDrug.Properties.Resources.Refresh;
+            this.toolStripButtonReload.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButtonReload.Name = "toolStripButtonReload";
+            this.toolStripButtonReload.Size = new System.Drawing.Size(23, 24);
+            this.toolStripButtonReload.Text = "更新";
+            this.toolStripButtonReload.ToolTipText = "更新";
+            this.toolStripButtonReload.Click += new System.EventHandler(this.toolStripButtonReload_Click);
+            // 
             // FormDI
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -723,5 +735,6 @@
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.Button buttonCopySummary;
         private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.ToolStripButton toolStripButtonReload;
     }
 }

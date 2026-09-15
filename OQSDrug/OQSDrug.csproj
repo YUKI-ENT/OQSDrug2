@@ -52,10 +52,10 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
-    <SignAssembly>false</SignAssembly>
+    <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <SignManifests>false</SignManifests>
+    <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestCertificateThumbprint>89AA6D9BABBAAE6672A34DE9F07E47359389ACF2</ManifestCertificateThumbprint>
@@ -166,6 +166,14 @@
     <Compile Include="BulkExecutionProgressModels.cs" />
     <Compile Include="CommonFunctions.cs" />
     <Compile Include="DynamicsComReader.cs" />
+    <Compile Include="DynamicsComReader.Medications.cs" />
+    <Compile Include="MedicationInteractionCheck.cs" />
+    <Compile Include="FormInteractionCheck.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form1.InteractionCheck.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="DynamicsDataSource.cs" />
     <Compile Include="ResImportWorker.cs" />
     <Compile Include="PatientViewLoadState.cs" />
@@ -569,6 +577,7 @@
     <Content Include="Resources\02_create_oqsdrug_data.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Resources\Image1.png" />
     <None Include="Resources\People.png" />
     <None Include="Resources\Up-down.png" />
     <None Include="Resources\Person.png" />

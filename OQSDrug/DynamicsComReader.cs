@@ -1,5 +1,7 @@
-using System;
+﻿using System;
 using System.Data;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +9,7 @@ using System.Windows.Forms;
 
 namespace OQSDrug
 {
-    internal static class DynamicsComReader
+    internal static partial class DynamicsComReader
     {
         internal const string QualificationTable = "WKO資格確認結果表示";
         private static readonly Lazy<Task<Control>> dispatcher = new Lazy<Task<Control>>(StartDispatcher);
@@ -45,17 +47,98 @@ namespace OQSDrug
             return ready.Task;
         }
 
-        public static async Task<DataTable> ReadAsync(string sql)
+        public static Task<DataTable> ReadAsync(string sql) => DispatchAsync(() => Read(sql));
+
+        public static Task<long?> ReadCurrentPatientAsync() => DispatchAsync(() =>
+        {
+            object application;
+            try { application = Marshal.GetActiveObject("Access.Application"); }
+            catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x800401E3))
+            {
+                return (long?)null; // Access is not running.
+            }
+            return ReadCurrentPatientApplication(application);
+        });
+
+        // null: patient form closed; 0: form open without a valid patient.
+        internal static long? ReadCurrentPatientApplication(object application)
+        {
+            object project = null, allForms = null, metadata = null;
+            object forms = null, form = null, controls = null, control = null;
+            try
+            {
+                project = GetAutomationProperty(application, "CurrentProject");
+                allForms = GetAutomationProperty(project, "AllForms");
+                int count = Convert.ToInt32(GetAutomationProperty(allForms, "Count"));
+                for (int i = 0; i < count; i++)
+                {
+                    metadata = GetAutomationProperty(allForms, "Item", i);
+                    if (Convert.ToString(GetAutomationProperty(metadata, "Name")) == "患者マスター")
+                    {
+                        if (!Convert.ToBoolean(GetAutomationProperty(metadata, "IsLoaded"))) return null;
+                        forms = GetAutomationProperty(application, "Forms");
+                        form = GetAutomationProperty(forms, "Item", "患者マスター");
+                        if (Convert.ToBoolean(GetAutomationProperty(form, "NewRecord"))) return 0;
+                        controls = GetAutomationProperty(form, "Controls");
+                        control = GetAutomationProperty(controls, "Item", "カルテ番号");
+                        object value = GetAutomationProperty(control, "Value");
+                        return long.TryParse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture),
+                            out long id) && id > 0 ? id : 0;
+                    }
+                    Release(metadata);
+                    metadata = null;
+                }
+                return null;
+            }
+            finally
+            {
+                Release(control);
+                Release(controls);
+                Release(form);
+                Release(forms);
+                Release(metadata);
+                Release(allForms);
+                Release(project);
+                Release(application);
+            }
+        }
+
+        // Access live forms may fail during dynamic type-info lookup or Name access.
+        // Follow DocAssistant's named IDispatch property access instead.
+        private static object GetAutomationProperty(object target, string name, params object[] args)
+        {
+            try
+            {
+                return target.GetType().InvokeMember(name,
+                    BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance,
+                    null, target, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                if (ex.InnerException is COMException com)
+                    throw new COMException("COMプロパティ " + name + " の取得失敗 (0x"
+                        + com.ErrorCode.ToString("X8") + "): " + com.Message, com.ErrorCode);
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+            catch (COMException ex)
+            {
+                throw new COMException("COMプロパティ " + name + " の取得失敗 (0x"
+                    + ex.ErrorCode.ToString("X8") + "): " + ex.Message, ex.ErrorCode);
+            }
+        }
+
+        private static async Task<T> DispatchAsync<T>(Func<T> read)
         {
             // Do not post another callback while COM is pumping messages inside the current call.
             await readGate.WaitAsync().ConfigureAwait(false);
             try
             {
                 var control = await dispatcher.Value.ConfigureAwait(false);
-                var result = new TaskCompletionSource<DataTable>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var result = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
                 control.BeginInvoke(new Action(() =>
                 {
-                    try { result.SetResult(Read(sql)); }
+                    try { result.SetResult(read()); }
                     catch (Exception ex) { result.SetException(ex); }
                 }));
                 return await result.Task.ConfigureAwait(false);

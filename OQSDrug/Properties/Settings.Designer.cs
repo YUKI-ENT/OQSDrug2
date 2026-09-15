@@ -30,6 +30,13 @@ namespace OQSDrug.Properties {
                 return defaultInstance;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool InteractionCheckEnabled {
+            get { return ((bool)(this["InteractionCheckEnabled"])); }
+            set { this["InteractionCheckEnabled"] = value; }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

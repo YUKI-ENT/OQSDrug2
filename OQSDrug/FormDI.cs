@@ -258,6 +258,37 @@ namespace OQSDrug
             return ShowDrugData(patientId, preserveView: true);
         }
 
+        private async void toolStripButtonReload_Click(object sender, EventArgs e)
+        {
+            if (!(toolStripComboBoxPt.SelectedItem is PtItem patient))
+                return;
+
+            toolStripButtonReload.Enabled = false;
+            try
+            {
+                await ShowDrugData(patient.PtID, preserveView: true);
+
+                if (IsDisposed || Disposing
+                    || !(toolStripComboBoxPt.SelectedItem is PtItem currentPatient)
+                    || currentPatient.PtID != patient.PtID)
+                    return;
+
+                if (tabControl1.SelectedTab == tabPageInteraction)
+                    await ShowInteractionAsync(patient.PtID, ShowSpan, Properties.Settings.Default.OmitMyOrg);
+                else if (tabControl1.SelectedTab == tabPageAIDisease)
+                    await ShowLLMResult(patient.PtID);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("更新中にエラーが発生しました: " + ex.Message,
+                    "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (!IsDisposed && !Disposing && !toolStripButtonReload.IsDisposed)
+                    toolStripButtonReload.Enabled = true;
+            }
+        }
         private async void toolStripComboBoxPt_SelectedIndexChanged(object sender, EventArgs e)
         {
             historyLoadState.Begin(); // Includes clearing the patient selection.

@@ -74,6 +74,13 @@ namespace OQSDrug
         private System.Threading.Timer backgroundTimer; //非同期タイマー
 
         private FileSystemWatcher fileWatcher;
+        private System.Windows.Forms.Timer comPatientTimer;
+        private bool comPatientPolling;
+        private int patientLinkRevision;
+        private long? lastComChartId;
+        private bool comPatientStateKnown;
+        private DateTime nextComPatientErrorLog;
+        private bool dynaIdCleanupDone;
         private FileSystemWatcher resWatcher;
         string idFile = ""; //RSB連携
         int idStyle = 0;
@@ -116,6 +123,7 @@ namespace OQSDrug
         public Form1()
         {
             InitializeComponent();
+            InitializeInteractionUi();
 
             // これがないと UiSync が null のままになる
             CommonFunctions.UiSync = SynchronizationContext.Current; // WindowsFormsSynchronizationContext
@@ -587,6 +595,8 @@ namespace OQSDrug
         {
             base.OnFormClosing(e);
             if (e.Cancel) return;
+            StopComPatientWatcher();
+            stopFileWatcher(false);
             resImportWorker.Dispose();
             StopResWatcher();
 
@@ -697,6 +707,7 @@ namespace OQSDrug
 
         private async void toolStripButtonSettings_Click(object sender, EventArgs e)
         {
+            StopComPatientWatcher();
             string previousDatadyna = Properties.Settings.Default.Datadyna;
             bool previousDynamicsUseCom = Properties.Settings.Default.DynamicsUseCom;
             //動作中の場合は停止する
@@ -1804,7 +1815,13 @@ namespace OQSDrug
             }
 
             initBackgroundLoadCompleted = true;
-            if (!needSettingsDialog && (autoRSB || autoTKK || autoSR))
+            OnUI(() => interactionButton.Visible = InteractionEnabled);
+            if (Properties.Settings.Default.DynamicsUseCom && !dynaIdCleanupDone)
+            {
+                dynaIdCleanupDone = true;
+                await Task.Run(CleanupDynaIdFiles);
+            }
+            if (!needSettingsDialog && (autoRSB || autoTKK || autoSR || InteractionEnabled))
             {
                 OnUI(() => checkBoxAutoview_CheckedChanged(this, EventArgs.Empty));
             }
@@ -4196,6 +4213,7 @@ namespace OQSDrug
                         }
                         else
                         {
+                            InvalidateInteractionHistory(patientId);
                             var viewer = formDIInstance;
                             if (viewer != null && !viewer.IsDisposed && !viewer.Disposing)
                                 await viewer.RefreshImportedPatientAsync(patientId);
@@ -5153,8 +5171,20 @@ namespace OQSDrug
                 return;
             }
 
-            if (autoRSB || autoTKK || autoSR)
+            StopComPatientWatcher();
+            interactionButton.Visible = InteractionEnabled;
+            if (autoRSB || autoTKK || autoSR || InteractionEnabled)
             {
+                if (Properties.Settings.Default.DynamicsUseCom)
+                {
+                    stopFileWatcher(false);
+                    InitializeResWatcher();
+                    comPatientTimer = new System.Windows.Forms.Timer { Interval = 500 };
+                    comPatientTimer.Tick += ComPatientTimer_Tick;
+                    comPatientTimer.Start();
+                    await PollComPatientAsync();
+                    return;
+                }
                 InitializeFileWatcher();
 
                 //初回読み込み
@@ -5197,6 +5227,90 @@ namespace OQSDrug
                 }
             }
             if (writeLog) AddLogAsync("RSB連携を終了しました");
+        }
+
+        private void StopComPatientWatcher()
+        {
+            ResetInteraction();
+            patientLinkRevision++;
+            comPatientTimer?.Stop();
+            comPatientTimer?.Dispose();
+            comPatientTimer = null;
+            lastComChartId = null;
+            comPatientStateKnown = false;
+        }
+
+        private async void ComPatientTimer_Tick(object sender, EventArgs e)
+        {
+            await PollComPatientAsync();
+            await PollInteractionAsync();
+        }
+
+        private async Task PollComPatientAsync()
+        {
+            if (comPatientPolling || comPatientTimer == null || IsDisposed || Disposing) return;
+            comPatientPolling = true;
+            int revision = patientLinkRevision;
+            try
+            {
+                long? chartId = await DynamicsComReader.ReadCurrentPatientAsync();
+                if (revision != patientLinkRevision || IsDisposed || Disposing) return;
+                if (comPatientStateKnown && chartId == lastComChartId) return;
+
+                long patientId = chartId.GetValueOrDefault() / 10;
+                if (patientId <= 0)
+                {
+                    tempId = 0;
+                    if (autoRSB) formDIInstance?.Close();
+                    if (autoTKK) formTKKInstance?.Close();
+                    if (autoSR) formSRInstance?.Close();
+                }
+                else
+                {
+                    tempId = patientId;
+                    if (autoRSB) await OpenDrugHistory(patientId, false, linkRevision: revision);
+                    if (revision != patientLinkRevision || IsDisposed || Disposing) return;
+                    if (autoTKK) await OpenTKKHistory(patientId, false, linkRevision: revision);
+                    if (revision != patientLinkRevision || IsDisposed || Disposing) return;
+                    if (autoSR) await OpenSinryoHistory(patientId, false, linkRevision: revision);
+                }
+                if (revision != patientLinkRevision || IsDisposed || Disposing) return;
+                lastComChartId = chartId;
+                comPatientStateKnown = true;
+            }
+            catch (Exception ex)
+            {
+                // A busy Access instance is not evidence that the patient form closed.
+                if (revision == patientLinkRevision && !IsDisposed && !Disposing
+                    && DateTime.UtcNow >= nextComPatientErrorLog)
+                {
+                    nextComPatientErrorLog = DateTime.UtcNow.AddSeconds(30);
+                    await AddLogAsync("カルテCOM連携待ち: " + ex.Message);
+                }
+            }
+            finally { comPatientPolling = false; }
+        }
+
+        private void CleanupDynaIdFiles()
+        {
+            foreach (string folder in new[] { @"C:\DynaID", @"D:\DynaID" })
+            {
+                try
+                {
+                    if (!Directory.Exists(folder)) continue;
+                    if ((System.IO.File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) continue;
+                    foreach (string path in Directory.EnumerateFiles(folder, "dyna*.txt", SearchOption.TopDirectoryOnly))
+                    {
+                        if (!string.Equals(Path.GetExtension(path), ".txt", StringComparison.OrdinalIgnoreCase)
+                            || !Path.GetFileName(path).StartsWith("dyna", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!string.Equals(Path.GetDirectoryName(Path.GetFullPath(path)), folder,
+                            StringComparison.OrdinalIgnoreCase)) continue;
+                        try { File.Delete(path); }
+                        catch (Exception ex) { _ = AddLogAsync("連携ファイル整理をスキップ: " + path + " " + ex.Message); }
+                    }
+                }
+                catch (Exception ex) { _ = AddLogAsync("連携フォルダ整理をスキップ: " + folder + " " + ex.Message); }
+            }
         }
 
         private void StopResWatcher()
@@ -5300,7 +5414,13 @@ namespace OQSDrug
                 AddLogAsync($"FileWatcherの初期化に失敗しました{ex.ToString()}");
             }
 
-            // Also initialize a minimal watcher for the `res` folder (Plan A)
+            InitializeResWatcher();
+        }
+
+        private void InitializeResWatcher()
+        {
+            StopResWatcher();
+            // Response import notifications are independent of the patient ID source.
             try
             {
                 string resFolder = Path.Combine(Properties.Settings.Default.OQSFolder, "res");
@@ -5606,9 +5726,11 @@ namespace OQSDrug
             timer.Start();
         }
 
-        public async Task OpenDrugHistory(long ptId, bool messagePopup = false, bool alwaysShow = false)
+        public async Task OpenDrugHistory(long ptId, bool messagePopup = false, bool alwaysShow = false, int? linkRevision = null)
         {
-            if (alwaysShow || await existHistory(ptId, "drug_history"))
+            bool hasHistory = alwaysShow || await existHistory(ptId, "drug_history");
+            if (linkRevision.HasValue && (linkRevision.Value != patientLinkRevision || IsDisposed || Disposing)) return;
+            if (hasHistory)
             {
                 tempId = ptId;
                 // UIスレッドで操作
@@ -5675,9 +5797,11 @@ namespace OQSDrug
             }
         }
 
-        public async Task OpenTKKHistory(long ptId, bool messagePopup = false, bool alwaysShow = false)
+        public async Task OpenTKKHistory(long ptId, bool messagePopup = false, bool alwaysShow = false, int? linkRevision = null)
         {
-            if (alwaysShow || await existHistory(ptId, "TKK_history"))
+            bool hasHistory = alwaysShow || await existHistory(ptId, "TKK_history");
+            if (linkRevision.HasValue && (linkRevision.Value != patientLinkRevision || IsDisposed || Disposing)) return;
+            if (hasHistory)
             {
                 tempId = ptId;
                 // UIスレッドで操作
@@ -5778,9 +5902,11 @@ namespace OQSDrug
             }
         }
 
-        public async Task OpenSinryoHistory(long ptId, bool messagePopup = false, bool alwaysShow = false)
+        public async Task OpenSinryoHistory(long ptId, bool messagePopup = false, bool alwaysShow = false, int? linkRevision = null)
         {
-            if (alwaysShow || await existHistory(ptId, "sinryo_history"))
+            bool hasHistory = alwaysShow || await existHistory(ptId, "sinryo_history");
+            if (linkRevision.HasValue && (linkRevision.Value != patientLinkRevision || IsDisposed || Disposing)) return;
+            if (hasHistory)
             {
                 tempId = ptId;
                 // UIスレッドで操作

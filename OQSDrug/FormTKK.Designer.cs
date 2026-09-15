@@ -36,6 +36,7 @@
             this.toolStrip1 = new ClickThroughToolStrip();
 
             this.toolStripComboBoxPt = new System.Windows.Forms.ToolStripComboBox();
+            this.toolStripButtonReload = new System.Windows.Forms.ToolStripButton();
             this.toolStripButtonClose = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.dataGridViewTKK = new System.Windows.Forms.DataGridView();
@@ -48,7 +49,8 @@
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolStripComboBoxPt,
             this.toolStripButtonClose,
-            this.toolStripSeparator1});
+            this.toolStripSeparator1,
+            this.toolStripButtonReload});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
             this.toolStrip1.Size = new System.Drawing.Size(564, 27);
@@ -64,8 +66,19 @@
             this.toolStripComboBoxPt.Size = new System.Drawing.Size(200, 21);
             this.toolStripComboBoxPt.SelectedIndexChanged += new System.EventHandler(this.toolStripComboBoxPt_SelectedIndexChanged);
             // 
-            // toolStripButtonClose
+            // toolStripButtonReload
             // 
+            this.toolStripButtonReload.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.toolStripButtonReload.Image = global::OQSDrug.Properties.Resources.Refresh;
+            this.toolStripButtonReload.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButtonReload.Name = "toolStripButtonReload";
+            this.toolStripButtonReload.Size = new System.Drawing.Size(23, 24);
+            this.toolStripButtonReload.Text = "更新";
+            this.toolStripButtonReload.ToolTipText = "更新";
+            this.toolStripButtonReload.Click += new System.EventHandler(this.toolStripButtonReload_Click);
+            //
+            // toolStripButtonClose
+            //
             this.toolStripButtonClose.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
             this.toolStripButtonClose.Font = new System.Drawing.Font("メイリオ", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.toolStripButtonClose.Image = global::OQSDrug.Properties.Resources.Exit;
@@ -145,6 +158,7 @@
         private ClickThroughToolStrip toolStrip1;
 
         private System.Windows.Forms.ToolStripComboBox toolStripComboBoxPt;
+        private System.Windows.Forms.ToolStripButton toolStripButtonReload;
         private System.Windows.Forms.ToolStripButton toolStripButtonClose;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.DataGridView dataGridViewTKK;

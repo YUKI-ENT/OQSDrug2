@@ -171,6 +171,28 @@ namespace OQSDrug
             return ShowTKKData(patientId, preserveView: true);
         }
 
+        private async void toolStripButtonReload_Click(object sender, EventArgs e)
+        {
+            if (!(toolStripComboBoxPt.SelectedItem is PtItem patient))
+                return;
+
+            toolStripButtonReload.Enabled = false;
+            try
+            {
+                await ShowTKKData(patient.PtID, preserveView: true);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("更新中にエラーが発生しました: " + ex.Message,
+                    "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (!IsDisposed && !Disposing && !toolStripButtonReload.IsDisposed)
+                    toolStripButtonReload.Enabled = true;
+            }
+        }
+
         private async void toolStripComboBoxPt_SelectedIndexChanged(object sender, EventArgs e)
         {
             historyLoadState.Begin();

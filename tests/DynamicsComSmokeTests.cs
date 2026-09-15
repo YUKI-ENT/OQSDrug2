@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
@@ -27,7 +27,39 @@ public static class DynamicsComSmokeTests
                 return File.Exists(path) ? Assembly.LoadFrom(path) : null;
             };
             var assembly = Assembly.LoadFrom(appPath);
+            MedicationInteractionTests.Run(assembly, args[1]);
             var reader = assembly.GetType("OQSDrug.DynamicsComReader", true);
+            var readPatient = reader.GetMethod("ReadCurrentPatientApplication", BindingFlags.NonPublic | BindingFlags.Static);
+            var patientApp = new FakePatientAccess();
+            Func<long?> currentPatient = () => (long?)readPatient.Invoke(null, new object[] { patientApp });
+            patientApp.Forms.Patient.Controls.Carte.Value = "123451";
+            Require(currentPatient() == 123451 && currentPatient().Value / 10 == 12345, "Chart ID / branch conversion failed");
+            patientApp.Forms.Patient.Controls.Carte.Value = 123459;
+            Require(currentPatient() == 123459, "Branch-only transition was lost");
+            patientApp.Forms.Patient.Controls.Carte.Value = DBNull.Value;
+            Require(currentPatient() == 0, "Empty patient value was not distinguished from closed form");
+            patientApp.Forms.Patient.Controls.Carte.Value = "invalid";
+            Require(currentPatient() == 0, "Invalid ID accepted");
+            patientApp.Forms.Exists = false;
+            Require(currentPatient() == null, "Closed form not detected");
+            patientApp.Forms.Exists = true;
+            patientApp.Forms.Patient.NewRecord = true;
+            Require(currentPatient() == 0, "New record was not ignored");
+            patientApp.Forms.Patient.NewRecord = false;
+            patientApp.Forms.Busy = true;
+            ExpectFailure(() => currentPatient());
+            patientApp.Forms.Busy = false;
+            patientApp.Forms.Patient.Controls.Carte.FailRead = true;
+            try { currentPatient(); throw new Exception("Expected property failure"); }
+            catch (TargetInvocationException ex)
+            {
+                Require(ex.InnerException.HResult == unchecked((int)0x800A88D2)
+                    && ex.InnerException.Message.Contains("Value"), "Property failure lost stage or HRESULT");
+            }
+            patientApp.Forms.Patient.Controls.Carte.FailRead = false;
+            patientApp.Forms.Patient.Controls.Carte.Value = 456780;
+            Require(currentPatient() == 456780, "Read did not recover after COM failure");
+            Console.WriteLine("PASS: current chart control, branch IDs, empty/invalid values, closed form, busy failure");
             var read = reader.GetMethod("ReadApplication", BindingFlags.NonPublic | BindingFlags.Static);
             var recordset = new FakeRecordset(600);
             var app = new FakeAccess(recordset);
@@ -73,11 +105,20 @@ public static class DynamicsComSmokeTests
                 var browse = control("buttonDatadyna");
                 path.Text = @"C:\example\client.mdb";
                 Require(mdb.Checked && path.Enabled && browse.Enabled, "MDB default changed");
+                var link = (ComboBox)control("comboBoxRSBID");
+                link.SelectedIndex = 4;
                 com.Checked = true;
                 Require(!mdb.Checked && !path.Enabled && !browse.Enabled, "COM did not disable path controls");
+                Require(!link.Enabled && (string)link.SelectedItem == "COM連携", "COM patient link was not forced");
+                var interactionCheck = (CheckBox)control("checkBoxInteractionCheck");
+                var viewerPage = control("tabPageViewer");
+                Render(viewerPage, Path.Combine(args[1], "interaction-settings-com.png"));
                 Render(control("tabPageMain"), Path.Combine(args[1], "dynamics-com.png"));
                 mdb.Checked = true;
                 Require(!com.Checked && path.Enabled && browse.Enabled, "MDB did not re-enable path controls");
+                Require(link.Enabled && !link.Items.Contains("COM連携"), "File patient link was not restored");
+                Require(link.SelectedIndex == 4, "Previous file patient link was lost");
+                Render(viewerPage, Path.Combine(args[1], "interaction-settings-mdb.png"));
                 Require(path.Text == @"C:\example\client.mdb", "Switching mode erased MDB path");
                 Render(control("tabPageMain"), Path.Combine(args[1], "dynamics-mdb.png"));
             }
@@ -202,4 +243,57 @@ public sealed class FakeRecordset
         return result;
     }
     public void Close() { Closed = true; }
+}
+
+public sealed class FakePatientAccess
+{
+    public FakePatientForms Forms { get; } = new FakePatientForms();
+    public FakePatientProject CurrentProject => new FakePatientProject(Forms);
+}
+public sealed class FakePatientProject
+{
+    public FakePatientProject(FakePatientForms forms) { AllForms = new FakePatientMetadataCollection(forms); }
+    public FakePatientMetadataCollection AllForms { get; }
+}
+public sealed class FakePatientMetadataCollection
+{
+    private readonly FakePatientForms forms;
+    public FakePatientMetadataCollection(FakePatientForms forms) { this.forms = forms; }
+    public int Count => forms.Busy ? throw new System.Runtime.InteropServices.COMException("Busy") : 1;
+    public FakePatientMetadata this[int index] => new FakePatientMetadata(forms.Exists);
+}
+public sealed class FakePatientMetadata
+{
+    public FakePatientMetadata(bool loaded) { IsLoaded = loaded; }
+    public string Name => "患者マスター";
+    public bool IsLoaded { get; }
+}
+public sealed class FakePatientForms
+{
+    public bool Exists = true, Busy;
+    public FakePatientForm Patient { get; } = new FakePatientForm();
+    public int Count => Busy ? throw new System.Runtime.InteropServices.COMException("Busy") : (Exists ? 1 : 0);
+    public FakePatientForm this[int index] => Patient;
+    public FakePatientForm this[string name] => name == "患者マスター" && Exists ? Patient : throw new Exception("Missing form");
+}
+public sealed class FakePatientForm
+{
+    public string Name => throw new System.Runtime.InteropServices.COMException("Live form Name fails", unchecked((int)0x800A88D2));
+    public bool NewRecord { get; set; }
+    public FakePatientControls Controls { get; } = new FakePatientControls();
+}
+public sealed class FakePatientControls
+{
+    public FakePatientControl Carte { get; } = new FakePatientControl();
+    public FakePatientControl this[string name] => name == "カルテ番号" ? Carte : throw new Exception("Unexpected control");
+}
+public sealed class FakePatientControl
+{
+    private object value;
+    public bool FailRead;
+    public object Value
+    {
+        get => FailRead ? throw new System.Runtime.InteropServices.COMException("Value fails", unchecked((int)0x800A88D2)) : value;
+        set => this.value = value;
+    }
 }

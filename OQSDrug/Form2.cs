@@ -22,10 +22,20 @@ namespace OQSDrug
     public partial class Form2 : Form
     {
         private Form1 form1;
+        private int filePatientLinkIndex;
+        private System.Windows.Forms.CheckBox checkBoxInteractionCheck;
+        private Label labelInteractionCheck;
 
         public Form2(Form1 parentForm)
         {
             InitializeComponent();
+            checkBoxInteractionCheck = new System.Windows.Forms.CheckBox { Name = "checkBoxInteractionCheck", Text = "相互作用チェックを行う",
+                AutoSize = true, Location = new Point(20, 200), Checked = Properties.Settings.Default.InteractionCheckEnabled,
+                Visible = radioButtonDynamicsCom.Checked };
+            labelInteractionCheck = new Label { AutoSize = true, Location = new Point(20, 226),
+                Text = "当日処方の確定後に他院薬を照合します（PostgreSQLが必要）。\r\n院内処方・確定後の再編集は、相互作用フォームから手動チェック。", Visible = radioButtonDynamicsCom.Checked };
+            tabPageViewer.Controls.Add(checkBoxInteractionCheck);
+            tabPageViewer.Controls.Add(labelInteractionCheck);
             InitializePmdaDocumentSettingsTab();
             form1 = parentForm; // Form1のインスタンスを受け取る
         }
@@ -103,6 +113,9 @@ namespace OQSDrug
             {
                 comboBoxRSBID.SelectedIndex = 0;
             }
+
+            filePatientLinkIndex = comboBoxRSBID.SelectedIndex;
+            UpdateDynamicsSourceControls();
 
             checkBoxKeepXml.Checked = Properties.Settings.Default.KeepXml;
 
@@ -316,6 +329,7 @@ namespace OQSDrug
             Properties.Settings.Default.OQSDrugData = textBoxOQSDrugData.Text;
             Properties.Settings.Default.Datadyna =textBoxDatadyna.Text;
             Properties.Settings.Default.DynamicsUseCom = radioButtonDynamicsCom.Checked;
+            Properties.Settings.Default.InteractionCheckEnabled = checkBoxInteractionCheck.Checked;
             Properties.Settings.Default.OQSFolder = textBoxOQSFolder.Text;
             
 
@@ -330,7 +344,8 @@ namespace OQSDrug
 
             Properties.Settings.Default.MinimumStart = checkBoxMinimumStart.Checked;
 
-            Properties.Settings.Default.RSBID = comboBoxRSBID.SelectedIndex;
+            Properties.Settings.Default.RSBID = radioButtonDynamicsCom.Checked
+                ? filePatientLinkIndex : comboBoxRSBID.SelectedIndex;
 
             Properties.Settings.Default.KeepXml = checkBoxKeepXml.Checked;
             Properties.Settings.Default.RSBXml = checkBoxRSBreloadXml.Checked;
@@ -438,6 +453,21 @@ namespace OQSDrug
         private void UpdateDynamicsSourceControls()
         {
             bool useCom = radioButtonDynamicsCom.Checked;
+            if (checkBoxInteractionCheck != null) checkBoxInteractionCheck.Visible = useCom;
+            if (labelInteractionCheck != null) labelInteractionCheck.Visible = useCom;
+            if (useCom)
+            {
+                if (comboBoxRSBID.SelectedIndex >= 0 && comboBoxRSBID.SelectedIndex < 5)
+                    filePatientLinkIndex = comboBoxRSBID.SelectedIndex;
+                if (!comboBoxRSBID.Items.Contains("COM連携")) comboBoxRSBID.Items.Add("COM連携");
+                comboBoxRSBID.SelectedItem = "COM連携";
+            }
+            else if (comboBoxRSBID.Items.Contains("COM連携"))
+            {
+                comboBoxRSBID.Items.Remove("COM連携");
+                comboBoxRSBID.SelectedIndex = filePatientLinkIndex;
+            }
+            comboBoxRSBID.Enabled = !useCom;
             textBoxDatadyna.Enabled = !useCom;
             buttonDatadyna.Enabled = !useCom;
             label17.Text = useCom
