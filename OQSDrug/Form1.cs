@@ -4199,6 +4199,20 @@ namespace OQSDrug
                             var viewer = formDIInstance;
                             if (viewer != null && !viewer.IsDisposed && !viewer.Disposing)
                                 await viewer.RefreshImportedPatientAsync(patientId);
+                            else if ((viewer == null || viewer.IsDisposed)
+                                && autoRSB && patientId > 0 && tempId == patientId)
+                            {
+                                // First history for the currently linked patient: the earlier ID event
+                                // could not open the viewer because no history existed at that time.
+                                bool hasHistory = await existHistory(patientId, "drug_history");
+                                // The linked patient, auto-display setting, or viewer may have changed
+                                // while the DB query was running. Do not switch or reopen another view.
+                                if (hasHistory && !IsDisposed && !Disposing && autoRSB && tempId == patientId
+                                    && (formDIInstance == null || formDIInstance.IsDisposed))
+                                {
+                                    await OpenDrugHistory(patientId, alwaysShow: true);
+                                }
+                            }
                         }
                     }
                     catch (Exception ex)
