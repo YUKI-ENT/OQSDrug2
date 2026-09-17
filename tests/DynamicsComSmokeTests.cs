@@ -27,6 +27,7 @@ public static class DynamicsComSmokeTests
                 return File.Exists(path) ? Assembly.LoadFrom(path) : null;
             };
             var assembly = Assembly.LoadFrom(appPath);
+            CheckSettingsReentry(assembly);
             MedicationInteractionTests.Run(assembly, args[1]);
             var reader = assembly.GetType("OQSDrug.DynamicsComReader", true);
             var readPatient = reader.GetMethod("ReadCurrentPatientApplication", BindingFlags.NonPublic | BindingFlags.Static);
@@ -43,6 +44,9 @@ public static class DynamicsComSmokeTests
             patientApp.Forms.Exists = false;
             Require(currentPatient() == null, "Closed form not detected");
             patientApp.Forms.Exists = true;
+            patientApp.Forms.Defined = false;
+            ExpectFailure(() => currentPatient());
+            patientApp.Forms.Defined = true;
             patientApp.Forms.Patient.NewRecord = true;
             Require(currentPatient() == 0, "New record was not ignored");
             patientApp.Forms.Patient.NewRecord = false;
@@ -152,6 +156,68 @@ public static class DynamicsComSmokeTests
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
     }
 
+    static void CheckSettingsReentry(Assembly assembly)
+    {
+        var type = assembly.GetType("OQSDrug.Form1");
+        var common = assembly.GetType("OQSDrug.CommonFunctions");
+        var log = common.GetField("UiLogCallback");
+        var sync = common.GetField("UiSync");
+        var oldLog = log.GetValue(null);
+        var oldSync = sync.GetValue(null);
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        try
+        {
+            using (var form = (Form)Activator.CreateInstance(type))
+            using (var dialog = (Form)Activator.CreateInstance(assembly.GetType("OQSDrug.Form2"), new object[] {form}))
+            {
+                try
+                {
+                    type.GetField("settingsFlowActive", flags).SetValue(form, true);
+                    type.GetField("settingsDialogOpen", flags).SetValue(form, true);
+                    type.GetField("settingsForm", flags).SetValue(form, dialog);
+                    type.GetField("initializationRevision", flags).SetValue(form, 10);
+                    type.GetMethod("toolStripButtonSettings_Click", flags).Invoke(form, new object[] {null, EventArgs.Empty});
+                    Require(ReferenceEquals(type.GetField("settingsForm", flags).GetValue(form), dialog), "Settings reentry replaced the existing dialog");
+                    var init = (Task)type.GetMethod("initializeForm", flags).Invoke(form, new object[] {true});
+                    Require(init.IsCompleted, "Initialization did not stop while settings was open");
+                    Require((int)type.GetField("initializationRevision", flags).GetValue(form)==10, "Reentry invalidated the active settings flow");
+                    var timer = (Task)type.GetMethod("RunTimerLogicAsync", flags).Invoke(form, null);
+                    Require(timer.IsCompleted, "Timer started DB work while settings was open");
+                    var status = (Task<byte>)type.GetMethod("UpdateStatus", flags).Invoke(form, null);
+                    Require(status.IsCompleted && status.Result==0, "Status tried to connect while settings was open");
+                    type.GetMethod("StartTimer").Invoke(form, null);
+                    Require(type.GetField("backgroundTimer", flags).GetValue(form)==null, "Timer restarted during settings");
+                    type.GetField("settingsFlowActive", flags).SetValue(form, false);
+                    type.GetField("settingsDialogOpen", flags).SetValue(form, false);
+                    type.GetMethod("StartTimer").Invoke(form, null);
+                    Require(type.GetField("backgroundTimer", flags).GetValue(form)==null, "Timer started before initialization completed");
+                    // The previous dialog closed, but its initialization is still awaiting IO.
+                    type.GetField("settingsForm", flags).SetValue(form, null);
+                    type.GetField("settingsFlowActive", flags).SetValue(form, true);
+                    var begin = type.GetMethod("TryBeginSettingsDialog", flags);
+                    var finish = type.GetMethod("FinishSettingsFlow", flags);
+                    int first = (int)begin.Invoke(form, null);
+                    Require(first > 0, "Pending post-settings initialization blocked reopening");
+                    Require((int)begin.Invoke(form, null)==0, "An open dialog allowed a second dialog");
+                    type.GetField("settingsDialogOpen", flags).SetValue(form, false);
+                    int second = (int)begin.Invoke(form, null);
+                    Require(second > first, "Second settings session did not supersede the first");
+                    finish.Invoke(form, new object[] {first});
+                    Require((bool)type.GetField("settingsDialogOpen", flags).GetValue(form)
+                        && (bool)type.GetField("settingsFlowActive", flags).GetValue(form), "Old completion unlocked the newer dialog");
+                    finish.Invoke(form, new object[] {second});
+                    Require(!(bool)type.GetField("settingsFlowActive", flags).GetValue(form), "Current session did not unlock");
+                }
+                finally
+                {
+                    ((IDisposable)type.GetField("resImportWorker", flags).GetValue(form)).Dispose();
+                }
+            }
+        }
+        finally { log.SetValue(null,oldLog); sync.SetValue(null,oldSync); }
+        Console.WriteLine("PASS: settings reentry, initialization/status/DB timer suppression, uninitialized timer guard");
+    }
+
     static void Render(Control control, string path)
     {
         // Render a detached panel so the settings form's Load handler (which saves settings) never runs.
@@ -259,18 +325,27 @@ public sealed class FakePatientMetadataCollection
 {
     private readonly FakePatientForms forms;
     public FakePatientMetadataCollection(FakePatientForms forms) { this.forms = forms; }
-    public int Count => forms.Busy ? throw new System.Runtime.InteropServices.COMException("Busy") : 1;
-    public FakePatientMetadata this[int index] => new FakePatientMetadata(forms.Exists);
+    public int Count => throw new Exception("Polling must not enumerate AllForms");
+    public FakePatientMetadata this[int index] => throw new Exception("Polling must look up the form by name");
+    public FakePatientMetadata this[string name]
+    {
+        get
+        {
+            if (forms.Busy) throw new System.Runtime.InteropServices.COMException("Busy");
+            if (name != "患者マスター" || !forms.Defined) throw new System.Runtime.InteropServices.COMException("Missing form definition");
+            return new FakePatientMetadata(forms.Exists);
+        }
+    }
 }
 public sealed class FakePatientMetadata
 {
     public FakePatientMetadata(bool loaded) { IsLoaded = loaded; }
-    public string Name => "患者マスター";
+    public string Name => throw new Exception("Polling must not read form names");
     public bool IsLoaded { get; }
 }
 public sealed class FakePatientForms
 {
-    public bool Exists = true, Busy;
+    public bool Exists = true, Defined = true, Busy;
     public FakePatientForm Patient { get; } = new FakePatientForm();
     public int Count => Busy ? throw new System.Runtime.InteropServices.COMException("Busy") : (Exists ? 1 : 0);
     public FakePatientForm this[int index] => Patient;

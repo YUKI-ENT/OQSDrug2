@@ -6,125 +6,153 @@ namespace OQSDrug
 {
     public partial class Form1
     {
-        private FormInteractionCheck interactionForm;
         private ToolStripButton interactionButton;
         private readonly MedicationConfirmationState confirmationState = new MedicationConfirmationState();
-        private bool interactionBusy;
-        private string interactionContext, interactionSignature, interactionNotice;
-        private DateTime nextInteractionErrorLog;
-        private DateTime nextInteractionAttempt;
-        private long interactionPatientId;
-        private string interactionCompletedSignature;
-        private int interactionHistoryRevision;
-        private bool interactionHistoryChanged;
-        private bool InteractionEnabled => Properties.Settings.Default.DynamicsUseCom && Properties.Settings.Default.InteractionCheckEnabled;
+        private bool interactionBusy, interactionComplete;
+        private ChartMedicationSnapshot interactionSnapshot;
+        private MedicationInteractionResult interactionResult;
+        private string interactionStatus = "処方確定待ち";
+        private string interactionContext, interactionSignature;
+        private DateTime nextInteractionErrorLog, nextInteractionAttempt;
+        private int interactionGeneration, interactionViewRevision, interactionHistoryRevision;
+        private int interactionMonths = 6;
+        internal bool InteractionEnabled => Properties.Settings.Default.DynamicsUseCom && Properties.Settings.Default.InteractionCheckEnabled;
 
         private void InitializeInteractionUi()
         {
             interactionButton = new ToolStripButton("相互作用チェック") { Visible = false };
             interactionButton.Click += async (s, e) =>
             {
-                EnsureInteractionForm(); interactionForm.Show(this);
-                await PollInteractionAsync(true);
+                long id = lastComChartId.GetValueOrDefault() / 10;
+                if (!InteractionEnabled || id <= 0) return;
+                forceIdLink = true;
+                await OpenDrugHistory(id, alwaysShow: true);
+                formDIInstance?.SelectInteractionCheckTab();
             };
             toolStripVersion.Items.Add(interactionButton);
         }
-        private void EnsureInteractionForm()
+
+        internal void RefreshInteractionTab(FormDI viewer)
         {
-            if (interactionForm != null && !interactionForm.IsDisposed) return;
-            interactionForm = new FormInteractionCheck();
-            interactionForm.FormClosed += (s, e) => { if (ReferenceEquals(interactionForm, s)) interactionForm = null; };
-            interactionForm.CheckRequested += async (s, e) => await PollInteractionAsync(true);
+            if (viewer == null || viewer.IsDisposed) return;
+            viewer.UpdateInteractionCheck(InteractionEnabled, interactionViewRevision,
+                lastComChartId.GetValueOrDefault() / 10, interactionSnapshot, interactionResult,
+                interactionStatus, interactionBusy, interactionMonths);
         }
+
+        private void PublishInteraction()
+        {
+            interactionViewRevision++;
+            RefreshInteractionTab(formDIInstance);
+        }
+
+        private void SetInteractionStatus(string status, bool clearResult = true)
+        {
+            if (interactionStatus == status && (!clearResult || interactionResult == null)) return;
+            interactionStatus = status;
+            if (clearResult) interactionResult = null;
+            PublishInteraction();
+        }
+
         private void ResetInteraction()
         {
+            interactionGeneration++;
             confirmationState.Reset();
-            interactionContext = interactionSignature = interactionNotice = null;
-            interactionPatientId = 0;
-            interactionCompletedSignature = null;
-            interactionHistoryChanged = false;
-            interactionHistoryRevision++;
-            if (interactionForm != null && !interactionForm.IsDisposed) interactionForm.Close();
-            interactionForm = null;
+            interactionContext = interactionSignature = null;
+            interactionSnapshot = null;
+            interactionResult = null;
+            interactionComplete = false;
+            interactionStatus = "処方確定待ち";
+            nextInteractionAttempt = DateTime.MinValue;
+            PublishInteraction();
         }
-        // Called on the UI thread after a successful drug-history import.
+
+        // Completed checks are frozen; history updates require an explicit recheck.
         private void InvalidateInteractionHistory(long patientId)
         {
-            if (!InteractionEnabled || patientId != interactionPatientId) return;
-            interactionHistoryChanged = true;
+            if (!InteractionEnabled || interactionSnapshot?.ChartId / 10 != patientId) return;
             interactionHistoryRevision++;
-            interactionForm?.SetState("他院薬歴が更新されました・再チェック待ち", true);
+            if (interactionComplete)
+                SetInteractionStatus("他院薬歴が更新されました。「再取得・チェック」で更新してください。");
         }
+
+        internal async Task RequestInteractionCheckAsync(long patientId, int months)
+        {
+            if (!InteractionEnabled || patientId <= 0 || patientId != lastComChartId.GetValueOrDefault() / 10) return;
+            interactionMonths = months;
+            await PollInteractionAsync(true);
+        }
+
         private async Task PollInteractionAsync(bool manual = false)
         {
             if (!InteractionEnabled || interactionBusy || comPatientTimer == null || IsDisposed || Disposing) return;
-            if (!manual && DateTime.UtcNow < nextInteractionAttempt) return;
+            if (!manual && (interactionComplete || DateTime.UtcNow < nextInteractionAttempt)) return;
             interactionBusy = true;
-            int revision = patientLinkRevision;
-            interactionForm?.SetBusy(true);
+            int revision = patientLinkRevision, generation = interactionGeneration;
+            long? expectedChart = lastComChartId;
+            Func<bool> stale = () => revision != patientLinkRevision || generation != interactionGeneration || IsDisposed || Disposing;
             try
             {
                 var snapshot = await DynamicsComReader.ReadMedicationsAsync();
-                if (revision != patientLinkRevision || IsDisposed || Disposing) return;
+                if (stale()) return;
                 if (snapshot == null) { ResetInteraction(); return; }
+                if (expectedChart.HasValue && snapshot.ChartId != expectedChart.Value)
+                {
+                    ResetInteraction();
+                    return;
+                }
                 if (interactionContext != snapshot.Context)
                 {
-                    if (!manual) ResetInteraction();
-                    else { confirmationState.Reset(); interactionNotice = interactionCompletedSignature = null; interactionHistoryChanged = false; }
+                    confirmationState.Reset();
+                    interactionComplete = false;
+                    interactionResult = null;
                     interactionContext = snapshot.Context;
                 }
-                interactionPatientId = snapshot.ChartId / 10;
                 bool changed = snapshot.Signature != interactionSignature;
+                interactionSnapshot = snapshot;
                 interactionSignature = snapshot.Signature;
-                if (changed && interactionForm != null && !interactionForm.IsDisposed)
+                if (changed)
                 {
-                    interactionForm.ShowSnapshot(snapshot);
-                    interactionForm.SetState("入力変更・確定待ち（確定行が残る再編集は手動チェック）", true);
+                    interactionResult = null;
+                    interactionStatus = "入力変更・処方確定待ち";
+                    PublishInteraction();
                 }
                 if (snapshot.VisitDate != DateTime.Today)
                 {
-                    interactionForm?.SetState("表示中の受診は本日ではないためチェックしません", true);
+                    SetInteractionStatus("表示中の受診は本日ではないためチェックしません");
                     return;
                 }
                 bool autoCheck = confirmationState.Observe(snapshot);
-                // New imported history must also be checked, but not while the prescription is being edited.
-                autoCheck |= interactionHistoryChanged && snapshot.Confirmation.Length > 0
-                    && snapshot.Signature == interactionCompletedSignature;
                 if (!manual && !autoCheck) return;
-                EnsureInteractionForm(); interactionForm.SetBusy(true);
-                interactionForm.ShowSnapshot(snapshot); interactionForm.SetState("チェック中", true);
-                int months = interactionForm.Months;
+                SetInteractionStatus("チェック中");
                 int historyRevision = interactionHistoryRevision;
-                var result = await MedicationInteractionCheck.CheckAsync(snapshot, months);
-                if (revision != patientLinkRevision || IsDisposed || Disposing) return;
-                // Database lookup may take time. Never publish a result for a stale chart or drug list.
+                var result = await MedicationInteractionCheck.CheckAsync(snapshot, interactionMonths);
+                if (stale()) return;
                 var verify = await DynamicsComReader.ReadMedicationsAsync();
-                if (revision != patientLinkRevision || IsDisposed || Disposing) return;
+                if (stale()) return;
                 if (historyRevision != interactionHistoryRevision)
                 {
-                    interactionForm?.SetState("他院薬歴が更新されたため再チェック待ち", true);
+                    SetInteractionStatus("他院薬歴が更新されたため再チェック待ち");
                     return;
                 }
                 if (verify == null || verify.Signature != snapshot.Signature)
                 {
-                    interactionForm?.SetState("患者・受診・薬剤が変わったため結果を破棄しました", true);
+                    SetInteractionStatus("患者・受診・薬剤が変わったため結果を破棄しました");
                     if (verify == null || verify.Context != snapshot.Context) ResetInteraction();
                     return;
                 }
                 confirmationState.Complete(snapshot);
-                interactionCompletedSignature = snapshot.Signature;
-                interactionHistoryChanged = false;
-                string notice = snapshot.Context + ":" + months + ":" + result.NoticeKey;
-                bool popup = result.Koro.Count + result.Text.Count > 0 && notice != interactionNotice;
-                interactionNotice = notice;
-                EnsureInteractionForm(); interactionForm.ShowResult(snapshot, result, popup || manual);
-                if (popup || manual) { interactionForm.Show(this); interactionForm.BringToFront(); }
+                interactionComplete = snapshot.Confirmation.Length > 0;
+                interactionResult = result;
+                interactionStatus = interactionComplete
+                    ? "チェック完了（自動チェック終了）。再編集・同じ患者の別受診は「再取得・チェック」を押してください。"
+                    : "手動チェック完了。処方確定後に自動チェックします。";
+                PublishInteraction();
             }
             catch (Exception ex)
             {
-                if (revision != patientLinkRevision || IsDisposed || Disposing) return;
-                nextInteractionAttempt = DateTime.UtcNow.AddSeconds(3);
-                interactionForm?.SetState("未チェック: " + ex.Message, true);
+                if (stale()) return;
+                SetInteractionStatus("未チェック: " + ex.Message);
                 if (DateTime.UtcNow >= nextInteractionErrorLog)
                 {
                     nextInteractionErrorLog = DateTime.UtcNow.AddSeconds(30);
@@ -134,7 +162,8 @@ namespace OQSDrug
             finally
             {
                 interactionBusy = false;
-                if (interactionForm != null && !interactionForm.IsDisposed) interactionForm.SetBusy(false);
+                nextInteractionAttempt = DateTime.UtcNow.AddSeconds(3);
+                if (!stale()) RefreshInteractionTab(formDIInstance);
             }
         }
     }

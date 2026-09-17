@@ -420,7 +420,7 @@
             this.textBoxRSBxmlURL.Name = "textBoxRSBxmlURL";
             this.textBoxRSBxmlURL.Size = new System.Drawing.Size(235, 19);
             this.textBoxRSBxmlURL.TabIndex = 77;
-            this.toolTipSetting.SetToolTip(this.textBoxRSBxmlURL, "リロードするURLを指定します");
+            this.toolTipSetting.SetToolTip(this.textBoxRSBxmlURL, "リロードするhttp(s) URLを指定します。ブラウザを開かずにHTTP GETで呼び出します。");
             // 
             // groupBoxDI
             // 

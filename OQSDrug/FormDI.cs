@@ -28,6 +28,90 @@ namespace OQSDrug
         private int SnapCompPixel = 8;  //余白補正
 
         private Form1 _parentForm;
+        private TabPage interactionCheckPage;
+        private FormInteractionCheck interactionCheckView;
+        private int interactionRenderedRevision = -1;
+        private long interactionRenderedPatient = -1;
+        private long interactionRenderedChartPatient = -1;
+        internal long SelectedHistoryPatientId => (toolStripComboBoxPt.SelectedItem as PtItem)?.PtID ?? 0;
+
+        internal void SelectInteractionCheckTab()
+        {
+            _parentForm.RefreshInteractionTab(this);
+            if (interactionCheckPage != null) tabControl1.SelectedTab = interactionCheckPage;
+        }
+
+        internal void UpdateInteractionCheck(bool enabled, int revision, long chartPatient,
+            ChartMedicationSnapshot snapshot, MedicationInteractionResult result, string status, bool busy, int months)
+        {
+            if (!enabled)
+            {
+                if (interactionCheckPage != null)
+                {
+                    tabControl1.TabPages.Remove(interactionCheckPage);
+                    interactionCheckPage.Dispose();
+                    interactionCheckPage = null;
+                    interactionCheckView = null;
+                    interactionRenderedRevision = -1;
+                }
+                return;
+            }
+            if (interactionCheckPage == null)
+            {
+                interactionCheckPage = new TabPage("相互作用チェック：未チェック");
+                interactionCheckView = new FormInteractionCheck
+                {
+                    TopLevel = false, FormBorderStyle = FormBorderStyle.None,
+                    MinimumSize = Size.Empty, Dock = DockStyle.Fill
+                };
+                if (tabControl1.ImageList == null)
+                {
+                    var images = new ImageList { ImageSize = new Size(16, 16), ColorDepth = ColorDepth.Depth32Bit };
+                    var imageHandle = images.Handle; // Copy each bitmap into the native list before disposing it.
+                    foreach (var color in new[] { Color.Gray, Color.ForestGreen, Color.Firebrick })
+                    {
+                        using (var bitmap = new Bitmap(16, 16))
+                        {
+                            using (var graphics = Graphics.FromImage(bitmap))
+                            using (var brush = new SolidBrush(color)) graphics.FillEllipse(brush, 2, 2, 12, 12);
+                            images.Images.Add(bitmap);
+                        }
+                    }
+                    components.Add(images);
+                    tabControl1.ImageList = images;
+                }
+                interactionCheckView.ResultStateChanged += (s, e) =>
+                {
+                    interactionCheckPage.Text = "相互作用チェック：" + interactionCheckView.BadgeText;
+                    interactionCheckPage.ImageIndex = interactionCheckView.BadgeIndex;
+                };
+                interactionCheckView.CheckRequested += async (s, e) =>
+                    await _parentForm.RequestInteractionCheckAsync(SelectedHistoryPatientId, interactionCheckView.Months);
+                interactionCheckPage.Controls.Add(interactionCheckView);
+                interactionCheckView.SetMonths(months);
+                tabControl1.TabPages.Add(interactionCheckPage);
+                interactionCheckView.Show();
+            }
+            long selected = SelectedHistoryPatientId;
+            bool matches = selected > 0 && selected == chartPatient
+                && (snapshot == null || snapshot.ChartId / 10 == selected);
+            interactionCheckView.SetBusy(busy || !matches);
+            if (revision == interactionRenderedRevision && selected == interactionRenderedPatient
+                && chartPatient == interactionRenderedChartPatient) return;
+            interactionRenderedRevision = revision;
+            interactionRenderedPatient = selected;
+            interactionRenderedChartPatient = chartPatient;
+            if (!matches)
+            {
+                interactionCheckView.ClearSnapshot();
+                interactionCheckView.SetState("Accessで表示中の患者と薬歴の患者が一致するとチェック結果を表示します。", true);
+                return;
+            }
+            if (snapshot == null) interactionCheckView.ClearSnapshot();
+            else if (result == null) interactionCheckView.ShowSnapshot(snapshot);
+            if (result != null) interactionCheckView.ShowResult(snapshot, result, true);
+            interactionCheckView.SetState(status + (result == null ? "" : "\r\n" + result.Status), result == null);
+        }
         public string provider;
 
         private Color[] RowColors = { Color.WhiteSmoke, Color.White };
@@ -62,6 +146,7 @@ namespace OQSDrug
             InitializeComponent();
 
             _parentForm = parentForm;
+            _parentForm.RefreshInteractionTab(this);
             provider = CommonFunctions.DBProvider;
                         
             toolStrip1.Renderer = new CustomToolStripRenderer(); // カスタム描画を適用
@@ -143,6 +228,10 @@ namespace OQSDrug
                         toolStripComboBoxPt.Items.Clear();
                         toolStripComboBoxPt.SelectedIndex = -1;
 
+                        if (_parentForm.InteractionEnabled && _parentForm.tempId > 0
+                            && !ptData.Any(p => p.PtID == _parentForm.tempId))
+                            ptData.Insert(0, (_parentForm.tempId, _parentForm.tempId + " : 薬歴未取込"));
+
                         foreach (var item in ptData)
                         {
                             toolStripComboBoxPt.Items.Add(new PtItem
@@ -161,6 +250,7 @@ namespace OQSDrug
                             int index = ptData.FindIndex(p => p.PtID == _parentForm.tempId);
                             toolStripComboBoxPt.SelectedIndex = (index >= 0) ? index : -1;
                         }
+                        _parentForm.RefreshInteractionTab(this);
                     }));
                 }
                 catch (ObjectDisposedException)
@@ -208,7 +298,7 @@ namespace OQSDrug
             
             
             // タブ：mdbモードでは 相互作用機能はサポートしない
-            if (Properties.Settings.Default.DBtype != "pg")
+            if (Properties.Settings.Default.DBtype != "pg" && !_parentForm.InteractionEnabled)
             {
                 tabControl1.Appearance = TabAppearance.Buttons;
                 tabControl1.SizeMode = TabSizeMode.Fixed;
@@ -291,6 +381,7 @@ namespace OQSDrug
         }
         private async void toolStripComboBoxPt_SelectedIndexChanged(object sender, EventArgs e)
         {
+            _parentForm.RefreshInteractionTab(this);
             historyLoadState.Begin(); // Includes clearing the patient selection.
             try
             {

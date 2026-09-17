@@ -33,7 +33,7 @@ namespace OQSDrug
                 AutoSize = true, Location = new Point(20, 200), Checked = Properties.Settings.Default.InteractionCheckEnabled,
                 Visible = radioButtonDynamicsCom.Checked };
             labelInteractionCheck = new Label { AutoSize = true, Location = new Point(20, 226),
-                Text = "当日処方の確定後に他院薬を照合します（PostgreSQLが必要）。\r\n院内処方・確定後の再編集は、相互作用フォームから手動チェック。", Visible = radioButtonDynamicsCom.Checked };
+                Text = "当日処方の確定後に他院薬を照合します（PostgreSQLが必要）。\r\n結果は薬歴の相互作用チェックタブに表示。再編集後はタブから手動チェック。", Visible = radioButtonDynamicsCom.Checked };
             tabPageViewer.Controls.Add(checkBoxInteractionCheck);
             tabPageViewer.Controls.Add(labelInteractionCheck);
             InitializePmdaDocumentSettingsTab();

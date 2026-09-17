@@ -16,6 +16,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -35,6 +36,11 @@ namespace OQSDrug
 {
     public partial class Form1 : Form
     {
+        private static readonly HttpClient rsbXmlReloadClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+
         // Global
         public string DataReadMode = "Read", DynaReadMode = "Read";  //Share Deny None 
         
@@ -70,6 +76,11 @@ namespace OQSDrug
 
         private bool skipReload = false; //reqResult更新をスキップする 1回だけ
         public bool forceSkipReload = false; //設定されてる間更新Off
+        private volatile bool settingsFlowActive;
+        private volatile bool settingsDialogOpen;
+        private Form2 settingsForm;
+        private int settingsFlowRevision;
+        private int initializationRevision;
 
         private System.Threading.Timer backgroundTimer; //非同期タイマー
 
@@ -131,7 +142,7 @@ namespace OQSDrug
             CommonFunctions.UiLogCallback = AddLogAsyncToUi;
 
             resImportWorker = new ResImportWorker(
-                () => isOQSRunnnig && !IsDisposed && !Disposing,
+                () => isOQSRunnnig && !settingsFlowActive && !IsDisposed && !Disposing,
                 async () =>
                 {
                     await ProcessResAsync();
@@ -427,10 +438,12 @@ namespace OQSDrug
 
         private async Task RunTimerLogicAsync()
         {
+            if (settingsFlowActive) return;
             AddLogAsync("タイマーイベント開始");
 
             // Status check
             okSettings = await UpdateStatus();
+            if (settingsFlowActive) return;
             // Also retry masters when Access was launched after OQSDrug, even while acquisition is stopped.
             if (Properties.Settings.Default.DynamicsUseCom && !comMastersLoaded
                 && (okSettings & 0b011) == 0b011 && DateTime.UtcNow >= nextComMasterAttempt)
@@ -438,8 +451,10 @@ namespace OQSDrug
                 nextComMasterAttempt = DateTime.UtcNow.AddMinutes(1);
                 await LoadKoro2SQL();
             }
+            if (settingsFlowActive) return;
             OnUI(() =>
             {
+                if (settingsFlowActive) return;
                 this.StartStop.Enabled = (okSettings == 0b111);
                 UpdateBulkExecutionAvailability();
             });
@@ -447,7 +462,7 @@ namespace OQSDrug
             //AutoStartStop
             if (Properties.Settings.Default.AutoStart)
             {
-                OnUI(() => StartStop.Checked = (okSettings == 0b111));
+                OnUI(() => { if (!settingsFlowActive) StartStop.Checked = (okSettings == 0b111); });
             }
 
             //PGDump timer
@@ -563,9 +578,11 @@ namespace OQSDrug
 
         public void StartTimer()
         {
+            if (settingsFlowActive || !initBackgroundLoadCompleted || IsDisposed || Disposing) return;
+            StopTimer();
             backgroundTimer = new System.Threading.Timer(async _ =>
             {
-                if (!isTimerRunning)
+                if (!settingsFlowActive && !isTimerRunning)
                 {
                     isTimerRunning = true;
                     try
@@ -705,42 +722,73 @@ namespace OQSDrug
         }
 
 
+        private int TryBeginSettingsDialog()
+        {
+            // Only a live dialog prevents opening. Post-dialog initialization may still be waiting on IO.
+            if (settingsDialogOpen || (settingsForm != null && !settingsForm.IsDisposed))
+            {
+                if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.Activate();
+                return 0;
+            }
+            settingsFlowActive = true;
+            settingsDialogOpen = true;
+            return ++settingsFlowRevision;
+        }
+
+        private void FinishSettingsFlow(int revision)
+        {
+            // An older initialization must not release a newer dialog's background-work pause.
+            if (revision != settingsFlowRevision) return;
+            settingsDialogOpen = false;
+            settingsForm = null;
+            forceSkipReload = false;
+            settingsFlowActive = false;
+            if (!IsDisposed && !Disposing) StartTimer();
+        }
+
         private async void toolStripButtonSettings_Click(object sender, EventArgs e)
         {
-            StopComPatientWatcher();
-            string previousDatadyna = Properties.Settings.Default.Datadyna;
-            bool previousDynamicsUseCom = Properties.Settings.Default.DynamicsUseCom;
-            //動作中の場合は停止する
-            if (isOQSRunnnig)
-            {
-                Invoke(new Action(() => MessageBox.Show("一旦タイマー動作を停止します")));
-                
-                StartStop.Checked = false;
-                
-                StopTimer();
-            }
-
+            int flowRevision = TryBeginSettingsDialog();
+            if (flowRevision == 0) return;
+            Interlocked.Increment(ref initializationRevision);
             forceSkipReload = true;
-
-            //Form2を開く
-            Form2 form2 = new Form2(this);
-            form2.ShowDialog(this);
-
-            //Form2閉じたあと
-
-            if (previousDynamicsUseCom != Properties.Settings.Default.DynamicsUseCom
-                || !string.Equals(previousDatadyna, Properties.Settings.Default.Datadyna, StringComparison.OrdinalIgnoreCase))
+            try
             {
-                InvalidateDynaTableCache();
-                dynaTable = null;
-                comMastersLoaded = false;
-                nextComMasterAttempt = DateTime.MinValue;
+                StopTimer();
+                StopComPatientWatcher();
+                stopFileWatcher(false);
+                StopResWatcher();
+                if (_dumpTimer != null) StopDumpTimer();
+                StartStop.Checked = false;
+                string previousDatadyna = Properties.Settings.Default.Datadyna;
+                bool previousDynamicsUseCom = Properties.Settings.Default.DynamicsUseCom;
+                using (var dialog = new Form2(this))
+                {
+                    settingsForm = dialog;
+                    settingsDialogOpen = true;
+                    try { dialog.ShowDialog(this); }
+                    finally { settingsDialogOpen = false; settingsForm = null; }
+                }
+                if (IsDisposed || Disposing) return;
+                if (previousDynamicsUseCom != Properties.Settings.Default.DynamicsUseCom
+                    || !string.Equals(previousDatadyna, Properties.Settings.Default.Datadyna, StringComparison.OrdinalIgnoreCase))
+                {
+                    InvalidateDynaTableCache();
+                    dynaTable = null;
+                    comMastersLoaded = false;
+                    nextComMasterAttempt = DateTime.MinValue;
+                }
+                // Invalid settings must not immediately open another modal settings dialog.
+                await initializeForm(promptForSettings: false);
             }
-            await initializeForm();
-
-            forceSkipReload = false;
-            StartTimer();
-
+            catch (Exception ex)
+            {
+                await AddLogAsync("設定後の初期化に失敗しました: " + ex.Message);
+            }
+            finally
+            {
+                FinishSettingsFlow(flowRevision);
+            }
         }
 
         private async void StartStop_CheckedChanged(object sender, EventArgs e)
@@ -786,7 +834,7 @@ namespace OQSDrug
                 //StopTimer();
                 isOQSRunnnig = false;
 
-                await DeleteClientAsync();
+                await DeleteClientAsync(suppressErrors: settingsFlowActive);
 
                 AddLogAsync("タイマー処理を終了します");
             }
@@ -1381,12 +1429,14 @@ namespace OQSDrug
             return (returnString == "") ? "OK" : $"NG:{returnString}";
         }
 
-        private async Task<byte> UpdateStatus() //GazouF|OQSF|dyna|Data 
+        private async Task<byte> UpdateStatus() //GazouF|OQSF|dyna|Data
         {
+            if (settingsDialogOpen) return 0;
             byte resultCode = 0;
 
             //DynaTable
             DynaTable = await ResolveCachedDynaTableAsync(Properties.Settings.Default.Datadyna, true);
+            if (settingsDialogOpen) return 0;
 
             //設定初期値の確認
             if (Properties.Settings.Default.TimerInterval <= 0)
@@ -1421,6 +1471,7 @@ namespace OQSDrug
 
             while (taskIndexMap.Any())
             {
+                if (settingsDialogOpen) return 0;
                 try
                 {
                     // 完了したタスクを取得
@@ -1443,6 +1494,7 @@ namespace OQSDrug
                     // UI を更新（インデックスに基づいて更新）
                     OnUI(() =>
                     {
+                        if (settingsDialogOpen) return;
                         if (isOk)
                         {
                             // アイコンを緑チェックに
@@ -1469,8 +1521,7 @@ namespace OQSDrug
                 catch (Exception ex)
                 {
                     await AddLogAsync($"[DynamicsCheck] UpdateStatus内で例外: {ex.GetType().Name}: {ex.Message}");
-                    MessageBox.Show(ex.ToString());
-                    resultCode = 0;
+                    return 0; // Background checks log failures; do not interrupt a settings dialog.
                 }
             }
 
@@ -1565,8 +1616,12 @@ namespace OQSDrug
             StartTimer();
         }
 
-        private async Task initializeForm()
+        private async Task initializeForm(bool promptForSettings = true)
         {
+            if (settingsDialogOpen || IsDisposed || Disposing) return;
+            int revision = Interlocked.Increment(ref initializationRevision);
+            bool IsCurrentInitialization() => revision == Volatile.Read(ref initializationRevision)
+                && !settingsDialogOpen && !IsDisposed && !Disposing;
             // 失敗メッセージをためる
             initBackgroundLoadCompleted = false;
             var initErrors = new List<string>();
@@ -1575,6 +1630,7 @@ namespace OQSDrug
             // ========= UIを先に（Invoke不要：UIスレッド上想定） =========
             OnUI(() =>
             {
+                if (!IsCurrentInitialization()) return;
                 LoadViewerSettings();
 
                 listViewLog.Columns.Clear();
@@ -1591,6 +1647,7 @@ namespace OQSDrug
             // ローカル関数：タイムアウト付きで実行し、成功/失敗をboolで返す
             async Task<bool> TryRunAsync(Func<Task> op, int timeoutMs, string name)
             {
+                if (!IsCurrentInitialization()) return false;
                 try
                 {
                     var t = op();
@@ -1612,6 +1669,7 @@ namespace OQSDrug
 
             async Task<(bool Completed, T Result)> TryRunAsyncResult<T>(Func<Task<T>> op, int timeoutMs, string name, T fallback = default(T))
             {
+                if (!IsCurrentInitialization()) return (false, fallback);
                 try
                 {
                     var t = op();
@@ -1642,6 +1700,7 @@ namespace OQSDrug
                 needSettingsDialog = true;
             }
 
+            if (!IsCurrentInitialization()) return;
             // スキーマ/バージョンチェック（重い・ネットワーク要素あり：タイムアウト短めに）
             var dbVersionResult = await TryRunAsyncResult(
                 () => Task.Run(async () => await CheckDBVersionAsync(CommonFunctions.DBversion).ConfigureAwait(false)),
@@ -1649,6 +1708,7 @@ namespace OQSDrug
                 "CheckDBVersionAsync",
                 false).ConfigureAwait(false);
             bool dbOk = dbVersionResult.Completed && dbVersionResult.Result;
+            if (!IsCurrentInitialization()) return;
 
             // 設定やステータス更新（DBに触るならdbOkで分岐）
             bool oqsDataReadyForInit = dbOk;
@@ -1656,6 +1716,7 @@ namespace OQSDrug
             if (dbOk)
             {
                 var statusResult = await TryRunAsyncResult(() => UpdateStatus(), 5000, "UpdateStatus", (byte)0).ConfigureAwait(false);
+                if (!IsCurrentInitialization()) return;
                 if (statusResult.Completed)
                 {
                     okSettings = statusResult.Result;
@@ -1678,8 +1739,10 @@ namespace OQSDrug
             }
 
             // ユーザー設定（UI）
+            if (!IsCurrentInitialization()) return;
             OnUI(() =>
             {
+                if (!IsCurrentInitialization()) return;
                 autoRSB = Properties.Settings.Default.autoRSB;
                 autoTKK = Properties.Settings.Default.autoTKK;
                 autoSR = Properties.Settings.Default.autoSR;
@@ -1717,8 +1780,9 @@ namespace OQSDrug
             if (needSettingsDialog)
             {
                 // UI スレッドに戻してメッセージ＋設定画面を出す
-                OnUI(() =>
+                if (promptForSettings) OnUI(() =>
                 {
+                    if (!IsCurrentInitialization() || settingsFlowActive) return;
                     if (initErrors.Count > 0)
                     {
                         var msg = string.Join(Environment.NewLine, initErrors);
@@ -1730,11 +1794,14 @@ namespace OQSDrug
                     }
 
                     // 設定画面を開く（クリックと同等の処理）
+                    if (!IsCurrentInitialization() || settingsFlowActive) return;
                     toolStripButtonSettings.PerformClick();
                     // もしくは toolStripButtonSettings_Click(this, EventArgs.Empty);
                 });
+                return; // No background DB initialization or timers until settings are valid.
             }
 
+            if (!IsCurrentInitialization()) return;
 
         // ====== 重い並列タスク（KORO取込 / RSB読込 / LLMモデル） ======
         var tasks = new List<Task>();
@@ -1801,6 +1868,7 @@ namespace OQSDrug
                 // ここで throw しない：アプリ継続
             }
 
+            if (!IsCurrentInitialization()) return;
             if (Properties.Settings.Default.DBtype == "pg" && dbOk && !CommonFunctions._readySGML)
             {
                 try
@@ -1814,8 +1882,9 @@ namespace OQSDrug
                 }
             }
 
+            if (!IsCurrentInitialization()) return;
             initBackgroundLoadCompleted = true;
-            OnUI(() => interactionButton.Visible = InteractionEnabled);
+            OnUI(() => { if (IsCurrentInitialization()) interactionButton.Visible = InteractionEnabled; });
             if (Properties.Settings.Default.DynamicsUseCom && !dynaIdCleanupDone)
             {
                 dynaIdCleanupDone = true;
@@ -1823,7 +1892,7 @@ namespace OQSDrug
             }
             if (!needSettingsDialog && (autoRSB || autoTKK || autoSR || InteractionEnabled))
             {
-                OnUI(() => checkBoxAutoview_CheckedChanged(this, EventArgs.Empty));
+                OnUI(() => { if (IsCurrentInitialization()) checkBoxAutoview_CheckedChanged(this, EventArgs.Empty); });
             }
         }
 
@@ -1862,6 +1931,7 @@ namespace OQSDrug
 
         private async Task setStatus()
         {
+            if (settingsDialogOpen) return;
             if (Properties.Settings.Default.DBtype == "mdb")
             {
                 if ((okSettings & (0b001)) == 1) //OQSDrugData OK
@@ -1870,9 +1940,10 @@ namespace OQSDrug
                     bool fieldCheck = await AddFieldIfNotExists(Properties.Settings.Default.OQSDrugData, "drug_history", "Source", "INTEGER")
                                     && await AddFieldIfNotExists(Properties.Settings.Default.OQSDrugData, "drug_history", "Revised", "YESNO")
                                     && await AddFieldIfNotExists(Properties.Settings.Default.OQSDrugData, "reqResults", "CategoryName", "TEXT(12) NULL");
+                    if (settingsDialogOpen) return;
                     if (!fieldCheck)
                     {
-                        Invoke(new Action(() => MessageBox.Show("OQSDrugDataのアップデートでエラーが発生しました。OQSDrug_data.mdbにアクセスできるかを調べて再起動してください")));
+                        OnUI(() => { if (!settingsDialogOpen) MessageBox.Show("OQSDrugDataのアップデートでエラーが発生しました。OQSDrug_data.mdbにアクセスできるかを調べて再起動してください"); });
                     }
 
                     // TKK_history table:
@@ -3995,11 +4066,7 @@ namespace OQSDrug
                                     await ConvertRsbXmlReloadFilesToShiftJisAsync(rsbXmlReloadFiles);
                                 }
 
-                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                                {
-                                    FileName = Properties.Settings.Default.RSBXmlURL,
-                                    UseShellExecute = true
-                                });
+                                await ReloadRsbXmlAsync(Properties.Settings.Default.RSBXmlURL);
                             }
                         }
                     }
@@ -4013,6 +4080,31 @@ namespace OQSDrug
                 AddLogAsync($"ProcessResAsync処理中にエラーが発生しました: {ex.Message}");
                 CommonFunctions.DataDbLock = false;
                 return false;
+            }
+        }
+
+        private async Task ReloadRsbXmlAsync(string url)
+        {
+            try
+            {
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                    || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                    throw new InvalidOperationException("URLはhttp://またはhttps://で指定してください。");
+
+                // Call the CGI directly without opening a browser or changing the active window.
+                using (var response = await rsbXmlReloadClient.GetAsync(uri).ConfigureAwait(false))
+                {
+                    response.EnsureSuccessStatusCode();
+                    await AddLogAsync("RSBase xml reload: HTTP呼び出しが完了しました。").ConfigureAwait(false);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                await AddLogAsync("RSBase xml reload: HTTP呼び出しが30秒でタイムアウトしました。サーバー側の処理結果を確認してください。").ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await AddLogAsync("RSBase xml reload: HTTP呼び出しに失敗しました: " + ex.Message).ConfigureAwait(false);
             }
         }
 
@@ -5173,6 +5265,7 @@ namespace OQSDrug
 
             StopComPatientWatcher();
             interactionButton.Visible = InteractionEnabled;
+            RefreshInteractionTab(formDIInstance);
             if (autoRSB || autoTKK || autoSR || InteractionEnabled)
             {
                 if (Properties.Settings.Default.DynamicsUseCom)
@@ -5257,6 +5350,8 @@ namespace OQSDrug
                 if (revision != patientLinkRevision || IsDisposed || Disposing) return;
                 if (comPatientStateKnown && chartId == lastComChartId) return;
 
+                ResetInteraction();
+
                 long patientId = chartId.GetValueOrDefault() / 10;
                 if (patientId <= 0)
                 {
@@ -5277,6 +5372,7 @@ namespace OQSDrug
                 if (revision != patientLinkRevision || IsDisposed || Disposing) return;
                 lastComChartId = chartId;
                 comPatientStateKnown = true;
+                RefreshInteractionTab(formDIInstance);
             }
             catch (Exception ex)
             {
@@ -6867,7 +6963,7 @@ namespace OQSDrug
             await OpenDrugHistory(tempId, true, true);
         }
 
-        public async Task DeleteClientAsync()
+        public async Task DeleteClientAsync(bool suppressErrors = false)
         {
             string localMachineName = Environment.MachineName;
 
@@ -6902,11 +6998,13 @@ namespace OQSDrug
                 }
                 catch (TimeoutException ex)
                 {
-                    MessageBox.Show($"処理がタイムアウトしました: {ex.Message}");
+                    if (suppressErrors || settingsFlowActive) await AddLogAsync("クライアント登録解除待ち: " + ex.Message);
+                    else MessageBox.Show($"処理がタイムアウトしました: {ex.Message}");
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"DeleteClientAsync でエラー: {ex.Message}");
+                    if (suppressErrors || settingsFlowActive) await AddLogAsync("クライアント登録解除失敗: " + ex.Message);
+                    else MessageBox.Show($"DeleteClientAsync でエラー: {ex.Message}");
                 }
             }
         }

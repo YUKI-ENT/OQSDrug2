@@ -52,18 +52,9 @@ namespace OQSDrug
             {
                 project = GetAutomationProperty(app, "CurrentProject");
                 allForms = GetAutomationProperty(project, "AllForms");
-                bool loaded = false;
-                for (int i = 0; i < Convert.ToInt32(GetAutomationProperty(allForms, "Count")); i++)
-                {
-                    metadata = GetAutomationProperty(allForms, "Item", i);
-                    if (Convert.ToString(GetAutomationProperty(metadata, "Name")) == "患者マスター")
-                    {
-                        loaded = Convert.ToBoolean(GetAutomationProperty(metadata, "IsLoaded"));
-                        break;
-                    }
-                    Release(metadata); metadata = null;
-                }
-                if (!loaded) return null;
+                // Keep the availability check independent of the number of forms in Access.
+                metadata = GetAutomationProperty(allForms, "Item", "患者マスター");
+                if (!Convert.ToBoolean(GetAutomationProperty(metadata, "IsLoaded"))) return null;
                 forms = GetAutomationProperty(app, "Forms");
                 patient = GetAutomationProperty(forms, "Item", "患者マスター");
                 if (Convert.ToBoolean(GetAutomationProperty(patient, "NewRecord"))) return null;

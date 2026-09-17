@@ -69,26 +69,17 @@ namespace OQSDrug
             {
                 project = GetAutomationProperty(application, "CurrentProject");
                 allForms = GetAutomationProperty(project, "AllForms");
-                int count = Convert.ToInt32(GetAutomationProperty(allForms, "Count"));
-                for (int i = 0; i < count; i++)
-                {
-                    metadata = GetAutomationProperty(allForms, "Item", i);
-                    if (Convert.ToString(GetAutomationProperty(metadata, "Name")) == "患者マスター")
-                    {
-                        if (!Convert.ToBoolean(GetAutomationProperty(metadata, "IsLoaded"))) return null;
-                        forms = GetAutomationProperty(application, "Forms");
-                        form = GetAutomationProperty(forms, "Item", "患者マスター");
-                        if (Convert.ToBoolean(GetAutomationProperty(form, "NewRecord"))) return 0;
-                        controls = GetAutomationProperty(form, "Controls");
-                        control = GetAutomationProperty(controls, "Item", "カルテ番号");
-                        object value = GetAutomationProperty(control, "Value");
-                        return long.TryParse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture),
-                            out long id) && id > 0 ? id : 0;
-                    }
-                    Release(metadata);
-                    metadata = null;
-                }
-                return null;
+                // Poll only the named form; enumerating AllForms adds COM calls for every form.
+                metadata = GetAutomationProperty(allForms, "Item", "患者マスター");
+                if (!Convert.ToBoolean(GetAutomationProperty(metadata, "IsLoaded"))) return null;
+                forms = GetAutomationProperty(application, "Forms");
+                form = GetAutomationProperty(forms, "Item", "患者マスター");
+                if (Convert.ToBoolean(GetAutomationProperty(form, "NewRecord"))) return 0;
+                controls = GetAutomationProperty(form, "Controls");
+                control = GetAutomationProperty(controls, "Item", "カルテ番号");
+                object value = GetAutomationProperty(control, "Value");
+                return long.TryParse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture),
+                    out long id) && id > 0 ? id : 0;
             }
             finally
             {

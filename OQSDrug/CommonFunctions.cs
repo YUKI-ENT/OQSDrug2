@@ -368,7 +368,7 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                await AddLogAsync("特定健診基準値の読み込みに失敗しました: " + ex.Message);
                 return new Dictionary<string, TKKReference>();
             }
         }
@@ -2839,7 +2839,7 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"テンプレートのサンプルレコード追加でエラーが発生しました。{ex.Message}");
+                await AddLogAsync($"テンプレートのサンプルレコード追加でエラーが発生しました。{ex.Message}");
                 return null;
             }
         }

@@ -81,6 +81,98 @@ public static class MedicationInteractionTests
             using (var bmp = new Bitmap(form.Width, form.Height)) { form.DrawToBitmap(bmp,new Rectangle(Point.Empty,form.Size)); bmp.Save(Path.Combine(output,"interaction-form.png")); }
         }
         Console.WriteLine("PASS: confirmation stability, re-edit/reconfirmation, visit reset, aliases, branch isolation, generic matching, form render");
+        CheckEmbeddedTab(assembly, output, snapshot);
+    }
+
+    private static void CheckEmbeddedTab(Assembly assembly, string output, object snapshot)
+    {
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var mainType = assembly.GetType("OQSDrug.Form1");
+        var viewerType = assembly.GetType("OQSDrug.FormDI");
+        var settingsType = assembly.GetType("OQSDrug.Properties.Settings");
+        var settings = settingsType.GetProperty("Default").GetValue(null);
+        var comSetting = settingsType.GetProperty("DynamicsUseCom");
+        var enabledSetting = settingsType.GetProperty("InteractionCheckEnabled");
+        var oldCom = comSetting.GetValue(settings); var oldEnabled = enabledSetting.GetValue(settings);
+        var common = assembly.GetType("OQSDrug.CommonFunctions");
+        var log = common.GetField("UiLogCallback"); var sync = common.GetField("UiSync");
+        var oldLog = log.GetValue(null); var oldSync = sync.GetValue(null);
+        try
+        {
+            comSetting.SetValue(settings, true); enabledSetting.SetValue(settings, true);
+            using (var main = (Form)Activator.CreateInstance(mainType))
+            using (var viewer = (Form)Activator.CreateInstance(viewerType, new object[] { main }))
+            using (var combo = new ToolStripComboBox())
+            using (var host = new Form { Size = new Size(1250, 650), ShowInTaskbar = false,
+                StartPosition = FormStartPosition.Manual, Location = new Point(-2000, -2000) })
+            {
+                // A selection without the production DB-loading event handler.
+                var patientType = assembly.GetType("OQSDrug.FormTKK+PtItem");
+                if (patientType == null)
+                    foreach (var type in assembly.GetTypes()) if (type.Name == "PtItem") { patientType = type; break; }
+                var patient = Activator.CreateInstance(patientType);
+                patientType.GetProperty("PtID").SetValue(patient, 12345L);
+                patientType.GetProperty("DisplayText").SetValue(patient, "12345 : テスト患者");
+                combo.Items.Add(patient); combo.SelectedIndex = 0;
+                viewerType.GetField("toolStripComboBoxPt", flags).SetValue(viewer, combo);
+                var tabs = (TabControl)viewerType.GetField("tabControl1", flags).GetValue(viewer);
+                host.Controls.Add(tabs);
+                var update = viewerType.GetMethod("UpdateInteractionCheck", flags);
+                var resultType = assembly.GetType("OQSDrug.MedicationInteractionResult");
+                var result = Activator.CreateInstance(resultType);
+                Action<int, long, object> render = (revision, chart, value) => update.Invoke(viewer,
+                    new object[] { true, revision, chart, snapshot, value, "チェック完了", false, 6 });
+                render(1, 12345, result);
+                var page = (TabPage)viewerType.GetField("interactionCheckPage", flags).GetValue(viewer);
+                tabs.SelectedTab = page;
+                Require(page.ImageIndex == 1 && page.Text.Contains("該当なし"), "No-hit result must be green");
+                var panel = (Form)viewerType.GetField("interactionCheckView", flags).GetValue(viewer);
+                Require(!panel.TopLevel && panel.Parent == page, "Result opened outside the history tab");
+                var grid = (DataGridView)panel.GetType().GetField("medications", flags).GetValue(panel);
+                var oldSource = grid.DataSource;
+                render(1, 12345, result);
+                Require(ReferenceEquals(oldSource, grid.DataSource), "Unchanged view was rebound");
+                host.Show(); Application.DoEvents();
+                using (var bitmap = new Bitmap(host.Width, host.Height))
+                { host.DrawToBitmap(bitmap, new Rectangle(Point.Empty, host.Size)); bitmap.Save(Path.Combine(output, "interaction-tab-green.png")); }
+                var hit = Activator.CreateInstance(assembly.GetType("OQSDrug.MedicationInteractionHit"));
+                Set(hit, "Section", "併用禁忌"); Set(hit, "Current", "今回薬"); Set(hit, "History", "他院薬");
+                ((IList)resultType.GetField("Koro").GetValue(result)).Add(hit);
+                render(2, 12345, result);
+                Require(page.ImageIndex == 2 && page.Text.Contains("要確認"), "Hit must be red");
+                Application.DoEvents();
+                using (var bitmap = new Bitmap(host.Width, host.Height))
+                { host.DrawToBitmap(bitmap, new Rectangle(Point.Empty, host.Size)); bitmap.Save(Path.Combine(output, "interaction-tab-red.png")); }
+                render(2, 99999, result);
+                Require(page.ImageIndex == 0 && grid.DataSource == null, "Other patient's result remained visible");
+                render(3, 12345, null);
+                Require(page.ImageIndex == 0, "Missing result must not be green");
+                update.Invoke(viewer, new object[] { false, 4, 12345L, null, null, "", false, 6 });
+                Require(viewerType.GetField("interactionCheckPage", flags).GetValue(viewer) == null, "Disabled tab remained");
+                mainType.GetField("interactionComplete", flags).SetValue(main, true);
+                mainType.GetField("interactionSnapshot", flags).SetValue(main, snapshot);
+                mainType.GetField("interactionResult", flags).SetValue(main, result);
+                mainType.GetMethod("InvalidateInteractionHistory", flags).Invoke(main, new object[] { 12345L });
+                Require((bool)mainType.GetField("interactionComplete", flags).GetValue(main)
+                    && mainType.GetField("interactionResult", flags).GetValue(main) == null,
+                    "History update must mark results stale without restarting automatic reads");
+                using (var timer = new Timer())
+                {
+                    mainType.GetField("comPatientTimer", flags).SetValue(main, timer);
+                    var poll = (System.Threading.Tasks.Task)mainType.GetMethod("PollInteractionAsync", flags).Invoke(main, new object[] { false });
+                    Require(poll.IsCompleted && !poll.IsFaulted, "Completed check did not stop before COM dispatch");
+                    mainType.GetField("comPatientTimer", flags).SetValue(main, null);
+                }
+                mainType.GetMethod("ResetInteraction", flags).Invoke(main, null);
+                Require(!(bool)mainType.GetField("interactionComplete", flags).GetValue(main), "Patient reset did not rearm checks");
+            }
+        }
+        finally
+        {
+            comSetting.SetValue(settings, oldCom); enabledSetting.SetValue(settings, oldEnabled);
+            log.SetValue(null, oldLog); sync.SetValue(null, oldSync);
+        }
+        Console.WriteLine("PASS: embedded tab, green/red/unknown badges, no unchanged rebinding, patient isolation, option off, completion stop/reset");
     }
 }
 

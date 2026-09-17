@@ -16,7 +16,11 @@ namespace OQSDrug
         private readonly ToolStripComboBox months = new ToolStripComboBox { DropDownStyle = ComboBoxStyle.DropDownList, AutoSize = false, Width = 65 };
         private readonly ToolStripButton reload = new ToolStripButton("再取得・チェック");
         internal event EventHandler CheckRequested;
+        internal event EventHandler ResultStateChanged;
+        internal int BadgeIndex { get; private set; }
+        internal string BadgeText { get; private set; } = "未チェック";
         internal int Months => months.SelectedIndex == 0 ? 3 : 6;
+        internal void SetMonths(int value) { months.SelectedIndex = value == 3 ? 0 : 1; }
         internal FormInteractionCheck()
         {
             Text = "相互作用チェック"; Size = new Size(1100, 650); MinimumSize = new Size(780, 420);
@@ -38,9 +42,21 @@ namespace OQSDrug
         internal void SetBusy(bool busy) { reload.Enabled = !busy; months.Enabled = !busy; }
         internal void SetState(string message, bool clearResults)
         {
-            status.Text = message + "\r\n過去の他院処方との照合です。現在の服用は未確認。該当なしは安全性の保証ではありません。";
-            if (clearResults) { koro.DataSource = null; text.DataSource = null; }
+            string value = message + "\r\n過去の他院処方との照合です。現在の服用は未確認。該当なしは安全性の保証ではありません。";
+            if (status.Text != value) status.Text = value;
+            if (clearResults)
+            {
+                koro.DataSource = null; text.DataSource = null;
+                SetBadge(0, message == "チェック中" ? "チェック中" : "未チェック");
+            }
         }
+        private void SetBadge(int index, string label)
+        {
+            BadgeIndex = index; BadgeText = label;
+            status.BackColor = index == 1 ? Color.Honeydew : index == 2 ? Color.MistyRose : SystemColors.Control;
+            ResultStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+        internal void ClearSnapshot() { patient.Text = ""; medications.DataSource = null; }
         internal void ShowSnapshot(ChartMedicationSnapshot snapshot)
         {
             patient.Text = "患者番号 " + snapshot.ChartId / 10 + "（枝番 " + snapshot.ChartId % 10 + "） / 受診 " + snapshot.Visit
@@ -56,6 +72,8 @@ namespace OQSDrug
         {
             ShowSnapshot(snapshot); koro.DataSource = HitTable(result.Koro); text.DataSource = HitTable(result.Text);
             SetState("チェック完了: KORO " + result.Koro.Count + "件 / 文字列 " + result.Text.Count + "件。 " + result.Status, false);
+            int count = result.Koro.Count + result.Text.Count;
+            SetBadge(count > 0 ? 2 : 1, count > 0 ? "要確認 " + count + "件" : "該当なし");
             if (selectResult) tabs.SelectedIndex = result.Koro.Count > 0 ? 1 : result.Text.Count > 0 ? 2 : 0;
         }
         private static DataTable HitTable(IEnumerable<MedicationInteractionHit> hits)
