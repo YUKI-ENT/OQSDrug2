@@ -99,7 +99,7 @@ namespace OQSDrug
         int fileReadDelayms = 500;
         private readonly ResImportWorker resImportWorker;
         // Plan C: bounded concurrency for LLM auto-queries
-        private System.Threading.SemaphoreSlim llmSemaphore = new System.Threading.SemaphoreSlim(1, 1); // 1 concurrent by default
+        private readonly AutoLlmQueue autoLlmQueue = new AutoLlmQueue();
 
         // PGDump
         private System.Threading.Timer _dumpTimer;
@@ -134,7 +134,6 @@ namespace OQSDrug
         public Form1()
         {
             InitializeComponent();
-            InitializeInteractionUi();
 
             // これがないと UiSync が null のままになる
             CommonFunctions.UiSync = SynchronizationContext.Current; // WindowsFormsSynchronizationContext
@@ -401,41 +400,25 @@ namespace OQSDrug
             }
         }
 
-        // Plan C: enqueue AutoLLM operations with a simple bounded concurrency helper
-        private void QueueAutoLLM(long ptId)
+        // 混雑時も依頼を捨てず、患者単位の待機キューへ登録する。
+        private async void QueueAutoLLM(long ptId)
         {
-            // Run in background to avoid blocking UI thread
-            Task.Run(async () =>
+            try
             {
-                // Take a semaphore slot bounded to prevent many parallel AutoLLM runs
-                if (!await llmSemaphore.WaitAsync(0))
-                {
-                    // If semaphore not available, skip scheduling to avoid overload (non-invasive)
-                    AddLogAsync("AutoLLMの同時実行上限に達したためスキップしました");
-                    return;
-                }
-
-                try
+                await autoLlmQueue.Enqueue(ptId, async patient =>
                 {
                     await CommonFunctions.AutoLLMAsync(
-                        ptId: ptId,
+                        ptId: patient,
                         timeoutMsOverride: Properties.Settings.Default.LLMtimeout * 1000,
                         minDaysBetween: 1,
                         ct: CancellationToken.None);
-
-                    await AddLogAsync("LLM自動問い合わせを終了します");
-                }
-                catch (Exception ex)
-                {
-                    AddLogAsync($"AutoLLMでエラー: {ex.Message}");
-                }
-                finally
-                {
-                    llmSemaphore.Release();
-                }
-            });
+                });
+            }
+            catch (Exception ex)
+            {
+                await AddLogAsync($"AutoLLMでエラー: {ex.Message}");
+            }
         }
-
         private async Task RunTimerLogicAsync()
         {
             if (settingsFlowActive) return;
@@ -1884,7 +1867,6 @@ namespace OQSDrug
 
             if (!IsCurrentInitialization()) return;
             initBackgroundLoadCompleted = true;
-            OnUI(() => { if (IsCurrentInitialization()) interactionButton.Visible = InteractionEnabled; });
             if (Properties.Settings.Default.DynamicsUseCom && !dynaIdCleanupDone)
             {
                 dynaIdCleanupDone = true;
@@ -2918,7 +2900,7 @@ namespace OQSDrug
                 () => CancelBulkExecutionAsync(BulkQualificationKind.MedicalAid),
                 () => Properties.Settings.Default.BulkMedicalAidAutoEnabled,
                 () => LoadBulkConsoleResultsAsync(bulkExecutionStatusForm),
-                async records => await ExportImportedQualificationsToFaceAsync(records));
+                async records => await ExportImportedQualificationsToFaceAsync(records, allowResend: true));
 
             UpdateBulkExecutionAvailability();
         }
@@ -3755,7 +3737,7 @@ namespace OQSDrug
 
             using (var viewer = new FormQualificationImportViewer(
                 session,
-                async records => await ExportImportedQualificationsToFaceAsync(records)))
+                async records => await ExportImportedQualificationsToFaceAsync(records, allowResend: true)))
             {
                 viewer.ShowDialog(this);
             }
@@ -3800,7 +3782,7 @@ namespace OQSDrug
             QualificationDynamicsSender.ResolvePatientMatches(session.Records, table);
         }
 
-        private async Task<QualificationSendSummary> ExportImportedQualificationsToFaceAsync(IReadOnlyList<ImportedQualificationRecord> records)
+        private async Task<QualificationSendSummary> ExportImportedQualificationsToFaceAsync(IReadOnlyList<ImportedQualificationRecord> records, bool allowResend = false)
         {
             if (records == null || records.Count == 0)
             {
@@ -3826,7 +3808,7 @@ namespace OQSDrug
             }
 
             var exporter = new QualificationFaceExporter(Properties.Settings.Default.OQSFolder, message => AddLogAsync(message));
-            QualificationSendSummary summary = await exporter.ExportAsync(records);
+            QualificationSendSummary summary = await exporter.ExportAsync(records, allowResend);
             await QualificationImportStore.UpdateSendResultsAsync(records, message => AddLogAsync(message));
             return summary;
         }
@@ -3930,7 +3912,7 @@ namespace OQSDrug
                                                         //LLM自動問い合わせ
                                                     if (Properties.Settings.Default.DBtype == "pg" &&  messageContent.StartsWith("成功：") && Properties.Settings.Default.AIauto)
                                                     {
-                                                        // Schedule AutoLLM with bounded concurrency (Plan C)
+                                                        // 待機中・実行中の同一患者をまとめてキューへ登録
                                                         try
                                                         {
                                                             QueueAutoLLM(PtID / 10);
@@ -5264,7 +5246,6 @@ namespace OQSDrug
             }
 
             StopComPatientWatcher();
-            interactionButton.Visible = InteractionEnabled;
             RefreshInteractionTab(formDIInstance);
             if (autoRSB || autoTKK || autoSR || InteractionEnabled)
             {

@@ -81,7 +81,7 @@ namespace OQSDrug
                         throw new InvalidOperationException("受診日を一意に確認できません");
                     snapshot.VisitDate = Convert.ToDateTime(visitRows.Rows[0][0], CultureInfo.CurrentCulture).Date;
                 }
-                var codes = snapshot.Medications.Where(m => long.TryParse(m.InternalCode, out long n) && n >= 0 && n <= 99999)
+                var codes = snapshot.Medications.Where(m => m.IsDrug)
                     .Select(m => long.Parse(m.InternalCode).ToString(CultureInfo.InvariantCulture)).Distinct().ToArray();
                 if (codes.Length > 0)
                 {

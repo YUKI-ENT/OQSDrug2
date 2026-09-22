@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
@@ -13,8 +13,10 @@ namespace OQSDrug
     internal sealed class ChartMedication
     {
         public string Order = "", InternalCode = "", Name = "", Quantity = "", ReceptCode = "", YjCode = "";
-        public string GenericName = "", BrandName = "", Institution = "", Latest = "";
-        public bool IsConfirmation => Normalize(Name).Contains("処方箋料");
+        public string GenericName = "", SgmlGenericName = "", BrandName = "", Institution = "", Latest = "";
+        public bool IsDrug => int.TryParse(InternalCode, out int code) && code >= 10001 && code <= 99999;
+        public bool IsConfirmation => int.TryParse(InternalCode, out int code) && code >= 50 && code <= 99
+            && (Normalize(Name).Contains("処方") || Normalize(Name).Contains("調剤"));
         internal static string Normalize(string value) => Regex.Replace((value ?? "").Normalize(NormalizationForm.FormKC), @"\s+", "").ToUpperInvariant();
     }
 
@@ -27,7 +29,7 @@ namespace OQSDrug
         public List<ChartMedication> Medications = new List<ChartMedication>();
         public string Context => ChartId.ToString(CultureInfo.InvariantCulture) + ":" + Visit + ":" + VisitDate.ToString("yyyyMMdd");
         public string Confirmation => Fingerprint(Medications.Where(m => m.IsConfirmation));
-        public string Drugs => Fingerprint(Medications.Where(m => !m.IsConfirmation));
+        public string Drugs => Fingerprint(Medications.Where(m => m.IsDrug));
         public string Signature => Context + "|" + Fingerprint(Medications);
         private static string Fingerprint(IEnumerable<ChartMedication> meds) => string.Join("|", meds.Select(m =>
             string.Join("", new[] { m.Order, m.InternalCode, m.Name, m.Quantity, m.ReceptCode }.Select(s => (s ?? "").Length + ":" + s)))
@@ -92,16 +94,44 @@ namespace OQSDrug
                 && ((current == self && history == target) || (current == target && history == self));
         }
 
+        private static bool IsConcreteName(string token)
+        {
+            return token.Length >= 4 && !token.Contains("阻害") && !token.Contains("誘導")
+                && !token.Contains("除く") && !token.Contains("以外");
+        }
+
+        private static string[] NameTokens(string value)
+        {
+            return Regex.Split(value ?? "", @"[\r\n、,，;；（）()・]+")
+                .Select(x => ChartMedication.Normalize(x).TrimEnd('等'))
+                .Where(IsConcreteName).Distinct().ToArray();
+        }
+
         internal static string MatchName(string partner, ChartMedication drug)
         {
-            // Never interpret a generic class heading as a concrete drug name.
-            var aliases = new[] { drug.Name, drug.BrandName, drug.GenericName }.Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(ChartMedication.Normalize).Distinct().ToArray();
-            foreach (string part in Regex.Split(partner ?? "", @"[\r\n、,，;；（）()]+"))
+            return MatchAliases(partner, MedicationAliases(drug));
+        }
+
+        private static string[] MedicationAliases(ChartMedication drug)
+        {
+            // Keep both XML and SGML generic names; neither source replaces the other.
+            return new[] { drug.Name, drug.BrandName, drug.GenericName, drug.SgmlGenericName }
+                .SelectMany(NameTokens).Distinct().ToArray();
+        }
+
+        private static string MatchAliases(string partner, string[] aliases)
+        {
+            // Do not turn a parenthesized exclusion into a positive name match.
+            string normalized = ChartMedication.Normalize(partner);
+            if (normalized.Contains("除く") || normalized.Contains("以外")) return null;
+            foreach (string token in NameTokens(partner))
             {
-                string token = ChartMedication.Normalize(part).TrimEnd('等');
-                if (token.Length < 4 || token.Contains("阻害") || token.Contains("誘導") || token.Contains("除く") || token.Contains("以外")) continue;
-                if (aliases.Any(a => a == token || a.Contains(token))) return part.Trim();
+                foreach (string alias in aliases)
+                {
+                    // Partner names can contain several ingredients without delimiters.
+                    if (alias.Contains(token) || token.Contains(alias))
+                        return alias.Length <= token.Length ? alias : token;
+                }
             }
             return null;
         }
@@ -126,7 +156,7 @@ namespace OQSDrug
                     foreach (DataRow r in table.Rows) history.Add(new ChartMedication { ReceptCode = CommonFunctions.NormalizeDrugCode(S(r,"drugc")), Name = S(r,"drugn"),
                         GenericName = S(r,"ingren"), Latest = S(r,"didate"), Institution = S(r,"institution") });
                 }
-                var current = snapshot.Medications.Where(m => !m.IsConfirmation && !string.IsNullOrWhiteSpace(m.Name)).ToList();
+                var current = snapshot.Medications.Where(m => m.IsDrug && !string.IsNullOrWhiteSpace(m.Name)).ToList();
                 var all = current.Concat(history).ToList();
                 string[] codes = all.Select(m => m.ReceptCode).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToArray();
                 using (var mapping = await Query(conn, @"SELECT DISTINCT ON (d.drugc) d.drugc, d.yj_code, s.brand_name_ja, s.generic_name_ja
@@ -138,7 +168,7 @@ namespace OQSDrug
                         foreach (var med in all.Where(m => m.ReceptCode == S(r,"drugc")))
                         {
                             med.YjCode = S(r,"yj_code"); med.BrandName = S(r,"brand_name_ja");
-                            if (!string.IsNullOrWhiteSpace(S(r,"generic_name_ja"))) med.GenericName = S(r,"generic_name_ja");
+                            med.SgmlGenericName = S(r,"generic_name_ja");
                         }
                 }
                 using (var koroRows = await Query(conn, "SELECT * FROM drug_contraindication WHERE self_code=ANY(@codes) OR target_code=ANY(@codes)", new NpgsqlParameter("codes", codes)))
@@ -147,6 +177,8 @@ namespace OQSDrug
                     AND (section_type LIKE '%禁忌%' OR section_type LIKE '%注意%')",
                     new NpgsqlParameter("prefixes", all.Select(m => Prefix(m.YjCode)).Where(p => p.Length == 7).Distinct().ToArray())))
                 {
+                    var aliases = all.Distinct().ToDictionary(m => m, MedicationAliases);
+                    var rowsByYj = textRows.AsEnumerable().ToLookup(row => S(row, "yj7"));
                     foreach (var c in current) foreach (var h in history)
                     {
                         foreach (DataRow row in koroRows.Rows)
@@ -154,11 +186,11 @@ namespace OQSDrug
                             if (MatchKoro(c.ReceptCode, h.ReceptCode, S(row,"self_code"), S(row,"target_code")))
                                 AddHit(result.Koro, c, h, "併用禁忌", "レセ電コード一致", S(row,"symptom_action"), S(row,"mechanism"));
                         }
-                        foreach (DataRow row in textRows.Rows)
+                        foreach (DataRow row in rowsByYj[Prefix(c.YjCode)].Concat(rowsByYj[Prefix(h.YjCode)]).Distinct())
                         {
                             string match = null;
-                            if (S(row,"yj7") == Prefix(h.YjCode)) match = MatchName(S(row,"partner_name_ja"), c);
-                            if (match == null && S(row,"yj7") == Prefix(c.YjCode)) match = MatchName(S(row,"partner_name_ja"), h);
+                            if (S(row,"yj7") == Prefix(h.YjCode)) match = MatchAliases(S(row,"partner_name_ja"), aliases[c]);
+                            if (match == null && S(row,"yj7") == Prefix(c.YjCode)) match = MatchAliases(S(row,"partner_name_ja"), aliases[h]);
                             if (match != null) AddHit(result.Text, c, h, S(row,"section_type"), "名称一致: " + match,
                                 S(row,"partner_name_ja") + "\r\n" + S(row,"symptoms_measures_ja"), S(row,"mechanism_ja"));
                         }

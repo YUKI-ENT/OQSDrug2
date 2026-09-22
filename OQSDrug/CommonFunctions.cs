@@ -35,6 +35,9 @@ namespace OQSDrug
         public long PtID { get; set; }
         public double ChronicScore { get; set; }  // 0〜1
         public double AcuteScore { get; set; }    // 0〜1
+        public int PrescriptionCount { get; set; }
+        public double? TypicalIntervalDays { get; set; }
+        public string EstimatedEndDate { get; set; }
         public string LatestDate { get; set; } = "";  // "yyyyMMdd" 形式の最新投薬日
         public int DaysSinceLast { get; set; }        // 直近性（小さいほど最近）
         public string RankLabel { get; set; } = "";   // ①〜④相当のラベル
@@ -1118,6 +1121,8 @@ namespace OQSDrug
             public DateTime DiDate;
             public string DrugC;
             public string DrugN;
+            public int Times;
+            public string Usage;
         }
 
         // ラベル＆注記生成
@@ -1180,10 +1185,11 @@ namespace OQSDrug
                 using (IDbCommand cmd = conn.CreateCommand())
                 {
                     string sql = @"
-                        SELECT didate, drugc, drugn, prisorg
+                        SELECT didate, drugc, drugn, prisorg, times, usagen
                         FROM drug_history
                         WHERE ptidmain = @PtID
                           AND didate >= @StartDate
+                          AND (revised = FALSE OR revised IS NULL)
                     ";
                     if (excludePrIsOrgValue.HasValue)
                         sql += "  AND prisorg <> @ExPrIsOrg \n";
@@ -1207,7 +1213,9 @@ namespace OQSDrug
                                 {
                                     DiDate = di,
                                     DrugC = (r["drugc"] == DBNull.Value ? "" : r["drugc"].ToString().Trim()),
-                                    DrugN = (r["drugn"] == DBNull.Value ? "" : r["drugn"].ToString().Trim())
+                                    DrugN = (r["drugn"] == DBNull.Value ? "" : r["drugn"].ToString().Trim()),
+                                    Times = int.TryParse(r["times"].ToString(), out int days) ? days : 0,
+                                    Usage = r["usagen"].ToString()
                                 });
                             }
                         }
@@ -1223,7 +1231,9 @@ namespace OQSDrug
                                 {
                                     DiDate = di,
                                     DrugC = (r["drugc"] == DBNull.Value ? "" : r["drugc"].ToString().Trim()),
-                                    DrugN = (r["drugn"] == DBNull.Value ? "" : r["drugn"].ToString().Trim())
+                                    DrugN = (r["drugn"] == DBNull.Value ? "" : r["drugn"].ToString().Trim()),
+                                    Times = int.TryParse(r["times"].ToString(), out int days) ? days : 0,
+                                    Usage = r["usagen"].ToString()
                                 });
                             }
                         }
@@ -1237,7 +1247,7 @@ namespace OQSDrug
 
             foreach (var g in groups)
             {
-                var entries = g.OrderBy(x => x.DiDate).ToList();
+                var entries = g.Where(x => x.DiDate <= refDate).OrderBy(x => x.DiDate).ToList();
                 if (entries.Count == 0) continue;
 
                 string drugc = entries[entries.Count - 1].DrugC ?? "";
@@ -1271,9 +1281,30 @@ namespace OQSDrug
                 chronic = Clamp01(chronic * weight.ChronicW);
                 acute = Clamp01(acute * weight.AcuteW);
 
+                // 長い処方間隔・外用薬でも、反復実績を経路によらず評価する。
+                bool asNeeded = entries.Where(e => e.DiDate == dates.Last())
+                    .Any(e => Regex.IsMatch(e.Usage ?? "", "頓[用服]|必要時|疼痛時|発熱時|発作時|不眠時|便秘時|隔日|週[に0-9０-９]"));
+                var courses = route == RouteMajor.Oral
+                    ? entries.Select(e => new MedicationCourse { Date = e.DiDate, Days = e.Times })
+                    : Enumerable.Empty<MedicationCourse>();
+                var continuity = MedicationContinuity.Evaluate(dates, refDate, courses, asNeeded);
+                chronic = Math.Max(chronic, continuity.ChronicFloor);
+                if (continuity.ChronicFloor > 0) acute = Math.Min(acute, 0.40);
+
                 // 表示用
                 string latestStr = dates[dates.Count - 1].ToString("yyyyMMdd", CultureInfo.InvariantCulture);
                 MakeLabelAndNote(chronic, acute, daysSinceLast, coverage, out string label, out string note);
+
+                if (continuity.Label != null)
+                {
+                    label = continuity.Label;
+                    note = continuity.Note;
+                }
+                else if (fills == 1)
+                {
+                    label = "単回記録（治療期間不明）";
+                    note = "処方履歴が1回のため慢性・短期は判定困難。投与日数・用法を確認。";
+                }
 
                 results.Add(new MedRankRow
                 {
@@ -1284,6 +1315,9 @@ namespace OQSDrug
                     AcuteScore = Math.Round(acute, 4),
                     LatestDate = latestStr,
                     DaysSinceLast = daysSinceLast,
+                    PrescriptionCount = fills,
+                    TypicalIntervalDays = continuity.IntervalDays,
+                    EstimatedEndDate = continuity.EstimatedEnd?.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
                     RankLabel = label,
                     Note = note
                 });
@@ -1525,7 +1559,7 @@ namespace OQSDrug
             var acuteThr = ranks.Where(x => x.AcuteScore >= acuteThreshold);
 
             var selected = chronicTop.Concat(acuteTop).Concat(chronicThr).Concat(acuteThr)
-                                     .GroupBy(x => x.DrugC ?? "")
+                                     .GroupBy(x => string.IsNullOrWhiteSpace(x.DrugC) ? "#NOCODE:" + x.DrugN : x.DrugC)
                                      .Select(g => g.First())
                                      .OrderByDescending(x => x.ChronicScore)
                                      .ThenByDescending(x => x.AcuteScore)
@@ -1551,7 +1585,11 @@ namespace OQSDrug
                     ["chronic"] = s.ChronicScore,
                     ["acute"] = s.AcuteScore,
                     ["days_since_last"] = s.DaysSinceLast,
-                    ["rank_label"] = s.RankLabel
+                    ["rank_label"] = s.RankLabel,
+                    ["prescription_count"] = s.PrescriptionCount,
+                    ["typical_interval_days"] = s.TypicalIntervalDays,
+                    ["continuity_note"] = s.Note,
+                    ["estimated_end"] = s.EstimatedEndDate
                 };
 
                 if (includeDrugC && !string.IsNullOrWhiteSpace(s.DrugC))
@@ -1591,6 +1629,12 @@ namespace OQSDrug
             // 7) 出力：テンプレ本文 + JSON ペイロード
             var prompt =
         $@"{promptHeader}
+【薬歴の解釈に関する補足（上記に日数だけによる判定指示があれば本補足を優先）】
+chronic/acuteは履歴に基づく参考スコアで、実際の使用確率ではありません。
+60～90日間隔の処方や吸入・外用薬を、処方のない月や最終処方から60日経過したことだけで中断としないでください。
+直近30日以内という理由だけで臨時処方としないでください。単回記録で日数も不明な場合は慢性・短期とも不明です。
+estimated_endは通常内服の日数から推定した終了日で、実際の服薬は未確認です。typical_interval_daysは過去の処方間隔であり、投与日数や残薬の保証ではありません。
+rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け、推定と確認済み情報を区別してください。
 --- JSON PAYLOAD START ---
 {payloadJson}
 --- JSON PAYLOAD END ---";
@@ -1867,12 +1911,18 @@ namespace OQSDrug
                             $"Request-Len: {json.Length}\n" +
                             $"Response-Head: {head}";
                         onStatus?.Invoke("[CallLlmAsync] ERROR " + msg.Replace("\n", " | "));
-                        throw new HttpRequestException(msg);
+                        var retry = resp.Headers.RetryAfter;
+                        TimeSpan? retryAfter = retry?.Delta;
+                        if (!retryAfter.HasValue && retry?.Date != null)
+                            retryAfter = retry.Date.Value - DateTimeOffset.UtcNow;
+                        throw new LlmHttpException(msg, (int)resp.StatusCode, retryAfter);
                     }
 
                     try
                     {
                         string res = ExtractChatCompletionText(body);
+                        if (string.IsNullOrWhiteSpace(res))
+                            throw new InvalidOperationException("LLMの応答本文が空でした。" );
                         onStatus?.Invoke($"[CallLlmAsync] OK response {res.Length} chars");
                         return res.Trim();
                     }
@@ -1885,10 +1935,8 @@ namespace OQSDrug
             }
             catch (TaskCanceledException tex)
             {
-                // Timeout or user-cancel
-                var msg = tex.CancellationToken.IsCancellationRequested
-                    ? "LLM リクエストがキャンセルされました。"
-                    : $"LLM タイムアウト（{timeoutMs}ms）: {tex.Message}";
+                ct.ThrowIfCancellationRequested();
+                var msg = $"LLM タイムアウト（{timeoutMs}ms）: {tex.Message}";
                 onStatus?.Invoke("[CallLlmAsync] " + msg);
                 throw new TimeoutException(msg, tex);
             }
@@ -1979,11 +2027,12 @@ namespace OQSDrug
 
 
         // ── 1回分の問い合わせ（DB更新まで一括） ──
-        public static async Task<long> RunLlmOnceAndPersistAsync(long ptId, string prompt, string tplName ,string modelName, int? timeoutMsOverride = null)
+        public static async Task<long> RunLlmOnceAndPersistAsync(long ptId, string prompt, string tplName ,string modelName, int? timeoutMsOverride = null, bool autoRetry = false, CancellationToken ct = default)
         {
             // 設定からOpenAI互換APIのURLを組み立て
             var port = Properties.Settings.Default.LLMport;
             var tout = timeoutMsOverride ?? Properties.Settings.Default.LLMtimeout * 1000; // ms
+            if (autoRetry) tout = Math.Max(tout, 300000); // サーバーの順番待ちを含め最低5分
 
             string baseUrl = BuildLlmBaseUrl(Properties.Settings.Default.LLMserver, port);
             string serverUrl = $"{baseUrl}/chat/completions";
@@ -1998,7 +2047,9 @@ namespace OQSDrug
                 string res = await CallLlmQueuedAsync(
                                 serverUrl, modelName, prompt,
                                 timeoutMs: tout,
-                                ct: CancellationToken.None
+                                ct: ct,
+                                onStatus: autoRetry ? (Action<string>)(message => { _ = AddLogAsync($"[AutoFetch rid={rid}] {message}", fileOnly: true); }) : null,
+                                autoRetry: autoRetry
                                 );
 
                 // 3) 成功更新（長さ/トークンも記録）
@@ -2024,6 +2075,7 @@ namespace OQSDrug
             public CancellationToken Ct;
             public Action<string> OnStatus;
             public TaskCompletionSource<string> Tcs;
+            public bool AutoRetry;
         }
 
         private static readonly ConcurrentQueue<LlmJob> _llmQueue = new ConcurrentQueue<LlmJob>();
@@ -2046,7 +2098,8 @@ namespace OQSDrug
             string prompt,
             int timeoutMs = 120000,
             CancellationToken ct = default(CancellationToken),
-            Action<string> onStatus = null)
+            Action<string> onStatus = null,
+            bool autoRetry = false)
         {
             // 事前キャンセルは即キャンセル返し
             if (ct.IsCancellationRequested)
@@ -2061,7 +2114,8 @@ namespace OQSDrug
                 TimeoutMs = timeoutMs,
                 Ct = ct,
                 OnStatus = onStatus,
-                Tcs = new TaskCompletionSource<string>()
+                AutoRetry = autoRetry,
+                Tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously)
             };
 
             _llmQueue.Enqueue(job);
@@ -2109,10 +2163,11 @@ namespace OQSDrug
                         {
                             status?.Invoke("dequeued → processing...");
                             // 既存の CallLlmAsync を利用
-                            var res = await CallLlmAsync(
-                                job.ServerUrl, job.ModelName, job.Prompt,
-                                job.TimeoutMs, job.Ct, status
-                            ).ConfigureAwait(false);
+                            Func<Task<string>> send = () => CallLlmAsync(
+                                job.ServerUrl, job.ModelName, job.Prompt, job.TimeoutMs, job.Ct, status);
+                            var res = job.AutoRetry
+                                ? await LlmRetryPolicy.ExecuteAsync(send, job.Ct, status).ConfigureAwait(false)
+                                : await send().ConfigureAwait(false);
 
                             job.Tcs.TrySetResult(res);
                             status?.Invoke($"done (len={res?.Length ?? 0})");
@@ -2139,7 +2194,7 @@ namespace OQSDrug
 
         /// <summary>
         /// 自動 LLM 問い合わせ（auto_fetch=TRUE のテンプレート全件対象）。
-        /// 同一タイトルの ai_results が <paramref name="minDaysBetween"/> 日以内に存在する場合はスキップします。
+        /// 同一タイトルの成功した ai_results が <paramref name="minDaysBetween"/> 日以内に存在する場合はスキップします。
         /// 1件も実行しなければ null、実行した場合は最後の rid を返します。
         /// </summary>
         public static async Task<long?> AutoLLMAsync(
@@ -2179,7 +2234,7 @@ namespace OQSDrug
                 }
 
                 long? lastRid = null;
-                int executed = 0, skipped = 0;
+                int executed = 0, skipped = 0, failed = 0;
 
                 // 2) 各テンプレートを順に処理
                 foreach (DataRow row in dtTpl.Rows)
@@ -2189,41 +2244,50 @@ namespace OQSDrug
                     string tplName = row["tpl_name"]?.ToString() ?? "(no title)";
                     string modelName = row["model_name"]?.ToString() ?? "";
 
-                    // 2-1) 直近 minDaysBetween 日以内に同タイトルの結果があればスキップ
-                    if (minDaysBetween > 0)
+                    try
                     {
-                        bool existsRecent = await ExistsRecentResultAsync(ptId, tplName, minDaysBetween, ct);
-                        if (existsRecent)
+                        // 2-1) 直近 minDaysBetween 日以内に同タイトルの成功結果があればスキップ
+                        if (minDaysBetween > 0)
                         {
+                            bool existsRecent = await ExistsRecentResultAsync(ptId, tplName, minDaysBetween, ct);
+                            if (existsRecent)
+                            {
+                                skipped++;
+                                await AddLogAsync($"[AutoFetch] skip '{tplName}'（{minDaysBetween}日以内に既存あり）");
+                                continue;
+                            }
+                        }
+
+                        await AddLogAsync($"[AutoFetch] template='{tplName}' model='{modelName}' → prompt生成");
+
+                        // 2-2) MakeLLMPrompt は 1行の DataTable を想定しているので複製して渡す
+                        var dtOne = row.Table.Clone();
+                        dtOne.ImportRow(row);
+
+                        string prompt = await MakeLLMPrompt(ptId, dtOne);
+                        if (string.IsNullOrWhiteSpace(prompt))
+                        {
+                            await AddLogAsync($"[AutoFetch] 生成プロンプトが空でした（tpl='{tplName}'）。スキップ");
                             skipped++;
-                            await AddLogAsync($"[AutoFetch] skip '{tplName}'（{minDaysBetween}日以内に既存あり）");
                             continue;
                         }
+
+                        // 2-3) 実行（内部は直列キューで順次処理）
+                        long rid = await RunLlmOnceAndPersistAsync(ptId, prompt, tplName, modelName, timeoutMsOverride, autoRetry: true, ct: ct);
+                        lastRid = rid;
+                        executed++;
+
+                        await AddLogAsync($"[AutoFetch] done tpl='{tplName}' rid={rid}");
                     }
-
-                    await AddLogAsync($"[AutoFetch] template='{tplName}' model='{modelName}' → prompt生成");
-
-                    // 2-2) MakeLLMPrompt は 1行の DataTable を想定しているので複製して渡す
-                    var dtOne = row.Table.Clone();
-                    dtOne.ImportRow(row);
-
-                    string prompt = await MakeLLMPrompt(ptId, dtOne);
-                    if (string.IsNullOrWhiteSpace(prompt))
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                    catch (Exception ex)
                     {
-                        await AddLogAsync($"[AutoFetch] 生成プロンプトが空でした（tpl='{tplName}'）。スキップ");
-                        skipped++;
-                        continue;
+                        failed++;
+                        await AddLogAsync($"[AutoFetch] failed tpl='{tplName}': {ex.Message}（残りのテンプレートは続行）");
                     }
-
-                    // 2-3) 実行（内部は直列キューで順次処理）
-                    long rid = await RunLlmOnceAndPersistAsync(ptId, prompt, tplName, modelName, timeoutMsOverride);
-                    lastRid = rid;
-                    executed++;
-
-                    await AddLogAsync($"[AutoFetch] done tpl='{tplName}' rid={rid}");
                 }
 
-                await AddLogAsync($"[AutoFetch] 完了 executed={executed}, skipped={skipped}");
+                await AddLogAsync($"[AutoFetch] 完了 executed={executed}, skipped={skipped}, failed={failed}");
                 return lastRid;
             }
             catch (OperationCanceledException)
@@ -2240,7 +2304,7 @@ namespace OQSDrug
 
         /// <summary>
         /// ai_results に、同じ ptId・同じ title のレコードが
-        /// 直近 days 日以内に存在するかを判定します。
+        /// 直近 days 日以内に本文のある成功結果が存在するかを判定します。
         /// </summary>
         private static async Task<bool> ExistsRecentResultAsync(
             long ptId, string title, int days, CancellationToken ct)
@@ -2254,6 +2318,8 @@ namespace OQSDrug
                   FROM public.ai_results
                  WHERE ptidmain = @pt
                    AND title    = @title
+                   AND status   = 'success'
+                   AND NULLIF(BTRIM(res), '') IS NOT NULL
                    AND COALESCE(res_at, req_at) >= (NOW() - make_interval(days => @days))
                  LIMIT 1;";
 
@@ -2783,8 +2849,8 @@ namespace OQSDrug
             【要件】
             - 出力は日本語の文章のみ（JSON/箇条書きは禁止）。
             - 慢性：慢性疾患（chronic高 or rank_labelが継続）は薬効ごとにまとめて疾患名を類推し、「◯◯などの薬剤を処方されており、◯◯病(病名)で継続治療中と思われる」と出力。
-            - 中断：慢性疾患でかつ（days_since_last>=60）は「◯はxx日以上中断している」。
-            - 急性（acute高 or days_since_last<=30）は「◯が臨時処方」
+            - 中断：最終処方からの日数だけで中断を断定しない。処方間隔とcontinuity_noteを参照し、現在使用は要確認とする。
+            - 急性：acuteは参考指標。最近の処方という理由だけで臨時処方とせず、単回記録では治療期間不明とする。
             - 急性で14日以内に投薬があるときはあり→◯が◯日前に投与されており重複に注意」。
             - 疾患名は短縮（例：狭心症/心筋梗塞→虚血性心疾患、胃潰瘍/十二指腸潰瘍→消化性潰瘍）。
             - 疾患は最大2件、根拠薬は代表1–2剤のみ。1段落3–5文以内。

@@ -64,6 +64,7 @@ namespace OQSDrug
 
             dgvQualifications.DataSource = rows;
             dgvQualifications.ReadOnly = false;
+            dgvQualifications.Columns[0].ReadOnly = false;
             dgvQualifications.EnableHeadersVisualStyles = false;
             dgvQualifications.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(226, 232, 240);
             dgvQualifications.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(15, 23, 42);
@@ -124,7 +125,7 @@ namespace OQSDrug
         {
             foreach (QualificationImportRow row in rows)
             {
-                if (!row.Record.IsSent)
+                if (row.Record != null)
                 {
                     row.Send = true;
                 }
@@ -147,7 +148,8 @@ namespace OQSDrug
 
         private async void buttonSendSelected_Click(object sender, EventArgs e)
         {
-            List<QualificationImportRow> selectedRows = rows.Where(r => r.Send && !r.Record.IsSent).ToList();
+            dgvQualifications.EndEdit();
+            List<QualificationImportRow> selectedRows = rows.Where(r => r.Send).ToList();
             if (selectedRows.Count == 0)
             {
                 MessageBox.Show(this, "送信対象にチェックを入れてください。", "資格情報送信", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -218,7 +220,7 @@ namespace OQSDrug
 
         private void UpdateSelectionCount()
         {
-            int selectedCount = rows.Count(r => r.Send && !r.Record.IsSent);
+            int selectedCount = rows.Count(r => r.Send);
             labelSelectedCount.Text = $"選択: {selectedCount}件";
         }
 

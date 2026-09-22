@@ -18,6 +18,8 @@ namespace OQSDrug
         private const int SnapDistance = 16; // 吸着の距離（ピクセル）
         private int SnapCompPixel = 8;  //余白補正
 
+        private string printPatient = "", printPeriod = "";
+        private readonly ToolStripButton checkupPrint = new ToolStripButton("印刷プレビュー／印刷");
         private Form1 _parentForm;
         private string provider;
 
@@ -31,6 +33,13 @@ namespace OQSDrug
         public FormTKK(Form1 parentForm)
         {
             InitializeComponent();
+            checkupPrint.Enabled = false;
+            checkupPrint.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            checkupPrint.Image = Properties.Resources.Print;
+            checkupPrint.ToolTipText = "健診結果を印刷プレビュー";
+            checkupPrint.Click += (s,e) => HistoryReportView.ShowPreview(this,
+                HistoryReport.WithMetadata(HistoryReport.Pivot("健診結果", 2, 4, dataGridViewTKK), printPatient, printPeriod), false);
+            toolStrip1.Items.Add(checkupPrint);
 
             _parentForm = parentForm;
             provider = CommonFunctions.DBProvider;
@@ -196,6 +205,7 @@ namespace OQSDrug
         private async void toolStripComboBoxPt_SelectedIndexChanged(object sender, EventArgs e)
         {
             historyLoadState.Begin();
+            checkupPrint.Enabled = false;
             try
             {
                 if (toolStripComboBoxPt.SelectedItem is PtItem selectedPt)
@@ -216,8 +226,10 @@ namespace OQSDrug
         private async Task ShowTKKData(long ptID, bool preserveView = false)
         {
             int loadRevision = historyLoadState.Begin();
+            checkupPrint.Enabled = false;
             if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
+                checkupPrint.Enabled = false;
                 MessageBox.Show("データベースがロックされており、ShowTKKData に失敗しました。もう一度やり直してください。");
                 return;
             }
@@ -287,8 +299,11 @@ namespace OQSDrug
 
                                     int firstRow = dataGridViewTKK.FirstDisplayedScrollingRowIndex;
                                     int horizontal = dataGridViewTKK.HorizontalScrollingOffset;
+                                    printPatient = HistoryReport.PatientCaption(selected.DisplayText);
+                                    printPeriod = HistoryReport.OutputPeriod(raw, "effectivetime", null);
                                     dataGridViewTKK.DataSource = pivot;
                                     ConfigureDataGridView(dataGridViewTKK);
+                                    checkupPrint.Enabled = pivot.Rows.Count > 0;
                                     if (preserveView)
                                     {
                                         if (firstRow >= 0 && dataGridViewTKK.RowCount > 0)
@@ -315,6 +330,7 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
+                if (!IsDisposed && historyLoadState.IsCurrent(loadRevision)) checkupPrint.Enabled = false;
                 await CommonFunctions.AddLogAsync($"FormTKK.ShowTKKData エラー PtID={ptID}: {ex}");
                 MessageBox.Show($"エラーが発生しました: {ex.Message}");
             }

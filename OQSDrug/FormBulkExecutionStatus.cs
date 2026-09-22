@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -21,6 +21,8 @@ namespace OQSDrug
         private bool bulkExecutionAvailable = true;
         private string bulkExecutionDisabledReason = string.Empty;
         private bool detailLogExpanded = false;
+        private bool sendingSelected;
+        private bool actionsEnabled = true;
 
         private Func<Task> runHoumonOnceAsync;
         private Func<Task> toggleHoumonAutoAsync;
@@ -46,6 +48,7 @@ namespace OQSDrug
             InitializeCardStepIndicators();
             ResetRangeControlsFromSettings();
             InitializeGrid();
+            rows.ListChanged += (sender, e) => UpdateSendSelectionState();
             ApplyVisualStyle();
             InitializeCardProgress();
             ApplyDetailLogExpandedState(false);
@@ -344,7 +347,7 @@ namespace OQSDrug
             dgvResults.Columns.Add(new DataGridViewCheckBoxColumn
             {
                 DataPropertyName = nameof(BulkExecutionResultRow.Send),
-                HeaderText = "送信",
+                HeaderText = "選択",
                 Width = 48
             });
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.SendStatus), "ダイナ送信", 120));
@@ -362,6 +365,7 @@ namespace OQSDrug
             dgvResults.Columns.Add(CreateTextColumn(nameof(BulkExecutionResultRow.QueryNumber), "照会番号", 120, false));
             dgvResults.DataSource = rows;
             dgvResults.ReadOnly = false;
+            dgvResults.Columns[0].ReadOnly = false;
 
             dgvResults.EnableHeadersVisualStyles = false;
             dgvResults.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(226, 232, 240);
@@ -974,6 +978,7 @@ namespace OQSDrug
 
         private void SetActionButtonsEnabled(bool enabled)
         {
+            actionsEnabled = enabled;
             buttonRunHoumonOnce.Enabled = CanRunKindAction(enabled, BulkQualificationKind.Houmon, runHoumonOnceAsync);
             buttonToggleHoumonAuto.Enabled = CanToggleKindAction(enabled, BulkQualificationKind.Houmon, toggleHoumonAutoAsync, isHoumonAutoEnabled);
             buttonCancelHoumon.Enabled = CanCancelKindAction(BulkQualificationKind.Houmon, cancelHoumonAsync);
@@ -986,9 +991,9 @@ namespace OQSDrug
             buttonToggleMedicalAuto.Enabled = CanToggleKindAction(enabled, BulkQualificationKind.MedicalAid, toggleMedicalAutoAsync, isMedicalAutoEnabled);
             buttonCancelMedical.Enabled = CanCancelKindAction(BulkQualificationKind.MedicalAid, cancelMedicalAsync);
 
-            buttonCheckAll.Enabled = enabled && rows.Count > 0;
-            buttonClearChecks.Enabled = enabled && rows.Count > 0;
-            buttonSendSelected.Enabled = enabled && sendSelectedAsync != null && rows.Any(r => r.Send && !r.Record.IsSent && !r.Record.IsDuplicate);
+            buttonCheckAll.Enabled = enabled && !sendingSelected && rows.Count > 0;
+            buttonClearChecks.Enabled = enabled && !sendingSelected && rows.Count > 0;
+            buttonSendSelected.Enabled = enabled && !sendingSelected && sendSelectedAsync != null && rows.Any(r => r.Send);
             buttonRefreshResults.Enabled = enabled && refreshLatestAsync != null;
 
             RefreshButtonVisualStates(
@@ -1079,9 +1084,10 @@ namespace OQSDrug
 
         private void buttonCheckAll_Click(object sender, EventArgs e)
         {
+            dgvResults.EndEdit();
             foreach (BulkExecutionResultRow row in rows)
             {
-                if (!row.Record.IsSent && !row.Record.IsDuplicate)
+                if (row.Record != null)
                 {
                     row.Send = true;
                 }
@@ -1093,6 +1099,7 @@ namespace OQSDrug
 
         private void buttonClearChecks_Click(object sender, EventArgs e)
         {
+            dgvResults.EndEdit();
             foreach (BulkExecutionResultRow row in rows)
             {
                 row.Send = false;
@@ -1111,18 +1118,21 @@ namespace OQSDrug
 
         private async void buttonSendSelected_Click(object sender, EventArgs e)
         {
-            if (sendSelectedAsync == null)
+            if (sendingSelected || sendSelectedAsync == null)
             {
                 return;
             }
 
-            List<BulkExecutionResultRow> selectedRows = rows.Where(r => r.Send && !r.Record.IsSent && !r.Record.IsDuplicate).ToList();
+            dgvResults.EndEdit();
+            List<BulkExecutionResultRow> selectedRows = rows.Where(r => r.Send).ToList();
             if (selectedRows.Count == 0)
             {
                 MessageBox.Show(this, "送信対象のチェックがありません。", "BulkTool", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
+            sendingSelected = true;
+            dgvResults.Enabled = false;
             ToggleActionButtons(false);
             try
             {
@@ -1151,10 +1161,22 @@ namespace OQSDrug
                     MessageBoxButtons.OK,
                     summary.FailedCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "送信できませんでした：" + ex.Message, "BulkTool", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
             finally
             {
+                sendingSelected = false;
+                dgvResults.Enabled = true;
                 ToggleActionButtons(true);
             }
+        }
+
+        private void UpdateSendSelectionState()
+        {
+            if (IsDisposed || Disposing) return;
+            buttonSendSelected.Enabled = actionsEnabled && !sendingSelected && sendSelectedAsync != null && rows.Any(r => r.Send);
         }
 
         private void dgvResults_CurrentCellDirtyStateChanged(object sender, EventArgs e)
@@ -1169,7 +1191,7 @@ namespace OQSDrug
         {
             if (e.RowIndex >= 0)
             {
-                ToggleActionButtons(true);
+                UpdateSendSelectionState();
             }
         }
 

@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormDI));
             this.webBrowser1 = new System.Windows.Forms.WebBrowser();
             this.dataGridViewFixed = new System.Windows.Forms.DataGridView();
@@ -60,6 +60,7 @@
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.toolStrip1 = new OQSDrug.ClickThroughToolStrip();
             this.toolStripComboBoxPt = new System.Windows.Forms.ToolStripComboBox();
+            this.toolStripButtonReload = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripButtonSum = new System.Windows.Forms.ToolStripButton();
@@ -78,7 +79,6 @@
             this.toolStripButtonTKK = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator7 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripButtonSGMLDI = new System.Windows.Forms.ToolStripButton();
-            this.toolStripButtonReload = new System.Windows.Forms.ToolStripButton();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewFixed)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewDH)).BeginInit();
             this.tabControl1.SuspendLayout();
@@ -224,14 +224,14 @@
             this.dataGridViewInteraction.AllowUserToAddRows = false;
             this.dataGridViewInteraction.AllowUserToDeleteRows = false;
             this.dataGridViewInteraction.AllowUserToResizeRows = false;
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridViewInteraction.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Meiryo UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dataGridViewInteraction.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dataGridViewInteraction.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             this.dataGridViewInteraction.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dataGridViewInteraction.Location = new System.Drawing.Point(3, 3);
@@ -459,10 +459,22 @@
             // 
             this.toolStripComboBoxPt.AutoSize = false;
             this.toolStripComboBoxPt.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.toolStripComboBoxPt.DropDownWidth = 160;
             this.toolStripComboBoxPt.Font = new System.Drawing.Font("ＭＳ ゴシック", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             this.toolStripComboBoxPt.Name = "toolStripComboBoxPt";
             this.toolStripComboBoxPt.Size = new System.Drawing.Size(180, 21);
             this.toolStripComboBoxPt.SelectedIndexChanged += new System.EventHandler(this.toolStripComboBoxPt_SelectedIndexChanged);
+            // 
+            // toolStripButtonReload
+            // 
+            this.toolStripButtonReload.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.toolStripButtonReload.Image = global::OQSDrug.Properties.Resources.Refresh;
+            this.toolStripButtonReload.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButtonReload.Name = "toolStripButtonReload";
+            this.toolStripButtonReload.Size = new System.Drawing.Size(23, 24);
+            this.toolStripButtonReload.Text = "更新";
+            this.toolStripButtonReload.ToolTipText = "更新";
+            this.toolStripButtonReload.Click += new System.EventHandler(this.toolStripButtonReload_Click);
             // 
             // toolStripSeparator1
             // 
@@ -588,12 +600,13 @@
             // 
             this.toolStripButtonClass.AutoSize = false;
             this.toolStripButtonClass.CheckOnClick = true;
-            this.toolStripButtonClass.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.toolStripButtonClass.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButtonClass.Image")));
+            this.toolStripButtonClass.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.toolStripButtonClass.Image = global::OQSDrug.Properties.Resources.DrugClassColors;
             this.toolStripButtonClass.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonClass.Name = "toolStripButtonClass";
-            this.toolStripButtonClass.Size = new System.Drawing.Size(65, 22);
+            this.toolStripButtonClass.Size = new System.Drawing.Size(24, 22);
             this.toolStripButtonClass.Text = "薬効着色";
+            this.toolStripButtonClass.ToolTipText = "薬効分類による着色を切り替え";
             this.toolStripButtonClass.CheckStateChanged += new System.EventHandler(this.toolStripButtonClass_CheckStateChanged);
             // 
             // toolStripSeparator6
@@ -633,21 +646,10 @@
             this.toolStripButtonSGMLDI.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripButtonSGMLDI.Name = "toolStripButtonSGMLDI";
             this.toolStripButtonSGMLDI.Size = new System.Drawing.Size(23, 24);
-            this.toolStripButtonSGMLDI.Text = "toolStripButton1";
+            this.toolStripButtonSGMLDI.Text = "添付文書";
             this.toolStripButtonSGMLDI.ToolTipText = "添付文書を開きます";
-            this.toolStripButtonSGMLDI.Visible = false;
+            this.toolStripButtonSGMLDI.Visible = true;
             this.toolStripButtonSGMLDI.Click += new System.EventHandler(this.toolStripButtonSGMLDI_Click);
-            // 
-            // toolStripButtonReload
-            // 
-            this.toolStripButtonReload.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-            this.toolStripButtonReload.Image = global::OQSDrug.Properties.Resources.Refresh;
-            this.toolStripButtonReload.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.toolStripButtonReload.Name = "toolStripButtonReload";
-            this.toolStripButtonReload.Size = new System.Drawing.Size(23, 24);
-            this.toolStripButtonReload.Text = "更新";
-            this.toolStripButtonReload.ToolTipText = "更新";
-            this.toolStripButtonReload.Click += new System.EventHandler(this.toolStripButtonReload_Click);
             // 
             // FormDI
             // 

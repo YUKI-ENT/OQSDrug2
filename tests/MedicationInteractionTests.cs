@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Data;
 using System.Drawing;
@@ -21,19 +21,35 @@ public static class MedicationInteractionTests
         var snapshot = Activator.CreateInstance(snapshotType);
         Set(snapshot,"ChartId",123451L); Set(snapshot,"Visit","100"); Set(snapshot,"VisitDate",DateTime.Today);
         var list = (IList)snapshotType.GetField("Medications").GetValue(snapshot);
-        list.Add(med("テスト薬", "1"));
+        list.Add(med("テスト薬", "10001"));
         var stateType = assembly.GetType("OQSDrug.MedicationConfirmationState");
         var state = Activator.CreateInstance(stateType);
         Func<bool> observe = () => (bool)stateType.GetMethod("Observe").Invoke(state,new[] { snapshot });
         Require(!observe() && !observe(), "Unconfirmed list triggered");
-        var fee = med("処方箋料（その他）", "100001"); list.Add(fee);
+        var fee = med("処方箋料（その他）", "50"); list.Add(fee);
         Require(!observe() && observe(), "Confirmation must stabilize twice");
         stateType.GetMethod("Complete").Invoke(state,new[] { snapshot });
         Require(!observe(), "Unchanged list retriggered");
-        list.Add(med("追加薬", "2")); Require(!observe() && !observe(), "Edit with old fee retriggered");
+        list.Add(med("追加薬", "99999")); Require(!observe() && !observe(), "Edit with old fee retriggered");
         list.Remove(fee); Require(!observe(), "Fee removal triggered"); list.Add(fee);
         Require(!observe() && observe(), "Reconfirmation failed");
         Set(snapshot,"Visit","101"); Require(!observe() && observe(), "New visit failed");
+        foreach (var code in new[] { "1", "49", "50", "99", "100", "9600", "9800", "9950", "9999", "10000", "100000", "invalid" })
+            Require(!(bool)medType.GetProperty("IsDrug").GetValue(med("処方コメント", code)), "Non-drug code accepted: " + code);
+        foreach (var code in new[] { "10001", "99999" })
+            Require((bool)medType.GetProperty("IsDrug").GetValue(med("薬", code)), "Drug boundary rejected: " + code);
+        foreach (var name in new[] { "処方料", "処方箋料", "調剤料（内服）" })
+        {
+            var marker = med(name, "99");
+            Require((bool)medType.GetProperty("IsConfirmation").GetValue(marker), "Confirmation missed: " + name);
+            stateType.GetMethod("Reset").Invoke(state, null);
+            list.Remove(fee); list.Add(marker);
+            Require(!observe() && observe(), "Confirmation did not stabilize: " + name);
+            list.Remove(marker);
+        }
+        list.Add(fee);
+        Require(!(bool)medType.GetProperty("IsConfirmation").GetValue(med("処方についてのコメント", "9950")), "Comment falsely confirmed");
+        list.Add(med("朝食後", "1")); list.Add(med("処方コメント", "9950"));
 
         var reader = assembly.GetType("OQSDrug.DynamicsComReader");
         var readApplication = reader.GetMethod("ReadMedicationApplication",BindingFlags.Static|BindingFlags.NonPublic);
@@ -73,9 +89,39 @@ public static class MedicationInteractionTests
         Require(match.Invoke(null,new object[] { "剤", drug })==null,"Short fragment matched");
         Require(match.Invoke(null,new object[] { "クラリスロマイシンを除く", drug })==null,"Exclusion matched");
 
+        var cimetidine = med("タガメット錠", "10001");
+        Set(cimetidine, "GenericName", "シメチジン");
+        Require(match.Invoke(null, new object[] { "シメチジン", cimetidine }) != null, "Cimetidine generic missed");
+        Set(cimetidine, "SgmlGenericName", "別の一般名表記");
+        Require(match.Invoke(null, new object[] { "シメチジン", cimetidine }) != null, "XML generic lost");
+        Set(cimetidine, "GenericName", ""); Set(cimetidine, "SgmlGenericName", "シメチジン");
+        Require(match.Invoke(null, new object[] { "シメチジン", cimetidine }) != null, "SGML generic missed");
+        const string joined = "エフェドリン塩酸塩dl-メチルエフェドリン塩酸塩フェキソフェナジン塩酸塩・塩酸プソイドエフェドリン";
+        foreach (string ingredient in new[] { "エフェドリン塩酸塩", "dl-メチルエフェドリン塩酸塩", "フェキソフェナジン塩酸塩", "塩酸プソイドエフェドリン" })
+        {
+            var item = med("販売名錠", "10001"); Set(item, "GenericName", ingredient);
+            Require(match.Invoke(null, new object[] { joined, item }) != null, "Joined ingredient missed: " + ingredient);
+        }
+        var combination = med("配合錠", "10001");
+        Set(combination, "GenericName", "フェキソフェナジン塩酸塩・塩酸プソイドエフェドリン");
+        Require(match.Invoke(null, new object[] { "塩酸プソイドエフェドリンその他薬", combination }) != null, "Combination ingredient missed");
+        Require(match.Invoke(null, new object[] { joined, cimetidine }) == null, "Unrelated generic matched");
+        Require(match.Invoke(null, new object[] { "マクロライド系抗菌薬", drug }) == null, "Class inferred from ingredient");
+        Require(match.Invoke(null, new object[] { "抗菌薬（クラリスロマイシンを除く）", drug }) == null, "Parenthesized exclusion matched");
+        Require(match.Invoke(null, new object[] { "抗菌薬（クラリスロマイシン）以外", drug }) == null, "Trailing exclusion matched");
+        var shortName = med("リン", "10001");
+        Require(match.Invoke(null, new object[] { joined, shortName }) == null, "Short reverse alias matched");
+
         using (var form = (Form)Activator.CreateInstance(assembly.GetType("OQSDrug.FormInteractionCheck"),true))
         {
             form.GetType().GetMethod("ShowSnapshot",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(form,new[] {snapshot});
+            var grid = (DataGridView)form.GetType().GetField("medications", BindingFlags.Instance|BindingFlags.NonPublic).GetValue(form);
+            Require(((DataTable)grid.DataSource).Rows.Count == 2, "Non-drug rows displayed");
+            foreach (int months in new[] { 3, 6, 12 })
+            {
+                form.GetType().GetMethod("SetMonths", BindingFlags.Instance|BindingFlags.NonPublic).Invoke(form, new object[] { months });
+                Require((int)form.GetType().GetProperty("Months", BindingFlags.Instance|BindingFlags.NonPublic).GetValue(form) == months, "Period mapping failed");
+            }
             form.ShowInTaskbar = false; form.StartPosition = FormStartPosition.Manual; form.Location = new Point(-2000,-2000);
             form.Show(); form.PerformLayout(); Application.DoEvents();
             using (var bmp = new Bitmap(form.Width, form.Height)) { form.DrawToBitmap(bmp,new Rectangle(Point.Empty,form.Size)); bmp.Save(Path.Combine(output,"interaction-form.png")); }
@@ -229,8 +275,8 @@ public sealed class InteractionFakeSubform
         get
         {
             var t = new DataTable(); for(int i=1;i<=6;i++) t.Columns.Add("式"+i,typeof(object));
-            t.Rows.Add("100",123451,1,1,"テスト薬",1);
-            t.Rows.Add("100",123451,2,100001,"処方箋料",1);
+            t.Rows.Add("100",123451,1,10001,"テスト薬",1);
+            t.Rows.Add("100",123451,2,50,"処方箋料",1);
             return LastClone = new InteractionRecordset(t);
         }
     }
@@ -253,8 +299,8 @@ public sealed class InteractionFakeDb
         }
         else if(sql.Contains("FROM [薬マスター]"))
         {
-            if(!sql.Contains("IN (1)")) throw new Exception("Non-drug fee entered master lookup");
-            t.Columns.Add("薬コード",typeof(object)); t.Columns.Add("厚生省コード",typeof(object)); t.Rows.Add(1,"620000001");
+            if(!sql.Contains("IN (10001)")) throw new Exception("Non-drug fee entered master lookup");
+            t.Columns.Add("薬コード",typeof(object)); t.Columns.Add("厚生省コード",typeof(object)); t.Rows.Add(10001,"620000001");
         }
         else throw new Exception("Unexpected SQL");
         if(SwitchPatient) patient.Chart=999990;

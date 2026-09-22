@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -6,7 +6,6 @@ namespace OQSDrug
 {
     public partial class Form1
     {
-        private ToolStripButton interactionButton;
         private readonly MedicationConfirmationState confirmationState = new MedicationConfirmationState();
         private bool interactionBusy, interactionComplete;
         private ChartMedicationSnapshot interactionSnapshot;
@@ -17,20 +16,6 @@ namespace OQSDrug
         private int interactionGeneration, interactionViewRevision, interactionHistoryRevision;
         private int interactionMonths = 6;
         internal bool InteractionEnabled => Properties.Settings.Default.DynamicsUseCom && Properties.Settings.Default.InteractionCheckEnabled;
-
-        private void InitializeInteractionUi()
-        {
-            interactionButton = new ToolStripButton("相互作用チェック") { Visible = false };
-            interactionButton.Click += async (s, e) =>
-            {
-                long id = lastComChartId.GetValueOrDefault() / 10;
-                if (!InteractionEnabled || id <= 0) return;
-                forceIdLink = true;
-                await OpenDrugHistory(id, alwaysShow: true);
-                formDIInstance?.SelectInteractionCheckTab();
-            };
-            toolStripVersion.Items.Add(interactionButton);
-        }
 
         internal void RefreshInteractionTab(FormDI viewer)
         {

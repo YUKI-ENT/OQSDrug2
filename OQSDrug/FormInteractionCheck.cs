@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -9,7 +9,6 @@ namespace OQSDrug
 {
     internal sealed class FormInteractionCheck : Form
     {
-        private readonly Label patient = new Label { Dock = DockStyle.Top, Height = 34, TextAlign = ContentAlignment.MiddleLeft };
         private readonly Label status = new Label { Dock = DockStyle.Bottom, Height = 68, Padding = new Padding(8) };
         private readonly TabControl tabs = new TabControl { Dock = DockStyle.Fill };
         private readonly DataGridView medications = Grid(), koro = Grid(), text = Grid();
@@ -19,19 +18,20 @@ namespace OQSDrug
         internal event EventHandler ResultStateChanged;
         internal int BadgeIndex { get; private set; }
         internal string BadgeText { get; private set; } = "未チェック";
-        internal int Months => months.SelectedIndex == 0 ? 3 : 6;
-        internal void SetMonths(int value) { months.SelectedIndex = value == 3 ? 0 : 1; }
+        internal int Months => months.SelectedIndex == 0 ? 3 : months.SelectedIndex == 2 ? 12 : 6;
+        internal void SetMonths(int value) { months.SelectedIndex = value == 3 ? 0 : value == 12 ? 2 : 1; }
         internal FormInteractionCheck()
         {
             Text = "相互作用チェック"; Size = new Size(1100, 650); MinimumSize = new Size(780, 420);
             StartPosition = FormStartPosition.CenterParent;
-            months.Items.AddRange(new object[] { "3か月", "6か月" }); months.SelectedIndex = 1;
+            months.Items.AddRange(new object[] { "3か月", "6か月", "12か月" }); months.SelectedIndex = 1;
             var bar = new ToolStrip();
             bar.Items.Add(new ToolStripLabel("他院処方の対象期間")); bar.Items.Add(months); bar.Items.Add(reload);
             reload.Click += (s, e) => CheckRequested?.Invoke(this, EventArgs.Empty);
             months.SelectedIndexChanged += (s, e) => { SetState("期間変更・再取得してチェックしてください", true); };
             AddTab("カルテ入力一覧", medications); AddTab("KOROコード照合", koro); AddTab("文字列照合（候補）", text);
-            Controls.Add(tabs); Controls.Add(status); Controls.Add(patient); Controls.Add(bar);
+            medications.DefaultCellStyle.WrapMode = DataGridViewTriState.False;
+            Controls.Add(tabs); Controls.Add(status); Controls.Add(bar);
             SetState("再取得して現在の受診を確認してください", true);
         }
         private static DataGridView Grid() => new DataGridView { Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
@@ -56,17 +56,21 @@ namespace OQSDrug
             status.BackColor = index == 1 ? Color.Honeydew : index == 2 ? Color.MistyRose : SystemColors.Control;
             ResultStateChanged?.Invoke(this, EventArgs.Empty);
         }
-        internal void ClearSnapshot() { patient.Text = ""; medications.DataSource = null; }
+        internal void ClearSnapshot() { medications.DataSource = null; }
         internal void ShowSnapshot(ChartMedicationSnapshot snapshot)
         {
-            patient.Text = "患者番号 " + snapshot.ChartId / 10 + "（枝番 " + snapshot.ChartId % 10 + "） / 受診 " + snapshot.Visit
-                + " / " + snapshot.VisitDate.ToString("yyyy/MM/dd") + " / " + snapshot.PatientName;
             var table = new DataTable();
-            foreach (var name in new[] { "順番", "薬コード", "薬名", "数量", "レセ電コード", "YJコード", "扱い" }) table.Columns.Add(name);
-            foreach (var m in snapshot.Medications)
-                table.Rows.Add(m.Order, m.InternalCode, m.Name, m.Quantity, m.ReceptCode, m.YjCode,
-                    m.IsConfirmation ? "確定検知用・対象外" : string.IsNullOrEmpty(m.ReceptCode) ? "コード未取得・名称照合のみ" : "照合対象");
+            foreach (var name in new[] { "薬コード", "薬名", "レセ電コード", "YJコード", "扱い" }) table.Columns.Add(name);
+            foreach (var m in snapshot.Medications.Where(m => m.IsDrug))
+                table.Rows.Add(m.InternalCode, m.Name, m.ReceptCode, m.YjCode,
+                    string.IsNullOrEmpty(m.ReceptCode) ? "コード未取得・名称照合のみ" : "照合対象");
             medications.DataSource = table;
+            foreach (DataGridViewColumn column in medications.Columns)
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            medications.Columns["扱い"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            medications.Columns["扱い"].Width = 110;
+            medications.Columns["薬名"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            medications.Columns["薬名"].MinimumWidth = 100;
         }
         internal void ShowResult(ChartMedicationSnapshot snapshot, MedicationInteractionResult result, bool selectResult)
         {

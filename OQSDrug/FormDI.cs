@@ -24,6 +24,7 @@ namespace OQSDrug
 {
     public partial class FormDI : Form
     {
+        private int promptRefreshVersion;
         private const int SnapDistance = 16; // 吸着の距離（ピクセル）
         private int SnapCompPixel = 8;  //余白補正
 
@@ -129,6 +130,11 @@ namespace OQSDrug
 
         // 薬歴用
         private BindingSource bsHistory;
+        private readonly ToolStripButton pivotPrint = new ToolStripButton("印刷プレビュー／印刷");
+        private TabPage originalPage;
+        private bool pivotPrintReady;
+        private string printPatient = "", printPeriod = "";
+        private readonly HistoryReportView prescriptionReport = new HistoryReportView();
 
         // 相互作用
         private DataTable dtInteractions;
@@ -144,12 +150,39 @@ namespace OQSDrug
         public FormDI(Form1 parentForm)
         {
             InitializeComponent();
+            originalPage = new TabPage("処方歴原文");
+            originalPage.Controls.Add(prescriptionReport);
+            var pages = tabControl1.TabPages.Cast<TabPage>().ToList();
+            pages.Insert(1, originalPage);
+            tabControl1.TabPages.Clear();
+            tabControl1.TabPages.AddRange(pages.ToArray());
 
             _parentForm = parentForm;
             _parentForm.RefreshInteractionTab(this);
             provider = CommonFunctions.DBProvider;
                         
+            pivotPrintReady = false;
+            pivotPrint.Enabled = false;
+            pivotPrint.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            pivotPrint.Image = Properties.Resources.Print;
+            pivotPrint.ToolTipText = "選択中の処方歴を印刷プレビュー";
+            pivotPrint.Click += (s,e) =>
+            {
+                if (tabControl1.SelectedTab == originalPage && prescriptionReport.CanPrint) prescriptionReport.ShowPreview();
+                else if (tabControl1.SelectedTab == tabPage1 && pivotPrintReady)
+                    HistoryReportView.ShowPreview(this, HistoryReport.WithMetadata(HistoryReport.Pivot("処方歴", 3, 6, dataGridViewFixed, dataGridViewDH), printPatient, printPeriod), true);
+            };
+            tabControl1.SelectedIndexChanged += (s,e) => UpdateHistoryPrintState();
+            prescriptionReport.ReportChanged += (s,e) => UpdateHistoryPrintState();
+            toolStrip1.Items.Add(pivotPrint);
             toolStrip1.Renderer = new CustomToolStripRenderer(); // カスタム描画を適用
+        }
+
+        private void UpdateHistoryPrintState()
+        {
+            pivotPrint.Enabled = tabControl1.SelectedTab == originalPage ? prescriptionReport.CanPrint
+                : tabControl1.SelectedTab == tabPage1 && pivotPrintReady;
+            pivotPrint.ToolTipText = tabControl1.SelectedTab == originalPage ? "処方歴原文を印刷プレビュー" : "処方歴を印刷プレビュー（横向き）";
         }
 
         public async Task LoadDataIntoComboBoxes()
@@ -300,9 +333,11 @@ namespace OQSDrug
             // タブ：mdbモードでは 相互作用機能はサポートしない
             if (Properties.Settings.Default.DBtype != "pg" && !_parentForm.InteractionEnabled)
             {
-                tabControl1.Appearance = TabAppearance.Buttons;
-                tabControl1.SizeMode = TabSizeMode.Fixed;
-                tabControl1.ItemSize = new Size(0, 1);          // 高さほぼゼロ
+                tabControl1.TabPages.Remove(tabPageInteraction);
+                tabControl1.TabPages.Remove(tabPageAIDisease);
+                tabControl1.Appearance = TabAppearance.Normal;
+                tabControl1.SizeMode = TabSizeMode.Normal;
+                tabControl1.ItemSize = new Size(80, 22);          // 高さほぼゼロ
                 tabControl1.Padding = new Point(0, 0);
 
                 tabControl1.SelectedIndexChanged -= TabControl1_SelectedIndexChanged;
@@ -382,7 +417,11 @@ namespace OQSDrug
         private async void toolStripComboBoxPt_SelectedIndexChanged(object sender, EventArgs e)
         {
             _parentForm.RefreshInteractionTab(this);
+            promptRefreshVersion++;
             historyLoadState.Begin(); // Includes clearing the patient selection.
+            prescriptionReport.ClearReport();
+            pivotPrintReady = false;
+            pivotPrint.Enabled = false;
             try
             {
                 if (toolStripComboBoxPt.SelectedItem is PtItem selectedPt)
@@ -424,8 +463,12 @@ namespace OQSDrug
         private async Task ShowDrugData(long PtID, bool preserveView = false)
         {
             int loadRevision = historyLoadState.Begin();
+            prescriptionReport.ClearReport("読み込み中…");
+            pivotPrintReady = false;
+            pivotPrint.Enabled = false;
             if (!await CommonFunctions.TryEnterDataDbAsync(5000))
             {
+                prescriptionReport.ClearReport("取得失敗：データベースが使用中です。再読み込みしてください。");
                 MessageBox.Show("データベースがロックされており、ShowDrugDataに失敗しました。もう一度やり直してみてください。");
                 return;
             }
@@ -449,7 +492,7 @@ namespace OQSDrug
                     (CAST(qua1 AS TEXT) || unit || CASE WHEN COALESCE(usagen,'') = '' THEN '' ELSE '/' || usagen END) AS dose,
                     metrmonth,
                     didate,
-                    times
+                    times, id, prdate, metrdihcd, metrdihnm, prlshcd, prlshnm, ""inout"", metridcl, source, prisorg, diorg, qua1, unit, usagen
                 FROM drug_history
                 WHERE
                     revised IS NOT TRUE
@@ -470,7 +513,7 @@ namespace OQSDrug
                         (CStr(qua1) & unit & IIf(IsNull(usagen) OR usagen = '', '', '/' & usagen)) AS dose,
                         metrmonth,
                         didate,
-                        times
+                        times, id, prdate, metrdihcd, metrdihnm, prlshcd, prlshnm, [inout], metridcl, source, prisorg, diorg, qua1, unit, usagen
                     FROM drug_history
                     WHERE
                         (revised = FALSE OR revised IS NULL)
@@ -564,6 +607,10 @@ namespace OQSDrug
 
                                 int vertical = vScrollBar1.Value;
                                 int horizontal = hScrollBar1.Value;
+                                printPatient = HistoryReport.PatientCaption(selected.DisplayText);
+                                printPeriod = HistoryReport.OutputPeriod(rawTable, "didate", "metrmonth");
+                                prescriptionReport.SetReport(HistoryReport.Drugs(rawTable, selected.DisplayText,
+                                    (spanOff ? "全期間" : startDate + "以降") + (omitOff ? "・自施設を含む" : "・自施設を除外")));
                                 DrugHistoryData = pivoted;
                                 if (bsHistory == null) bsHistory = new BindingSource();
                                 bsHistory.DataSource = DrugHistoryData;
@@ -574,6 +621,8 @@ namespace OQSDrug
                                 dataGridViewDH.DataSource = bsHistory;
                                 ConfigureDataGridView(dataGridViewFixed);
                                 ConfigureDataGridView(dataGridViewDH);
+                                pivotPrintReady = pivoted.Rows.Count > 0;
+                                UpdateHistoryPrintState();
                                 if (preserveView)
                                 {
                                     RecalcScrollbars();
@@ -602,6 +651,7 @@ namespace OQSDrug
             }
             catch (Exception ex)
             {
+                if (!IsDisposed && historyLoadState.IsCurrent(loadRevision)) prescriptionReport.ClearReport("取得失敗：再読み込みしてください。");
                 await CommonFunctions.AddLogAsync($"FormDI.ShowDrugData エラー PtID={PtID}: {ex}");
                 MessageBox.Show($"エラーが発生しました: {ex.Message}");
                 if (dbGateTaken) CommonFunctions.ExitDataDb();
@@ -1376,9 +1426,12 @@ namespace OQSDrug
             }
             else if(tabControl1.SelectedTab == tabPageAIDisease)
             {
-                await LoadPromptTemplatesAsync(comboBoxLLMtemplates);
+                long ptId = SelectedHistoryPatientId;
+                await ShowLLMResult(ptId);
+                if (IsDisposed || Disposing || SelectedHistoryPatientId != ptId
+                    || tabControl1.SelectedTab != tabPageAIDisease) return;
 
-                await ShowLLMResult(_parentForm.tempId);
+                await LoadPromptTemplatesAsync(comboBoxLLMtemplates);
 
                 //comboBoxLLMtemplates.SelectedIndex = 0;  // LoadPromptTemplatesAsyncの最後で呼ばれる イベント発火期待
             }
@@ -1565,35 +1618,48 @@ namespace OQSDrug
 
         private async void buttonDiseaseRemakePrompt_Click(object sender, EventArgs e)
         {
-            long ptID = _parentForm.tempId;
+            await RefreshDiseasePromptAsync(false);
+        }
 
-            string propmt = "";
-
-            //テンプレート読み込み
-            var tplSelectedId = GetSelectedTemplateId();
-            if (tplSelectedId == null)
+        // 選択変更と再生成ボタンは同じ処理を使う。生成だけでAIには送信しない。
+        private async Task RefreshDiseasePromptAsync(bool updateModel)
+        {
+            int version = ++promptRefreshVersion;
+            long ptId = SelectedHistoryPatientId;
+            long? templateId = GetSelectedTemplateId();
+            textBoxDiseasePrompt.Clear();
+            if (ptId <= 0 || !templateId.HasValue) return;
+            Func<bool> isCurrent = () => !IsDisposed && !Disposing
+                && version == promptRefreshVersion && SelectedHistoryPatientId == ptId
+                && GetSelectedTemplateId() == templateId;
+            try
             {
-                MessageBox.Show("テンプレートを選択してから実行してください");
-                propmt = "(テンプレートが選択されていません)";
-                textBoxDiseasePrompt.Invoke(new Action(() =>
+                labelStatus.Text = "プロンプト作成中...";
+                var template = await GetPromptTemplateByIdAsync(templateId.Value);
+                if (!isCurrent()) return;
+                if (template == null || template.Rows.Count == 0)
                 {
-                    textBoxDiseasePrompt.Text = propmt;
-                }));
-                return;
+                    labelStatus.Text = "テンプレートが見つかりません。";
+                    return;
+                }
+                if (updateModel)
+                {
+                    var row = template.Rows[0];
+                    string model = row.Table.Columns.Contains("model_name") && row["model_name"] != DBNull.Value
+                        ? row["model_name"].ToString() : (Properties.Settings.Default.LLMmodel ?? string.Empty);
+                    await SetModelsToComboBox(comboBoxModel, llmModelList ?? new List<ModelInfo>(), model);
+                    if (!isCurrent()) return;
+                }
+                string prompt = await CommonFunctions.MakeLLMPrompt(ptId, template);
+                if (!isCurrent()) return;
+                textBoxDiseasePrompt.Text = prompt;
+                labelStatus.Text = "プロンプト・ペイロードを更新しました。";
             }
-            else
+            catch (Exception ex)
             {
-                long tplId = (long) tplSelectedId;
-                DataTable dtTemplate = await GetPromptTemplateByIdAsync(tplId);
-
-                propmt = await CommonFunctions.MakeLLMPrompt(ptID, dtTemplate);
-
+                if (isCurrent()) labelStatus.Text = "プロンプト作成エラー: " + ex.Message;
+                try { await CommonFunctions.AddLogAsync("[LLMtpl] " + ex.Message, fileOnly: true); } catch { }
             }
-
-            textBoxDiseasePrompt.Invoke(new Action(() =>
-            {
-                textBoxDiseasePrompt.Text = propmt;
-            }));
         }
 
         private async void buttonDiseaseQuery_Click(object sender, EventArgs e)
@@ -1641,6 +1707,7 @@ namespace OQSDrug
 
         private async Task ShowLLMResult(long ptId, bool onlyRes = false)
         {
+            int expectedPromptVersion = promptRefreshVersion;
             try
             {
                 // 直近 months ヶ月分を取得
@@ -1679,6 +1746,8 @@ namespace OQSDrug
                 // UIへ反映（コンボだけ）
                 Action bind = () =>
                 {
+                    if (IsDisposed || Disposing || SelectedHistoryPatientId != ptId
+                        || promptRefreshVersion != expectedPromptVersion) return;
                     comboBoxAIresults.DataSource = null; // 先に外す
                     comboBoxAIresults.DisplayMember = "display_name";
                     comboBoxAIresults.ValueMember = "id";
@@ -1726,6 +1795,8 @@ namespace OQSDrug
 
         private async Task LoadPromptTemplatesAsync(System.Windows.Forms.ComboBox combo)
         {
+            int version = promptRefreshVersion;
+            long ptId = SelectedHistoryPatientId;
             var dt = new DataTable();
 
             const string sql = @"
@@ -1752,6 +1823,8 @@ namespace OQSDrug
                 }
             }
 
+            if (IsDisposed || Disposing || SelectedHistoryPatientId != ptId
+                || promptRefreshVersion != version) return;
             combo.DisplayMember = "display_name"; // 画面に出す文字列
             combo.ValueMember = "id";           // 選択値として返す列
             combo.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -1771,56 +1844,7 @@ namespace OQSDrug
 
         private async void comboBoxLLMtemplates_SelectedIndexChanged(object sender, EventArgs e)
         {
-            try
-            {
-                // comboBoxModelにテンプレートのモデルを設定
-                // 1) 選択IDの取得を安全に
-                object selVal = comboBoxLLMtemplates.SelectedValue;
-                if (selVal == null || selVal == DBNull.Value) return;
-
-                long tplSelId;
-                if (!long.TryParse(selVal.ToString(), out tplSelId)) return;
-
-                // この時点の選択を保持（await後のレース対策）
-                string expectedSel = selVal.ToString();
-
-                // 2) テンプレ取得（DB）
-                DataTable dtTemplate = await GetPromptTemplateByIdAsync(tplSelId);
-                if (dtTemplate == null || dtTemplate.Rows.Count == 0)
-                {
-                    // 取得できなかった場合はモデル一覧だけ既定値で表示 or クリア
-                    var fallbackModel = Properties.Settings.Default.LLMmodel ?? string.Empty;
-                    await SetModelsToComboBox(comboBoxModel, llmModelList ?? new List<ModelInfo>(), fallbackModel);
-                    return;
-                }
-
-                // 3) await 中に別選択になっていないか確認（レース防止）
-                var currentSel = comboBoxLLMtemplates.SelectedValue;
-                if (currentSel == null || !string.Equals(currentSel.ToString(), expectedSel, StringComparison.Ordinal))
-                {
-                    // 選択が変わっていたら適用しない
-                    return;
-                }
-
-                // 4) model_name を安全に取り出し（DBNull/列欠落に対応）
-                var row = dtTemplate.Rows[0];
-                string defaultModel =
-                    row.Table.Columns.Contains("model_name") && row["model_name"] != DBNull.Value
-                    ? row["model_name"].ToString()
-                    : (Properties.Settings.Default.LLMmodel ?? string.Empty);
-
-                // 5) モデル一覧をバインド（null安全）
-                await SetModelsToComboBox(comboBoxModel, llmModelList ?? new List<ModelInfo>(), defaultModel);
-            }
-            catch (Exception ex)
-            {
-                // ログだけに残したい場合
-                try { await CommonFunctions.AddLogAsync($"[LLMtpl] 選択変更エラー: {ex.Message}", fileOnly: true); } catch { }
-
-                // ユーザーへも通知したい場合はコメントアウト外す
-                // MessageBox.Show(this, "テンプレートの読み込みに失敗しました。\n" + ex.Message, "エラー",
-                //     MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            await RefreshDiseasePromptAsync(true);
         }
 
         private void comboBoxAIresults_SelectedIndexChanged(object sender, EventArgs e)
@@ -1850,6 +1874,7 @@ namespace OQSDrug
                     resAtStr = dtLocal.ToString("yyyy/MM/dd HH:mm");
                 }
 
+                promptRefreshVersion++; // 履歴を明示的に選んだ後に生成中のプロンプトを上書きしない。
                 textBoxDiseaseResponse.Text = res;
                 textBoxDiseasePrompt.Text = prompt;
                 labelStatus.Text = $"[{status}] {model} {resLength}文字 更新日：{resAtStr}";

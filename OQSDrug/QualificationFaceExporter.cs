@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -22,7 +22,7 @@ namespace OQSDrug
             this.logAsync = logAsync;
         }
 
-        public async Task<QualificationSendSummary> ExportAsync(IReadOnlyList<ImportedQualificationRecord> records)
+        public async Task<QualificationSendSummary> ExportAsync(IReadOnlyList<ImportedQualificationRecord> records, bool allowResend = false)
         {
             var summary = new QualificationSendSummary();
             if (records == null || records.Count == 0)
@@ -34,7 +34,7 @@ namespace OQSDrug
             Directory.CreateDirectory(faceFolder);
 
             List<ImportedQualificationRecord> targetRecords = records
-                .Where(r => r != null && !r.IsSent && !r.IsDuplicate)
+                .Where(r => r != null && (allowResend || (!r.IsSent && !r.IsDuplicate)))
                 .ToList();
 
             if (targetRecords.Count == 0)
@@ -48,16 +48,20 @@ namespace OQSDrug
             foreach (IGrouping<string, ImportedQualificationRecord> group in GroupByKarte(targetRecords))
             {
                 List<ImportedQualificationRecord> groupRecords = group.ToList();
+                var previousSent = groupRecords.ToDictionary(r => r, r => r.IsSent);
                 fileCounter++;
 
                 try
                 {
                     string filePath = BuildFaceFilePath(faceFolder, medicalInstitutionCode, fileCounter, groupRecords[0].Kind);
+                    while (File.Exists(filePath))
+                        filePath = BuildFaceFilePath(faceFolder, medicalInstitutionCode, ++fileCounter, groupRecords[0].Kind);
                     await WriteFaceFileAsync(filePath, groupRecords, medicalInstitutionCode, fileCounter).ConfigureAwait(false);
 
                     foreach (ImportedQualificationRecord record in groupRecords)
                     {
                         record.IsSent = true;
+                        if (allowResend) record.IsDuplicate = false;
                         record.LastSendMessage = $"ダイナ送信済み: {Path.GetFileName(filePath)}";
                         summary.SentCount++;
                     }
@@ -68,7 +72,7 @@ namespace OQSDrug
                 {
                     foreach (ImportedQualificationRecord record in groupRecords)
                     {
-                        record.IsSent = false;
+                        record.IsSent = previousSent[record];
                         record.LastSendMessage = ex.Message;
                         summary.FailedCount++;
                     }
@@ -104,7 +108,7 @@ namespace OQSDrug
                 Async = true
             };
 
-            using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             using (var writer = XmlWriter.Create(stream, settings))
             {
                 writer.WriteStartDocument(false);
@@ -256,16 +260,16 @@ namespace OQSDrug
 
             WriteOptionalElement(writer, "SpecificHealthCheckupsInfoConsFlg", GetValue(record, "SHCICF"));
             WriteOptionalElement(writer, "SpecificHealthCheckupsInfoConsTime", GetValue(record, "SHCICT"));
-            WriteOptionalElement(writer, "SpecificHealthCheckupsInfoAcquisitionTime", GetValue(record, "SHCIAT"));
-            WriteOptionalElement(writer, "PharmaceuticalInfoConsFlg", GetValue(record, "PICF"));
-            WriteOptionalElement(writer, "PharmaceuticalInfoConsTime", GetValue(record, "PICT"));
-            WriteOptionalElement(writer, "PharmaceuticalInfoAcquisitionTime", GetValue(record, "PIAT"));
+            WriteOptionalElement(writer, "SpecificHealthCheckupsInfoAvailableTime", GetValue(record, "SHCIAT"));
+            WriteOptionalElement(writer, "PharmacistsInfoConsFlg", GetValue(record, "PICF"));
+            WriteOptionalElement(writer, "PharmacistsInfoConsTime", GetValue(record, "PICT"));
+            WriteOptionalElement(writer, "PharmacistsInfoAvailableTime", GetValue(record, "PIAT"));
             WriteOptionalElement(writer, "DiagnosisInfoConsFlg", GetValue(record, "DICF"));
             WriteOptionalElement(writer, "DiagnosisInfoConsTime", GetValue(record, "DICT"));
-            WriteOptionalElement(writer, "DiagnosisInfoAcquisitionTime", GetValue(record, "DIAT"));
+            WriteOptionalElement(writer, "DiagnosisInfoAvailableTime", GetValue(record, "DIAT"));
             WriteOptionalElement(writer, "OperationInfoConsFlg", GetValue(record, "OICF"));
             WriteOptionalElement(writer, "OperationInfoConsTime", GetValue(record, "OICT"));
-            WriteOptionalElement(writer, "OperationInfoAcquisitionTime", GetValue(record, "OIAT"));
+            WriteOptionalElement(writer, "OperationInfoAvailableTime", GetValue(record, "OIAT"));
             WriteOptionalElement(writer, "ReferenceNumber", GetValue(record, "RN"));
 
             writer.WriteEndElement();
