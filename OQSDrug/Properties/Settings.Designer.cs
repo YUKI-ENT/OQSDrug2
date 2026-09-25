@@ -33,6 +33,13 @@ namespace OQSDrug.Properties {
             set { this["DynamicsUseCom"] = value; }
         }
         
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool InteractionErrorPopupEnabled {
+            get { return ((bool)(this["InteractionErrorPopupEnabled"])); }
+            set { this["InteractionErrorPopupEnabled"] = value; }
+        }
+
         public static Settings Default {
             get {
                 return defaultInstance;

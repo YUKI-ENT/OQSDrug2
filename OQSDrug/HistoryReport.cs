@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Printing;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace OQSDrug
@@ -194,6 +195,21 @@ namespace OQSDrug
             // The modal preview uses this immutable snapshot even if the underlying patient changes.
             ShowPreview(this, new List<HistoryReport> { report }, false);
         }
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyIcon(IntPtr handle);
+
+        private static Icon CreatePrintIcon()
+        {
+            var handle = Properties.Resources.Print.GetHicon();
+            try
+            {
+                using (var icon = Icon.FromHandle(handle))
+                    return (Icon)icon.Clone();
+            }
+            finally { DestroyIcon(handle); }
+        }
+
         internal static void ShowPreview(IWin32Window owner, List<HistoryReport> reports, bool landscape)
         {
             if (reports.Count == 0 || !reports.Any(r => r.Rows.Count > 0)) return;
@@ -202,7 +218,8 @@ namespace OQSDrug
             {
                 using (var document = new PrintDocument())
                 using (var renderer = new HistoryReportPrintJob(reports))
-                using (var window = new Form { Text = snapshot.Title + " - 印刷プレビュー", Width = 1000, Height = 800, StartPosition = FormStartPosition.CenterParent })
+                using (var icon = CreatePrintIcon())
+                using (var window = new Form { Icon = icon, Text = snapshot.Title + " - 印刷プレビュー", Width = 1000, Height = 800, StartPosition = FormStartPosition.CenterParent })
                 using (var control = new PrintPreviewControl { Dock = DockStyle.Fill, AutoZoom = true })
                 {
                     document.DocumentName = snapshot.Title;

@@ -24,6 +24,7 @@ namespace OQSDrug
         private Form1 form1;
         private int filePatientLinkIndex;
         private System.Windows.Forms.CheckBox checkBoxInteractionCheck;
+        private System.Windows.Forms.CheckBox checkBoxInteractionErrorPopup;
         private Label labelInteractionCheck;
         private System.Windows.Forms.CheckBox checkBoxImportNotification;
 
@@ -40,8 +41,18 @@ namespace OQSDrug
             checkBoxInteractionCheck = new System.Windows.Forms.CheckBox { Name = "checkBoxInteractionCheck", Text = "相互作用チェックを行う",
                 AutoSize = true, Location = new Point(20, 200), Checked = Properties.Settings.Default.InteractionCheckEnabled,
                 Visible = radioButtonDynamicsCom.Checked };
-            labelInteractionCheck = new Label { AutoSize = true, Location = new Point(20, 226),
+            labelInteractionCheck = new Label { AutoSize = true, Location = new Point(20, 252),
                 Text = "当日処方の確定後に他院薬を照合します（PostgreSQLが必要）。\r\n結果は薬歴の相互作用チェックタブに表示。再編集後はタブから手動チェック。", Visible = radioButtonDynamicsCom.Checked };
+            checkBoxInteractionErrorPopup = new System.Windows.Forms.CheckBox
+            {
+                Name = "checkBoxInteractionErrorPopup", Text = "エラーメッセージポップアップ",
+                AutoSize = true, Location = new Point(40, 226),
+                Checked = Properties.Settings.Default.InteractionErrorPopupEnabled,
+                Visible = radioButtonDynamicsCom.Checked, Enabled = checkBoxInteractionCheck.Checked
+            };
+            checkBoxInteractionCheck.CheckedChanged += (s, e) =>
+                checkBoxInteractionErrorPopup.Enabled = checkBoxInteractionCheck.Checked;
+            tabPageViewer.Controls.Add(checkBoxInteractionErrorPopup);
             tabPageViewer.Controls.Add(checkBoxInteractionCheck);
             tabPageViewer.Controls.Add(labelInteractionCheck);
             InitializePmdaDocumentSettingsTab();
@@ -338,6 +349,7 @@ namespace OQSDrug
             Properties.Settings.Default.Datadyna =textBoxDatadyna.Text;
             Properties.Settings.Default.DynamicsUseCom = radioButtonDynamicsCom.Checked;
             Properties.Settings.Default.InteractionCheckEnabled = checkBoxInteractionCheck.Checked;
+            Properties.Settings.Default.InteractionErrorPopupEnabled = checkBoxInteractionErrorPopup.Checked;
             Properties.Settings.Default.OQSFolder = textBoxOQSFolder.Text;
             
 
@@ -464,6 +476,7 @@ namespace OQSDrug
             bool useCom = radioButtonDynamicsCom.Checked;
             if (checkBoxInteractionCheck != null) checkBoxInteractionCheck.Visible = useCom;
             if (labelInteractionCheck != null) labelInteractionCheck.Visible = useCom;
+            if (checkBoxInteractionErrorPopup != null) checkBoxInteractionErrorPopup.Visible = useCom;
             if (useCom)
             {
                 if (comboBoxRSBID.SelectedIndex >= 0 && comboBoxRSBID.SelectedIndex < 5)

@@ -59,7 +59,7 @@ namespace OQSDrug
             }
             if (interactionCheckPage == null)
             {
-                interactionCheckPage = new TabPage("相互作用チェック：未チェック");
+                interactionCheckPage = new TabPage("相互作用チェック ○");
                 interactionCheckView = new FormInteractionCheck
                 {
                     TopLevel = false, FormBorderStyle = FormBorderStyle.None,
@@ -67,14 +67,15 @@ namespace OQSDrug
                 };
                 interactionCheckView.ResultStateChanged += (s, e) =>
                 {
-                    interactionCheckPage.Text = "相互作用チェック：" + interactionCheckView.BadgeText;
+                    interactionCheckPage.ToolTipText = interactionCheckView.BadgeText;
                     tabControl1.Invalidate();
                 };
                 interactionCheckView.CheckRequested += async (s, e) =>
                     await _parentForm.RequestInteractionCheckAsync(SelectedHistoryPatientId, interactionCheckView.Months);
                 interactionCheckPage.Controls.Add(interactionCheckView);
                 interactionCheckView.SetMonths(months);
-                tabControl1.TabPages.Add(interactionCheckPage);
+                int aiIndex = tabControl1.TabPages.IndexOf(tabPageAIDisease);
+                tabControl1.TabPages.Insert(aiIndex >= 0 ? aiIndex : tabControl1.TabPages.Count, interactionCheckPage);
                 interactionCheckView.Show();
             }
             long selected = SelectedHistoryPatientId;
@@ -134,6 +135,7 @@ namespace OQSDrug
         public FormDI(Form1 parentForm)
         {
             InitializeComponent();
+            tabControl1.ShowToolTips = true;
             tabControl1.DrawMode = TabDrawMode.OwnerDrawFixed;
             tabControl1.DrawItem += DrawHistoryTab;
             tabControl1.SelectedIndexChanged += (s, e) => tabControl1.Invalidate();
@@ -187,34 +189,20 @@ namespace OQSDrug
             var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter
                 | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
             using (var titleFont = new Font(tabControl1.Font.FontFamily, 9F, FontStyle.Bold))
-            using (var badgeFont = new Font(tabControl1.Font.FontFamily, 9F, FontStyle.Regular))
             {
                 if (page == interactionCheckPage && interactionCheckView != null)
                 {
-                    string badge = interactionCheckView.BadgeText;
                     int state = interactionCheckView.BadgeIndex;
-                    int badgeWidth = TextRenderer.MeasureText(e.Graphics, badge, badgeFont).Width + 8;
-                    var badgeBounds = new Rectangle(textBounds.Right - badgeWidth, textBounds.Y, badgeWidth, textBounds.Height);
-                    textBounds.Width = Math.Max(0, textBounds.Width - badgeWidth - 4);
-                    Color badgeBack = highContrast ? background : state == 2 ? Color.FromArgb(253, 226, 226)
-                        : state == 1 ? Color.FromArgb(218, 242, 233) : Color.FromArgb(225, 231, 239);
-                    Color badgeFore = highContrast ? foreground : state == 2 ? Color.FromArgb(161, 38, 46)
-                        : state == 1 ? Color.FromArgb(26, 106, 77) : Color.FromArgb(76, 91, 112);
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    using (var brush = new SolidBrush(badgeBack))
-                    {
-                        int diameter = Math.Min(12, badgeBounds.Height);
-                        path.AddArc(badgeBounds.X, badgeBounds.Y, diameter, diameter, 180, 90);
-                        path.AddArc(badgeBounds.Right - diameter, badgeBounds.Y, diameter, diameter, 270, 90);
-                        path.AddArc(badgeBounds.Right - diameter, badgeBounds.Bottom - diameter, diameter, diameter, 0, 90);
-                        path.AddArc(badgeBounds.X, badgeBounds.Bottom - diameter, diameter, diameter, 90, 90);
-                        path.CloseFigure();
-                        var smoothing = e.Graphics.SmoothingMode;
-                        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                        e.Graphics.FillPath(brush, path);
-                        e.Graphics.SmoothingMode = smoothing;
-                    }
-                    TextRenderer.DrawText(e.Graphics, badge, badgeFont, badgeBounds, badgeFore, flags);
+                    Color indicatorColor = state == 2 ? Color.Red : state == 1 ? Color.Green : Color.Gray;
+                    int diameter = Math.Min(12, textBounds.Height - 2);
+                    var indicatorBounds = new Rectangle(textBounds.Right - diameter - 2,
+                        textBounds.Y + (textBounds.Height - diameter) / 2, diameter, diameter);
+                    textBounds.Width = Math.Max(0, textBounds.Width - diameter - 8);
+                    var smoothing = e.Graphics.SmoothingMode;
+                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using (var pen = new Pen(indicatorColor, 2.5f))
+                        e.Graphics.DrawEllipse(pen, indicatorBounds);
+                    e.Graphics.SmoothingMode = smoothing;
                     TextRenderer.DrawText(e.Graphics, "相互作用チェック", titleFont, textBounds, foreground, flags);
                 }
                 else TextRenderer.DrawText(e.Graphics, page.Text, titleFont, textBounds, foreground, flags);
@@ -1856,7 +1844,7 @@ namespace OQSDrug
                         ELSE tpl_name || ' (' || model_name || ')'
                     END AS display_name
                 FROM public.ai_prompt_tpl
-                ORDER BY id ASC;";
+                ORDER BY (options_json->>'display_order')::integer NULLS LAST, id ASC;";
 
             using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(true))
             {

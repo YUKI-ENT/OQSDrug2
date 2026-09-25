@@ -56,6 +56,8 @@
             this.checkBoxAutofetch = new System.Windows.Forms.CheckBox();
             this.buttonSave = new System.Windows.Forms.Button();
             this.buttonDelete = new System.Windows.Forms.Button();
+            this.buttonUp = new System.Windows.Forms.Button();
+            this.buttonDown = new System.Windows.Forms.Button();
             this.listBoxTemplates = new System.Windows.Forms.ListBox();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.buttonAddnew = new System.Windows.Forms.Button();
@@ -412,6 +414,27 @@
             this.buttonSave.UseVisualStyleBackColor = true;
             this.buttonSave.Click += new System.EventHandler(this.buttonSave_Click);
             // 
+            // buttonUp
+            this.buttonUp.Enabled = false;
+            this.buttonUp.Location = new System.Drawing.Point(280, 252);
+            this.buttonUp.Name = "buttonUp";
+            this.buttonUp.Size = new System.Drawing.Size(89, 28);
+            this.buttonUp.TabIndex = 30;
+            this.buttonUp.Text = "上へ";
+            this.buttonUp.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
+            this.buttonUp.UseVisualStyleBackColor = true;
+            this.buttonUp.Click += new System.EventHandler(this.buttonUp_Click);
+            // buttonDown
+            this.buttonDown.Enabled = false;
+            this.buttonDown.Location = new System.Drawing.Point(280, 286);
+            this.buttonDown.Name = "buttonDown";
+            this.buttonDown.Size = new System.Drawing.Size(89, 28);
+            this.buttonDown.TabIndex = 31;
+            this.buttonDown.Text = "下へ";
+            this.buttonDown.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
+            this.buttonDown.UseVisualStyleBackColor = true;
+            this.buttonDown.Click += new System.EventHandler(this.buttonDown_Click);
+            this.buttonDown.Image = global::OQSDrug.Properties.Resources.Down;
             // buttonDelete
             // 
             this.buttonDelete.Image = global::OQSDrug.Properties.Resources.Delete;
@@ -501,6 +524,8 @@
             this.Controls.Add(this.buttonAddnew);
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.listBoxTemplates);
+            this.Controls.Add(this.buttonUp);
+            this.Controls.Add(this.buttonDown);
             this.Controls.Add(this.buttonDelete);
             this.Controls.Add(this.buttonSave);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -535,6 +560,8 @@
         private System.Windows.Forms.CheckBox checkBoxAutofetch;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button buttonSave;
+        private System.Windows.Forms.Button buttonUp;
+        private System.Windows.Forms.Button buttonDown;
         private System.Windows.Forms.Button buttonDelete;
         private System.Windows.Forms.ListBox listBoxTemplates;
         private System.Windows.Forms.GroupBox groupBox3;

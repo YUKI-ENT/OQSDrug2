@@ -15,6 +15,7 @@ namespace OQSDrug
         private DateTime nextInteractionErrorLog, nextInteractionAttempt;
         private int interactionGeneration, interactionViewRevision, interactionHistoryRevision;
         private int interactionMonths = 6;
+        private string interactionPopupKey;
         internal bool InteractionEnabled => Properties.Settings.Default.DynamicsUseCom && Properties.Settings.Default.InteractionCheckEnabled;
 
         internal void RefreshInteractionTab(FormDI viewer)
@@ -31,6 +32,20 @@ namespace OQSDrug
             RefreshInteractionTab(formDIInstance);
         }
 
+        private bool ShouldShowInteractionPopup(ChartMedicationSnapshot snapshot, MedicationInteractionResult result)
+        {
+            if (result.Koro.Count + result.Text.Count == 0)
+            {
+                interactionPopupKey = null;
+                return false;
+            }
+            if (!InteractionEnabled || !Properties.Settings.Default.InteractionErrorPopupEnabled) return false;
+            string key = snapshot.Signature + "|" + result.NoticeKey;
+            if (key == interactionPopupKey) return false;
+            interactionPopupKey = key;
+            return true;
+        }
+
         private void SetInteractionStatus(string status, bool clearResult = true)
         {
             if (interactionStatus == status && (!clearResult || interactionResult == null)) return;
@@ -43,6 +58,7 @@ namespace OQSDrug
         {
             interactionGeneration++;
             confirmationState.Reset();
+            interactionPopupKey = null;
             interactionContext = interactionSignature = null;
             interactionSnapshot = null;
             interactionResult = null;
@@ -137,6 +153,12 @@ namespace OQSDrug
                     ? "チェック完了（自動チェック終了）。再編集・同じ患者の別受診は「再取得・チェック」を押してください。"
                     : "手動チェック完了。処方確定後に自動チェックします。";
                 PublishInteraction();
+                if (ShouldShowInteractionPopup(snapshot, result))
+                    MessageBox.Show("相互作用チェックで要確認の組み合わせが "
+                        + (result.Koro.Count + result.Text.Count) + " 件見つかりました。\r\n"
+                        + "患者ID：" + (snapshot.ChartId / 10) + "\r\n"
+                        + "薬歴の「相互作用チェック」タブで詳細を確認してください。",
+                        "相互作用チェック：要確認", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (Exception ex)
             {

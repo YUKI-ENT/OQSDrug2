@@ -16,12 +16,17 @@ namespace OQSDrug
 {
     public partial class FormLLMsetteing : Form
     {
+        private bool _orderDirty;
         private DataTable _tplTable;               // ai_prompt_tpl を保持
         private bool _loading = false;             // 反映中フラグ（イベントの再入抑制）
 
         public FormLLMsetteing()
         {
             InitializeComponent();
+            var upImage = (Bitmap)Properties.Resources.Down.Clone();
+            upImage.RotateFlip(RotateFlipType.RotateNoneFlipY);
+            buttonUp.Image = upImage;
+            Disposed += (s, e) => upImage.Dispose();
 
             // イベント登録
             listBoxTemplates.SelectedIndexChanged += listBoxTemplates_SelectedIndexChanged;
@@ -73,7 +78,7 @@ namespace OQSDrug
             const string sql = @"
                 SELECT id, tpl_name, model_name, auto_fetch, prompt, prompt_len, options_json
                   FROM public.ai_prompt_tpl
-                 ORDER BY id ASC;";
+                 ORDER BY (options_json->>'display_order')::integer NULLS LAST, id ASC;";
 
             using (var conn = (NpgsqlConnection)CommonFunctions.GetDbConnection(/*pgsql*/true))
             {
@@ -83,6 +88,20 @@ namespace OQSDrug
                 {
                     dt.Load(reader);
                 }
+            }
+            if (_orderDirty && _tplTable != null)
+            {
+                var ordered = dt.Clone();
+                var existingIds = new HashSet<long>();
+                foreach (DataRow oldRow in _tplTable.Rows)
+                {
+                    long id = Convert.ToInt64(oldRow["id"]);
+                    var row = dt.AsEnumerable().FirstOrDefault(r => Convert.ToInt64(r["id"]) == id);
+                    if (row != null) { ordered.ImportRow(row); existingIds.Add(id); }
+                }
+                foreach (DataRow row in dt.Rows)
+                    if (!existingIds.Contains(Convert.ToInt64(row["id"]))) ordered.ImportRow(row);
+                return ordered;
             }
             return dt;
         }
@@ -139,12 +158,41 @@ namespace OQSDrug
                 listBoxTemplates.EndUpdate();
                 // ▼ イベント抑止解除
                 _loading = false;
+                UpdateMoveButtons();
             }
         }
 
 
+        private void UpdateMoveButtons()
+        {
+            int index = listBoxTemplates.SelectedIndex;
+            buttonUp.Enabled = index > 0;
+            buttonDown.Enabled = index >= 0 && index < listBoxTemplates.Items.Count - 1;
+        }
+
+        private void MoveTemplate(int offset)
+        {
+            int index = listBoxTemplates.SelectedIndex;
+            int target = index + offset;
+            if (_loading || _tplTable == null || index < 0 || target < 0 || target >= _tplTable.Rows.Count) return;
+            long id = Convert.ToInt64(_tplTable.Rows[index]["id"]);
+            var rows = _tplTable.AsEnumerable().ToList();
+            var selected = rows[index];
+            rows.RemoveAt(index);
+            rows.Insert(target, selected);
+            var reordered = _tplTable.Clone();
+            foreach (var row in rows) reordered.ImportRow(row);
+            _orderDirty = true;
+            // Rebind with selection events suppressed so unsaved editor text is retained.
+            ShowListBox(reordered, id);
+        }
+
+        private void buttonUp_Click(object sender, EventArgs e) => MoveTemplate(-1);
+        private void buttonDown_Click(object sender, EventArgs e) => MoveTemplate(1);
+
         private async void listBoxTemplates_SelectedIndexChanged(object sender, EventArgs e)
         {
+            UpdateMoveButtons();
             if (_loading) return;
 
             try
@@ -296,6 +344,7 @@ namespace OQSDrug
 
         private async void buttonSave_Click(object sender, EventArgs e)
         {
+            Enabled = false;
             try
             {
                 var res = await SaveTemplateAsync(SaveMode.Upsert);
@@ -305,6 +354,7 @@ namespace OQSDrug
             {
                 MessageBox.Show($"保存に失敗しました。\n{ex.Message}", "エラー");
             }
+            finally { Enabled = true; }
         }
         // ▼ 選択中のテンプレIDを安全に取得（データバインド: ValueMember="id" 前提）
         private long? GetSelectedTplId()
@@ -316,6 +366,7 @@ namespace OQSDrug
 
         private async void buttonDelete_Click(object sender, EventArgs e)
         {
+            Enabled = false;
             try
             {
                 var id = GetSelectedTplId();
@@ -348,6 +399,7 @@ namespace OQSDrug
             {
                 MessageBox.Show($"削除に失敗しました。\n{ex.Message}", "エラー");
             }
+            finally { Enabled = true; }
         }
 
         private enum SaveMode
@@ -385,87 +437,111 @@ namespace OQSDrug
             {
                 await conn.OpenAsync();
 
-                // 2) SaveAsNew のときは重複タイトルチェック
-                if (mode == SaveMode.SaveAsNew)
+                using (var transaction = conn.BeginTransaction())
                 {
-                    const string dupSql = @"SELECT COUNT(*) FROM public.ai_prompt_tpl WHERE tpl_name = @name;";
-                    using (var cmd = new Npgsql.NpgsqlCommand(dupSql, conn))
+                    // 2) SaveAsNew のときは重複タイトルチェック
+                    if (mode == SaveMode.SaveAsNew)
                     {
-                        cmd.Parameters.AddWithValue("@name", tplName);
-                        var cnt = Convert.ToInt64(await cmd.ExecuteScalarAsync());
-                        if (cnt > 0)
-                            throw new InvalidOperationException("同じタイトルのテンプレートが既に存在します。タイトルを変更してから保存してください。");
+                        const string dupSql = @"SELECT COUNT(*) FROM public.ai_prompt_tpl WHERE tpl_name = @name;";
+                        using (var cmd = new Npgsql.NpgsqlCommand(dupSql, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@name", tplName);
+                            var cnt = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+                            if (cnt > 0)
+                                throw new InvalidOperationException("同じタイトルのテンプレートが既に存在します。タイトルを変更してから保存してください。");
+                        }
                     }
-                }
 
-                long newId;
-                bool isInsert;
+                    long newId;
+                    bool isInsert;
 
-                if (mode == SaveMode.SaveAsNew || selectedId == null)
-                {
-                    // 3) INSERT
-                    const string insertSql = @"
-                        INSERT INTO public.ai_prompt_tpl
-                          (tpl_name, model_name, auto_fetch, prompt, prompt_len, updated_at, options_json)
-                        VALUES
-                          (@tpl_name, @model_name, @auto_fetch, @prompt, @prompt_len, NOW(), @options_json)
-                        RETURNING id;";
-
-                    using (var cmd = new Npgsql.NpgsqlCommand(insertSql, conn))
+                    if (mode == SaveMode.SaveAsNew || selectedId == null)
                     {
-                        cmd.Parameters.AddWithValue("@tpl_name", tplName);
-                        cmd.Parameters.AddWithValue("@model_name", (object)modelName ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@auto_fetch", autoFetch);
-                        cmd.Parameters.AddWithValue("@prompt", (object)prompt ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@prompt_len", (object)promptLen ?? DBNull.Value);
-                        var p = cmd.Parameters.Add("@options_json", NpgsqlTypes.NpgsqlDbType.Jsonb);
-                        p.Value = optionsJson;
+                        // 3) INSERT
+                        const string insertSql = @"
+                            INSERT INTO public.ai_prompt_tpl
+                              (tpl_name, model_name, auto_fetch, prompt, prompt_len, updated_at, options_json)
+                            VALUES
+                              (@tpl_name, @model_name, @auto_fetch, @prompt, @prompt_len, NOW(), @options_json)
+                            RETURNING id;";
 
-                        newId = (long)await cmd.ExecuteScalarAsync();
-                        isInsert = true;
+                        using (var cmd = new Npgsql.NpgsqlCommand(insertSql, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@tpl_name", tplName);
+                            cmd.Parameters.AddWithValue("@model_name", (object)modelName ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@auto_fetch", autoFetch);
+                            cmd.Parameters.AddWithValue("@prompt", (object)prompt ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@prompt_len", (object)promptLen ?? DBNull.Value);
+                            var p = cmd.Parameters.Add("@options_json", NpgsqlTypes.NpgsqlDbType.Jsonb);
+                            p.Value = optionsJson;
+
+                            newId = (long)await cmd.ExecuteScalarAsync();
+                            isInsert = true;
+                        }
                     }
-                }
-                else
-                {
-                    // 4) UPDATE
-                    const string updateSql = @"
-                        UPDATE public.ai_prompt_tpl
-                           SET tpl_name     = @tpl_name,
-                               model_name   = @model_name,
-                               auto_fetch   = @auto_fetch,
-                               prompt       = @prompt,
-                               prompt_len   = @prompt_len,
-                               updated_at   = NOW(),
-                               options_json = @options_json
-                         WHERE id = @id;";
-
-                    using (var cmd = new Npgsql.NpgsqlCommand(updateSql, conn))
+                    else
                     {
-                        cmd.Parameters.AddWithValue("@tpl_name", tplName);
-                        cmd.Parameters.AddWithValue("@model_name", (object)modelName ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@auto_fetch", autoFetch);
-                        cmd.Parameters.AddWithValue("@prompt", (object)prompt ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@prompt_len", (object)promptLen ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@id", selectedId.Value);
-                        var p = cmd.Parameters.Add("@options_json", NpgsqlTypes.NpgsqlDbType.Jsonb);
-                        p.Value = optionsJson;
+                        // 4) UPDATE
+                        const string updateSql = @"
+                            UPDATE public.ai_prompt_tpl
+                               SET tpl_name     = @tpl_name,
+                                   model_name   = @model_name,
+                                   auto_fetch   = @auto_fetch,
+                                   prompt       = @prompt,
+                                   prompt_len   = @prompt_len,
+                                   updated_at   = NOW(),
+                                   options_json = options_json || @options_json
+                             WHERE id = @id;";
 
-                        await cmd.ExecuteNonQueryAsync();
-                        newId = selectedId.Value;
-                        isInsert = false;
+                        using (var cmd = new Npgsql.NpgsqlCommand(updateSql, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@tpl_name", tplName);
+                            cmd.Parameters.AddWithValue("@model_name", (object)modelName ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@auto_fetch", autoFetch);
+                            cmd.Parameters.AddWithValue("@prompt", (object)prompt ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@prompt_len", (object)promptLen ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@id", selectedId.Value);
+                            var p = cmd.Parameters.Add("@options_json", NpgsqlTypes.NpgsqlDbType.Jsonb);
+                            p.Value = optionsJson;
+
+                            await cmd.ExecuteNonQueryAsync();
+                            newId = selectedId.Value;
+                            isInsert = false;
+                        }
                     }
+
+                    if (mode == SaveMode.Upsert && _orderDirty && _tplTable != null)
+                    {
+                        const string orderSql = @"UPDATE public.ai_prompt_tpl
+                            SET options_json = jsonb_set(options_json, '{display_order}', to_jsonb(@position), true)
+                            WHERE id = @id;";
+                        using (var cmd = new NpgsqlCommand(orderSql, conn, transaction))
+                        {
+                            cmd.Parameters.Add("position", NpgsqlDbType.Integer);
+                            cmd.Parameters.Add("id", NpgsqlDbType.Bigint);
+                            for (int i = 0; i < _tplTable.Rows.Count; i++)
+                            {
+                                cmd.Parameters["position"].Value = i;
+                                cmd.Parameters["id"].Value = Convert.ToInt64(_tplTable.Rows[i]["id"]);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+                    }
+                    transaction.Commit();
+                    if (mode == SaveMode.Upsert) _orderDirty = false;
+
+                    // 5) 再読込して対象IDを選択（_loading ガードを使う前提）
+                    var dt = await LoadPromptTemplatesAsync();
+                    ShowListBox(dt, newId);
+
+                    return new SaveResult { Id = newId, IsInsert = isInsert };
                 }
-
-                // 5) 再読込して対象IDを選択（_loading ガードを使う前提）
-                var dt = await LoadPromptTemplatesAsync();
-                ShowListBox(dt, newId);
-
-                return new SaveResult { Id = newId, IsInsert = isInsert };
             }
         }
 
         private async void buttonSaveAs_Click(object sender, EventArgs e)
         {
+            Enabled = false;
             try
             {
                 var res = await SaveTemplateAsync(SaveMode.SaveAsNew);
@@ -475,6 +551,7 @@ namespace OQSDrug
             {
                 MessageBox.Show($"別名で保存に失敗しました。\n{ex.Message}", "エラー");
             }
+            finally { Enabled = true; }
         }
     }
 }

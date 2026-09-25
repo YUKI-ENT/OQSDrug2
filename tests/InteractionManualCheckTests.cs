@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 
 // Compile the production polling code and models with in-memory COM/DB boundaries.
@@ -17,6 +17,9 @@ namespace OQSDrug
             nextInteractionAttempt = DateTime.MinValue;
             await PollInteractionAsync();
         }
+        internal bool ShouldPopup(ChartMedicationSnapshot snapshot, MedicationInteractionResult result)
+            => ShouldShowInteractionPopup(snapshot, result);
+        internal void ResetForPopupTest() => ResetInteraction();
         internal bool HasResult => interactionResult != null;
         internal string Status => interactionStatus;
     }
@@ -70,6 +73,22 @@ namespace OQSDrug
         }
         private static async Task Run()
         {
+            var popupForm = new Form1();
+            var popupSnapshot = Snapshot(DateTime.Today);
+            var redResult = new MedicationInteractionResult();
+            redResult.Koro.Add(new MedicationInteractionHit { Current = "A", History = "B" });
+            Require(!popupForm.ShouldPopup(popupSnapshot, redResult), "Popup shown while disabled");
+            Properties.Settings.Default.InteractionErrorPopupEnabled = true;
+            Require(popupForm.ShouldPopup(popupSnapshot, redResult), "Red result did not notify");
+            Require(!popupForm.ShouldPopup(popupSnapshot, redResult), "Same result notified twice");
+            redResult.Text.Add(new MedicationInteractionHit { Current = "C", History = "D" });
+            Require(popupForm.ShouldPopup(popupSnapshot, redResult), "Changed result did not notify");
+            Require(!popupForm.ShouldPopup(popupSnapshot, new MedicationInteractionResult()), "Green result notified");
+            Require(popupForm.ShouldPopup(popupSnapshot, redResult), "Red result after green did not notify");
+            popupForm.ResetForPopupTest();
+            Require(popupForm.ShouldPopup(popupSnapshot, redResult), "Reset did not clear notification state");
+            Properties.Settings.Default.InteractionErrorPopupEnabled = false;
+            Console.WriteLine("PASS: popup setting, red/green results, duplicate suppression, changed result and reset");
             foreach (int days in new[] { -10, 1 })
             foreach (bool confirmed in new[] { false, true })
             {
@@ -118,5 +137,6 @@ namespace OQSDrug.Properties
         internal static Settings Default = new Settings();
         internal bool DynamicsUseCom => true;
         internal bool InteractionCheckEnabled => true;
+        internal bool InteractionErrorPopupEnabled;
     }
 }
