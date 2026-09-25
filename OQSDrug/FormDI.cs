@@ -65,26 +65,10 @@ namespace OQSDrug
                     TopLevel = false, FormBorderStyle = FormBorderStyle.None,
                     MinimumSize = Size.Empty, Dock = DockStyle.Fill
                 };
-                if (tabControl1.ImageList == null)
-                {
-                    var images = new ImageList { ImageSize = new Size(16, 16), ColorDepth = ColorDepth.Depth32Bit };
-                    var imageHandle = images.Handle; // Copy each bitmap into the native list before disposing it.
-                    foreach (var color in new[] { Color.Gray, Color.ForestGreen, Color.Firebrick })
-                    {
-                        using (var bitmap = new Bitmap(16, 16))
-                        {
-                            using (var graphics = Graphics.FromImage(bitmap))
-                            using (var brush = new SolidBrush(color)) graphics.FillEllipse(brush, 2, 2, 12, 12);
-                            images.Images.Add(bitmap);
-                        }
-                    }
-                    components.Add(images);
-                    tabControl1.ImageList = images;
-                }
                 interactionCheckView.ResultStateChanged += (s, e) =>
                 {
                     interactionCheckPage.Text = "相互作用チェック：" + interactionCheckView.BadgeText;
-                    interactionCheckPage.ImageIndex = interactionCheckView.BadgeIndex;
+                    tabControl1.Invalidate();
                 };
                 interactionCheckView.CheckRequested += async (s, e) =>
                     await _parentForm.RequestInteractionCheckAsync(SelectedHistoryPatientId, interactionCheckView.Months);
@@ -150,6 +134,9 @@ namespace OQSDrug
         public FormDI(Form1 parentForm)
         {
             InitializeComponent();
+            tabControl1.DrawMode = TabDrawMode.OwnerDrawFixed;
+            tabControl1.DrawItem += DrawHistoryTab;
+            tabControl1.SelectedIndexChanged += (s, e) => tabControl1.Invalidate();
             originalPage = new TabPage("処方歴原文");
             originalPage.Controls.Add(prescriptionReport);
             var pages = tabControl1.TabPages.Cast<TabPage>().ToList();
@@ -174,8 +161,66 @@ namespace OQSDrug
             };
             tabControl1.SelectedIndexChanged += (s,e) => UpdateHistoryPrintState();
             prescriptionReport.ReportChanged += (s,e) => UpdateHistoryPrintState();
-            toolStrip1.Items.Add(pivotPrint);
+            toolStrip1.Items.Insert(toolStrip1.Items.IndexOf(toolStripButtonReload) + 1, pivotPrint);
             toolStrip1.Renderer = new CustomToolStripRenderer(); // カスタム描画を適用
+        }
+
+        private void DrawHistoryTab(object sender, DrawItemEventArgs e)
+        {
+            var page = tabControl1.TabPages[e.Index];
+            bool selected = e.Index == tabControl1.SelectedIndex;
+            bool highContrast = SystemInformation.HighContrast;
+            var bounds = e.Bounds;
+            bounds.Inflate(-2, -2);
+            Color background = highContrast ? (selected ? SystemColors.Highlight : SystemColors.Control)
+                : selected ? Color.FromArgb(229, 240, 253) : Color.FromArgb(243, 246, 250);
+            Color foreground = highContrast ? (selected ? SystemColors.HighlightText : SystemColors.ControlText)
+                : selected ? Color.FromArgb(25, 76, 133) : Color.FromArgb(65, 78, 96);
+            using (var brush = new SolidBrush(background)) e.Graphics.FillRectangle(brush, bounds);
+            using (var pen = new Pen(highContrast ? SystemColors.WindowText : Color.FromArgb(193, 205, 219)))
+                e.Graphics.DrawRectangle(pen, bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1);
+            if (selected)
+                using (var brush = new SolidBrush(highContrast ? SystemColors.HighlightText : Color.FromArgb(43, 112, 191)))
+                    e.Graphics.FillRectangle(brush, bounds.X, bounds.Bottom - 3, bounds.Width, 3);
+
+            var textBounds = Rectangle.Inflate(bounds, -6, -2);
+            var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter
+                | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
+            using (var titleFont = new Font(tabControl1.Font.FontFamily, 9F, FontStyle.Bold))
+            using (var badgeFont = new Font(tabControl1.Font.FontFamily, 9F, FontStyle.Regular))
+            {
+                if (page == interactionCheckPage && interactionCheckView != null)
+                {
+                    string badge = interactionCheckView.BadgeText;
+                    int state = interactionCheckView.BadgeIndex;
+                    int badgeWidth = TextRenderer.MeasureText(e.Graphics, badge, badgeFont).Width + 8;
+                    var badgeBounds = new Rectangle(textBounds.Right - badgeWidth, textBounds.Y, badgeWidth, textBounds.Height);
+                    textBounds.Width = Math.Max(0, textBounds.Width - badgeWidth - 4);
+                    Color badgeBack = highContrast ? background : state == 2 ? Color.FromArgb(253, 226, 226)
+                        : state == 1 ? Color.FromArgb(218, 242, 233) : Color.FromArgb(225, 231, 239);
+                    Color badgeFore = highContrast ? foreground : state == 2 ? Color.FromArgb(161, 38, 46)
+                        : state == 1 ? Color.FromArgb(26, 106, 77) : Color.FromArgb(76, 91, 112);
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    using (var brush = new SolidBrush(badgeBack))
+                    {
+                        int diameter = Math.Min(12, badgeBounds.Height);
+                        path.AddArc(badgeBounds.X, badgeBounds.Y, diameter, diameter, 180, 90);
+                        path.AddArc(badgeBounds.Right - diameter, badgeBounds.Y, diameter, diameter, 270, 90);
+                        path.AddArc(badgeBounds.Right - diameter, badgeBounds.Bottom - diameter, diameter, diameter, 0, 90);
+                        path.AddArc(badgeBounds.X, badgeBounds.Bottom - diameter, diameter, diameter, 90, 90);
+                        path.CloseFigure();
+                        var smoothing = e.Graphics.SmoothingMode;
+                        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                        e.Graphics.FillPath(brush, path);
+                        e.Graphics.SmoothingMode = smoothing;
+                    }
+                    TextRenderer.DrawText(e.Graphics, badge, badgeFont, badgeBounds, badgeFore, flags);
+                    TextRenderer.DrawText(e.Graphics, "相互作用チェック", titleFont, textBounds, foreground, flags);
+                }
+                else TextRenderer.DrawText(e.Graphics, page.Text, titleFont, textBounds, foreground, flags);
+            }
+            if (selected && tabControl1.Focused)
+                ControlPaint.DrawFocusRectangle(e.Graphics, Rectangle.Inflate(bounds, -4, -4), foreground, background);
         }
 
         private void UpdateHistoryPrintState()
@@ -337,8 +382,8 @@ namespace OQSDrug
                 tabControl1.TabPages.Remove(tabPageAIDisease);
                 tabControl1.Appearance = TabAppearance.Normal;
                 tabControl1.SizeMode = TabSizeMode.Normal;
-                tabControl1.ItemSize = new Size(80, 22);          // 高さほぼゼロ
-                tabControl1.Padding = new Point(0, 0);
+                tabControl1.ItemSize = new Size(80, 28);
+                tabControl1.Padding = new Point(18, 4);
 
                 tabControl1.SelectedIndexChanged -= TabControl1_SelectedIndexChanged;
             }
@@ -346,8 +391,8 @@ namespace OQSDrug
             {
                 tabControl1.Appearance = TabAppearance.Normal;
                 tabControl1.SizeMode = TabSizeMode.Normal;
-                tabControl1.ItemSize = new Size(54, 22); // いったんリセット気味
-                tabControl1.Padding = new Point(6, 3);
+                tabControl1.ItemSize = new Size(54, 28);
+                tabControl1.Padding = new Point(18, 4);
                 // タブ切替で相互作用を更新
                 tabControl1.SelectedIndexChanged += TabControl1_SelectedIndexChanged;
                 //InitializeInteractionContextMenu();

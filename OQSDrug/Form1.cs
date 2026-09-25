@@ -6356,6 +6356,7 @@ namespace OQSDrug
         // イベントが発生した場合にバルーン通知を表示
         public void ShowNotification(string title, string message)
         {
+            if (!Properties.Settings.Default.ImportNotificationEnabled) return;
             try
             {
                 if (this.InvokeRequired) // this はフォーム

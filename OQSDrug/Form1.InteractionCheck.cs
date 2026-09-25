@@ -102,9 +102,10 @@ namespace OQSDrug
                     interactionStatus = "入力変更・処方確定待ち";
                     PublishInteraction();
                 }
-                if (snapshot.VisitDate != DateTime.Today)
+                bool isToday = snapshot.VisitDate.Date == DateTime.Today;
+                if (!manual && !isToday)
                 {
-                    SetInteractionStatus("表示中の受診は本日ではないためチェックしません");
+                    SetInteractionStatus("表示中の受診は本日ではありません。「再取得・チェック」で手動チェックできます。");
                     return;
                 }
                 bool autoCheck = confirmationState.Observe(snapshot);
@@ -127,9 +128,12 @@ namespace OQSDrug
                     return;
                 }
                 confirmationState.Complete(snapshot);
-                interactionComplete = snapshot.Confirmation.Length > 0;
+                // A manual check of a non-today visit stays visible even without a confirmation row.
+                interactionComplete = !isToday || snapshot.Confirmation.Length > 0;
                 interactionResult = result;
-                interactionStatus = interactionComplete
+                interactionStatus = manual && !isToday
+                    ? "手動チェック完了（受診日：" + snapshot.VisitDate.ToString("yyyy/MM/dd") + "）。再チェックは「再取得・チェック」を押してください。"
+                    : interactionComplete
                     ? "チェック完了（自動チェック終了）。再編集・同じ患者の別受診は「再取得・チェック」を押してください。"
                     : "手動チェック完了。処方確定後に自動チェックします。";
                 PublishInteraction();

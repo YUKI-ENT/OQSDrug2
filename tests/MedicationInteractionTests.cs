@@ -171,8 +171,9 @@ public static class MedicationInteractionTests
                 render(1, 12345, result);
                 var page = (TabPage)viewerType.GetField("interactionCheckPage", flags).GetValue(viewer);
                 tabs.SelectedTab = page;
-                Require(page.ImageIndex == 1 && page.Text.Contains("該当なし"), "No-hit result must be green");
                 var panel = (Form)viewerType.GetField("interactionCheckView", flags).GetValue(viewer);
+                Func<int> badgeIndex = () => (int)panel.GetType().GetProperty("BadgeIndex", flags).GetValue(panel);
+                Require(badgeIndex() == 1 && page.Text.Contains("該当なし"), "No-hit result must be green");
                 Require(!panel.TopLevel && panel.Parent == page, "Result opened outside the history tab");
                 var grid = (DataGridView)panel.GetType().GetField("medications", flags).GetValue(panel);
                 var oldSource = grid.DataSource;
@@ -185,14 +186,14 @@ public static class MedicationInteractionTests
                 Set(hit, "Section", "併用禁忌"); Set(hit, "Current", "今回薬"); Set(hit, "History", "他院薬");
                 ((IList)resultType.GetField("Koro").GetValue(result)).Add(hit);
                 render(2, 12345, result);
-                Require(page.ImageIndex == 2 && page.Text.Contains("要確認"), "Hit must be red");
+                Require(badgeIndex() == 2 && page.Text.Contains("要確認"), "Hit must be red");
                 Application.DoEvents();
                 using (var bitmap = new Bitmap(host.Width, host.Height))
                 { host.DrawToBitmap(bitmap, new Rectangle(Point.Empty, host.Size)); bitmap.Save(Path.Combine(output, "interaction-tab-red.png")); }
                 render(2, 99999, result);
-                Require(page.ImageIndex == 0 && grid.DataSource == null, "Other patient's result remained visible");
+                Require(badgeIndex() == 0 && grid.DataSource == null, "Other patient's result remained visible");
                 render(3, 12345, null);
-                Require(page.ImageIndex == 0, "Missing result must not be green");
+                Require(badgeIndex() == 0, "Missing result must not be green");
                 update.Invoke(viewer, new object[] { false, 4, 12345L, null, null, "", false, 6 });
                 Require(viewerType.GetField("interactionCheckPage", flags).GetValue(viewer) == null, "Disabled tab remained");
                 mainType.GetField("interactionComplete", flags).SetValue(main, true);

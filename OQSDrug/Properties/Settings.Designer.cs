@@ -19,6 +19,14 @@ namespace OQSDrug.Properties {
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ImportNotificationEnabled {
+            get { return ((bool)(this["ImportNotificationEnabled"])); }
+            set { this["ImportNotificationEnabled"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool DynamicsUseCom {
             get { return ((bool)(this["DynamicsUseCom"])); }

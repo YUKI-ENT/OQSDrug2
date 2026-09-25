@@ -25,10 +25,18 @@ namespace OQSDrug
         private int filePatientLinkIndex;
         private System.Windows.Forms.CheckBox checkBoxInteractionCheck;
         private Label labelInteractionCheck;
+        private System.Windows.Forms.CheckBox checkBoxImportNotification;
 
         public Form2(Form1 parentForm)
         {
             InitializeComponent();
+            checkBoxImportNotification = new System.Windows.Forms.CheckBox
+            {
+                Name = "checkBoxImportNotification", Text = "取込完了時にWindowsの通知を表示する",
+                AutoSize = true, Location = new Point(16, 340), TabIndex = 100,
+                Checked = Properties.Settings.Default.ImportNotificationEnabled
+            };
+            tabPageMain.Controls.Add(checkBoxImportNotification);
             checkBoxInteractionCheck = new System.Windows.Forms.CheckBox { Name = "checkBoxInteractionCheck", Text = "相互作用チェックを行う",
                 AutoSize = true, Location = new Point(20, 200), Checked = Properties.Settings.Default.InteractionCheckEnabled,
                 Visible = radioButtonDynamicsCom.Checked };
@@ -371,6 +379,7 @@ namespace OQSDrug
             Properties.Settings.Default.OmitMyOrg = checkBoxOmitMyOrg.Checked;
 
             Properties.Settings.Default.AutoStart = checkBoxAutoStart.Checked;
+            Properties.Settings.Default.ImportNotificationEnabled = checkBoxImportNotification.Checked;
 
             Properties.Settings.Default.PGaddress = textBoxPGaddress.Text;
             Properties.Settings.Default.PGport    = Convert.ToInt16( textBoxPGport.Text);

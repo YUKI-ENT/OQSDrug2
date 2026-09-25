@@ -216,7 +216,7 @@
             this.tabPageInteraction.Padding = new System.Windows.Forms.Padding(3);
             this.tabPageInteraction.Size = new System.Drawing.Size(1250, 413);
             this.tabPageInteraction.TabIndex = 1;
-            this.tabPageInteraction.Text = "相互作用";
+            this.tabPageInteraction.Text = "相互作用一覧";
             this.tabPageInteraction.UseVisualStyleBackColor = true;
             // 
             // dataGridViewInteraction
@@ -255,7 +255,7 @@
             this.tabPageAIDisease.Name = "tabPageAIDisease";
             this.tabPageAIDisease.Size = new System.Drawing.Size(1250, 413);
             this.tabPageAIDisease.TabIndex = 3;
-            this.tabPageAIDisease.Text = "(AI)病態背景";
+            this.tabPageAIDisease.Text = "AI";
             this.tabPageAIDisease.UseVisualStyleBackColor = true;
             // 
             // tableLayoutPanel1
@@ -648,7 +648,6 @@
             this.toolStripButtonSGMLDI.Size = new System.Drawing.Size(23, 24);
             this.toolStripButtonSGMLDI.Text = "添付文書";
             this.toolStripButtonSGMLDI.ToolTipText = "添付文書を開きます";
-            this.toolStripButtonSGMLDI.Visible = true;
             this.toolStripButtonSGMLDI.Click += new System.EventHandler(this.toolStripButtonSGMLDI_Click);
             // 
             // FormDI
