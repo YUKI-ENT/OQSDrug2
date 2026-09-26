@@ -41,7 +41,23 @@
  - 事前に設定した「眼圧 OR 緑内障」や「QT OR Torsade」等のキーワードを自動で検索し、ヒットした項目だけ表示します。
    <img width="957" height="974" alt="スクリーンショット 2026-08-28 104718" src="https://github.com/user-attachments/assets/46dac9a0-26fb-4b94-872e-6df702d1143b" />
 
+ <<相互作用自動チェック機能（COM連携時のみ）>>
+ - ダイナミクスと**COM連携**してる場合、ダイナミクスで処方を入力して `外来加算` ボタンを押したタイミングで他院の処方薬剤と相互作用チェックを行い、問題があるときはポップアップメッセージを表示します。
+ - 相互作用チェックは、
+     1. ダイナ入力薬の併用禁忌、併用注意薬にマイナ薬歴薬剤名、一般名が含まれるか
+     2. マイナ薬歴薬剤の併用禁忌、併用注意薬にダイナ処方薬名、一般名が含まれるか
+     3. 厚労省の禁忌データに一致するか
 
+   をチェックします。
+
+   ただし、**「マクロライド系抗菌薬」とか「CYP3A阻害薬」等の薬剤グループのチェックにはヒットしないので、該当無しでも安全性を保証するものではないことをご了承ください。**
+   
+   <img width="362" height="154" alt="スクリーンショット 2026-09-26 182755" src="https://github.com/user-attachments/assets/8f1ee914-b828-403a-8898-ed7645611509" />
+
+   <img width="708" height="532" alt="スクリーンショット 2026-09-26 182929" src="https://github.com/user-attachments/assets/5adb1169-38ff-4865-95f3-c314682e37dd" />
+  
+
+        
 ---
 
 ## 動作条件
@@ -76,15 +92,22 @@
 
 ## 設置方法
 
+設置方法は大きくわけて2パターンあります。以前はパターン2の方法を推奨していましたが、Ver2.26.9.26 以降では、パターン1のCOM連携方式を推奨します。
+
+
 1. [Version1のとき](https://github.com/YUKI-ENT/OQSDrug?tab=readme-ov-file#%E9%81%8B%E7%94%A8%E6%96%B9%E6%B3%95)と同じく、**取り込みを行うOQSDrugは、**
      - **ダイナミクスが動いていないPCに設置して、ダイナサーバーのdatadynaにリンク**
-     - **ダイナミクスが動いているPCの場合は、そのPCのクライアントダイナにリンク**
-   
+ 
    して使用してください。
-   推奨構成はこんな感じです。PostgreSQLサーバーはダイナLANのどこにおいても結構です。
+   PostgreSQLサーバーはダイナLANのどこにおいても結構です。
    <img width="512" height="512" alt="Gemini_Generated_Image25" src="https://github.com/user-attachments/assets/1d0e5119-5cf7-4326-8211-567215ac210e" />
 
-2.**PostgreSQLのインストール**
+2. 診察室等ダイナクライアントを動作させているPCでOQSDrugをインストールし、COM連携する
+
+
+## インストール方法
+
+1.**PostgreSQLのインストール**
 
   [PostgreSQLダウンロードサイト](https://www.postgresql.jp/download) からサーバーOSにあったものをダウンロードしてインストールしてください。
   - PostgresSQLのデータ置き場はできればDドライブ等にしたほうが管理がしやすいです。
@@ -107,13 +130,13 @@
       ![スクリーンショット 2025-11-25 225912](https://github.com/user-attachments/assets/fa68f8fe-8cba-4deb-bbe4-76abfcfbb8df)
 
 
-3. **OQSDrugのインストール**
+2. **OQSDrugのインストール**
 
     [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases)から**OQSDrug2_v2.xx.xx.xx.exe(インストーラになってます) をダウンロード**
    
     これを実行するとインストールが始まります。
    
-4. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
+3. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
    
 ---
 
