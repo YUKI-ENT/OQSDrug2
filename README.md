@@ -77,7 +77,7 @@
   - ダイナクライアントとCOM連携する方法
   - 従来の取込専用PCを用意してdatadyna.mdb とリンクして使用する方法
 
-  があります。 詳しくは [設置方法](https://github.com/YUKI-ENT/OQSDrug2/edit/main/README.md#%E8%A8%AD%E7%BD%AE%E6%96%B9%E6%B3%95) を参照してください。 
+  があります。 詳しくは [設置方法](https://github.com/YUKI-ENT/OQSDrug2/blob/main/README.md#%E8%A8%AD%E7%BD%AE%E6%96%B9%E6%B3%95) を参照してください。 
   
 - **RSBase**  
   RSBaseがあればRSBaseの薬剤情報詳細も表示できます。またRSBase側で、xmlの薬歴や健診歴を表示できます（設定要）。
