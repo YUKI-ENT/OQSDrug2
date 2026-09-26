@@ -180,6 +180,7 @@
     <Compile Include="DynamicsDataSource.cs" />
     <Compile Include="ResImportWorker.cs" />
     <Compile Include="ResImportTiming.cs" />
+    <Compile Include="DrugImportLookup.cs" />
     <Compile Include="PatientViewLoadState.cs" />
     <Compile Include="CustomToolStripRenderer.cs" />
     <Compile Include="MonthNumericUpDown.cs">

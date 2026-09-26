@@ -4600,14 +4600,19 @@ namespace OQSDrug
                             dt.Columns.Add("DrugN", typeof(string));
                             dt.Columns.Add("Revised", typeof(bool));
 
-                            // 既存チェック用 Prepared
+                            // XML内のCOPY候補は照合に追加しない（従来と同じ可視範囲）。
+                            DrugImportLookup existingDrugs;
+                            using (timing.Measure("薬剤既存一括取得", true))
+                                existingDrugs = await LoadDrugImportLookupAsync(db, tx, ptIDMain);
+                            HashSet<string> existingSinryoDates;
+                            using (timing.Measure("診療既存一括取得", true))
+                                existingSinryoDates = await LoadSinryoDatesAsync(db, tx, ptIDMain);
+
+                            // PostgreSQLの既存照合は患者単位の先読み結果を利用。
                             using (timing.Measure("薬剤・診療解析照合ループ", true))
-                            using (IDbCommand checkCmd = db.CreateCommand())
                             using (IDbCommand updCmd = db.CreateCommand())
                             {
-                                checkCmd.Transaction = tx;
                                 updCmd.Transaction = tx;
-                                checkCmd.CommandText = selectSql;
                                 updCmd.CommandText = updateSql;
 
                                 foreach (string rootPath in rootNodes)
@@ -4641,27 +4646,12 @@ namespace OQSDrug
                                             string diDate = GetNodeValue(dateInfNode, GetMatchingNodeName(dateInfNode, elementMappings, "DiDate"));
                                             string prDate = GetNodeValue(dateInfNode, GetMatchingNodeName(dateInfNode, elementMappings, "PrDate"));
 
-                                            // 既存チェック
-                                            checkCmd.Parameters.Clear();
-                                            CommonFunctions.AddDbParameter(checkCmd, "@PtIDmain", ptIDMain);
-                                            CommonFunctions.AddDbParameter(checkCmd, "@MIcode", MIcode);
-                                            CommonFunctions.AddDbParameter(checkCmd, "@MIcode2", MIcode);
-                                            CommonFunctions.AddDbParameter(checkCmd, "@DiDate", diDate);
-
-                                            bool doRead = true;
+                                            // DiDateと医療機関2列のOR、Source優先順位を維持。
+                                            // PrDateとの置換や日付の近似一致は行わない。
                                             List<int> idsToRev = new List<int>();
-
-                                            using (timing.Measure("薬剤既存照会"))
-                                            using (DbDataReader rd = await ((DbCommand)checkCmd).ExecuteReaderAsync())
-                                            {
-                                                while (await rd.ReadAsync())
-                                                {
-                                                    int rid = rd.GetInt32(0);
-                                                    int rsrc = rd.IsDBNull(1) ? 9 : rd.GetInt32(1);
-                                                    if (rsrc > Source) idsToRev.Add(rid);
-                                                    else doRead = false;
-                                                }
-                                            }
+                                            bool doRead;
+                                            using (timing.Measure("薬剤既存メモリ照合"))
+                                                doRead = existingDrugs.ShouldImport(diDate, MIcode, Source, idsToRev);
                                             for (int ii = 0; ii < idsToRev.Count; ii++)
                                             {
                                                 updCmd.Parameters.Clear();
@@ -4733,7 +4723,7 @@ namespace OQSDrug
                                                     MeTrMonth = meTrMonth,
                                                     DiDate = diDate
                                                 };
-                                                sinryoCount += await ProcessSinryoInfoAsync(db, tx, meTrInfsNode, ptData, timing);
+                                                sinryoCount += await ProcessSinryoInfoAsync(db, tx, meTrInfsNode, ptData, timing, existingSinryoDates);
                                             }
                                         }
                                     }
@@ -5009,7 +4999,44 @@ namespace OQSDrug
         // 既存の補助：GetNodeValue / GetMatchingNodeName / NzConvert / GetMedicalInstitutionCode / ProcessSinryoInfoAsync などはそのまま利用
 
 
-        private async Task<int> ProcessSinryoInfoAsync(IDbConnection conn, IDbTransaction tx, XmlNode meTrInfsNode, dynamic ptData, ResImportTiming timing)
+        private static async Task<DrugImportLookup> LoadDrugImportLookupAsync(IDbConnection db, IDbTransaction tx, long ptIDMain)
+        {
+            var lookup = new DrugImportLookup();
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "SELECT id, source, didate, metrdihcd, prlshcd FROM drug_history WHERE ptidmain = @Pt";
+                CommonFunctions.AddDbParameter(cmd, "@Pt", ptIDMain);
+                using (var reader = await ((DbCommand)cmd).ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                        lookup.Add(reader.GetInt32(0), reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1),
+                            reader.IsDBNull(2) ? null : reader.GetString(2),
+                            reader.IsDBNull(3) ? null : reader.GetString(3),
+                            reader.IsDBNull(4) ? null : reader.GetString(4));
+                }
+            }
+            return lookup;
+        }
+
+        private static async Task<HashSet<string>> LoadSinryoDatesAsync(IDbConnection db, IDbTransaction tx, long ptIDMain)
+        {
+            var dates = new HashSet<string>(StringComparer.Ordinal);
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "SELECT DISTINCT didate FROM sinryo_history WHERE ptidmain = @Pt";
+                CommonFunctions.AddDbParameter(cmd, "@Pt", ptIDMain);
+                using (var reader = await ((DbCommand)cmd).ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                        if (!reader.IsDBNull(0)) dates.Add(reader.GetString(0));
+                }
+            }
+            return dates;
+        }
+
+        private async Task<int> ProcessSinryoInfoAsync(IDbConnection conn, IDbTransaction tx, XmlNode meTrInfsNode, dynamic ptData, ResImportTiming timing, HashSet<string> existingDates = null)
         {
             int count = 0;
 
@@ -5032,18 +5059,27 @@ namespace OQSDrug
                 var meTrList = meTrInfsNode?.SelectNodes("MeTrInf");
                 if (meTrList == null || meTrList.Count == 0) return 0;
 
-                // 同日既存チェック（TX内なので Transaction を必ず付与）
-                using (IDbCommand checkCommand = conn.CreateCommand())
+                string diDate = ptData.DiDate;
+                if (existingDates != null)
                 {
-                    checkCommand.Transaction = tx;
-                    checkCommand.CommandText = checkSql;
-                    CommonFunctions.AddDbParameter(checkCommand, "@PtIDmain", ptData.Idmain);
-                    CommonFunctions.AddDbParameter(checkCommand, "@DiDate", ptData.DiDate);
+                    using (timing.Measure("診療既存メモリ照合"))
+                        if (existingDates.Contains(diDate)) return 0;
+                }
+                else
+                {
+                    // 同日既存チェック（TX内なので Transaction を必ず付与）
+                    using (IDbCommand checkCommand = conn.CreateCommand())
+                    {
+                        checkCommand.Transaction = tx;
+                        checkCommand.CommandText = checkSql;
+                        CommonFunctions.AddDbParameter(checkCommand, "@PtIDmain", ptData.Idmain);
+                        CommonFunctions.AddDbParameter(checkCommand, "@DiDate", ptData.DiDate);
 
-                    int existed;
-                    using (timing.Measure("診療既存照会"))
-                        existed = Convert.ToInt32(await ((DbCommand)checkCommand).ExecuteScalarAsync());
-                    if (existed > 0) return 0;
+                        int existed;
+                        using (timing.Measure("診療既存照会"))
+                            existed = Convert.ToInt32(await ((DbCommand)checkCommand).ExecuteScalarAsync());
+                        if (existed > 0) return 0;
+                    }
                 }
 
                 var receiveDate = DateTime.Now.ToString("yyyyMMdd");
@@ -5080,6 +5116,8 @@ namespace OQSDrug
                         {
                             await ((DbCommand)insertCommand).ExecuteNonQueryAsync();
                         }
+                        // INSERT成功直後に反映。後続明細の失敗時もDBの可視状態と合わせる。
+                        if (diDate != null) existingDates?.Add(diDate);
                         count++;
                     }
                 }

@@ -38,11 +38,11 @@ namespace OQSDrug
                 Checked = Properties.Settings.Default.ImportNotificationEnabled
             };
             tabPageMain.Controls.Add(checkBoxImportNotification);
-            checkBoxInteractionCheck = new System.Windows.Forms.CheckBox { Name = "checkBoxInteractionCheck", Text = "相互作用チェックを行う",
+            checkBoxInteractionCheck = new System.Windows.Forms.CheckBox { Name = "checkBoxInteractionCheck", Text = "相互作用チェックを行う（COM連携の場合のみ）",
                 AutoSize = true, Location = new Point(20, 200), Checked = Properties.Settings.Default.InteractionCheckEnabled,
                 Visible = radioButtonDynamicsCom.Checked };
             labelInteractionCheck = new Label { AutoSize = true, Location = new Point(20, 252),
-                Text = "当日処方の確定後に他院薬を照合します（PostgreSQLが必要）。\r\n結果は薬歴の相互作用チェックタブに表示。再編集後はタブから手動チェック。", Visible = radioButtonDynamicsCom.Checked };
+                Text = "当日ダイナの「外来加算」押下時に他院薬を照合します（COM連携とPostgreSQLが必要）", Visible = radioButtonDynamicsCom.Checked };
             checkBoxInteractionErrorPopup = new System.Windows.Forms.CheckBox
             {
                 Name = "checkBoxInteractionErrorPopup", Text = "エラーメッセージポップアップ",
