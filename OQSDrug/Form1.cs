@@ -3815,6 +3815,7 @@ namespace OQSDrug
 
         private async Task<bool> ProcessResAsync()
         {
+            var scanTiming = new ResImportTiming("走査", message => { _ = AddLogAsync(message); });
             bool AllDataProcessed = true;
 
             try
@@ -3830,9 +3831,14 @@ namespace OQSDrug
                 }
 
                 AddLogAsync("resフォルダの処理を開始します");
-                string[] fileList = Directory.GetFiles(resFolder);
+                string[] fileList;
+                using (scanTiming.Measure("ファイル一覧"))
+                    fileList = Directory.GetFiles(resFolder);
 
-                if (!await CommonFunctions.WaitForDbUnlock(1000))
+                bool dbUnlocked;
+                using (scanTiming.Measure("DBロック待ち"))
+                    dbUnlocked = await CommonFunctions.WaitForDbUnlock(1000);
+                if (!dbUnlocked)
                 {
                     AddLogAsync("データベースがロックされています。res取込は次の走査で再試行します");
                     return false;
@@ -3841,13 +3847,15 @@ namespace OQSDrug
                 {
                     using (var connection = CommonFunctions.GetDbConnection(ReadOnly: false))
                     {
-                        await ((DbConnection)connection).OpenAsync();
+                        using (scanTiming.Measure("要求DB接続", true))
+                            await ((DbConnection)connection).OpenAsync();
 
                         var command = connection.CreateCommand();
                         command.CommandText = "SELECT * FROM reqResults WHERE resFile IS NULL";
 
                         var records = new List<Dictionary<string, object>>();
 
+                        using (scanTiming.Measure("未完了要求取得", true))
                         using (var reader = await ((DbCommand)command).ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
@@ -3875,7 +3883,7 @@ namespace OQSDrug
                             string PtName = Convert.ToString(record["PtName"]) ?? "";
                             //string PtName = (string)record["PtName"];
                             object resultId = record["ID"];
-                            string reqFilePath = Convert.ToString(record["reqFile"]) ?? ""; 
+                            string reqFilePath = Convert.ToString(record["reqFile"]) ?? "";
                             //string reqFilePath = (string)record["reqFile"];
 
                             string reqfileName = Path.GetFileName(reqFilePath);
@@ -3886,6 +3894,7 @@ namespace OQSDrug
                             foreach (string file in fileList)
                             {
                                 if (Path.GetFileNameWithoutExtension(file) == resBaseFileName)
+                                using (var timing = new ResImportTiming(Path.GetFileName(file) + " DB=" + Properties.Settings.Default.DBtype, message => { _ = AddLogAsync(message); }))
                                 {
                                     string extension = Path.GetExtension(file).ToLower();
                                     string messageContent = "";
@@ -3897,8 +3906,13 @@ namespace OQSDrug
                                             bool handledXmlForRsb = false;
                                             try
                                             {
-                                                XmlDocument xmlDoc = BulkXmlLoader.LoadXmlDocument(file);
-                                                string xmlEncoding = BulkXmlLoader.DetectXmlEncodingForLog(file);
+                                                XmlDocument xmlDoc;
+                                                string xmlEncoding;
+                                                using (timing.Measure("XML読込", true))
+                                                {
+                                                    xmlDoc = BulkXmlLoader.LoadXmlDocument(file);
+                                                    xmlEncoding = BulkXmlLoader.DetectXmlEncodingForLog(file);
+                                                }
                                                 AddLogAsync($"{resFileName}をXML宣言/BOMに基づいて読み込みました。encoding={xmlEncoding}");
                                                 var resultCodeNode = xmlDoc.SelectSingleNode("//ResultCode");
 
@@ -3906,7 +3920,10 @@ namespace OQSDrug
                                                 {
                                                     if (resFileName.StartsWith("YZK", StringComparison.OrdinalIgnoreCase))
                                                     {
-                                                        messageContent = await ProcessDrugInfoAsync2(PtID, xmlDoc);
+                                                        using (timing.Measure("薬剤・診療取込全体", true))
+                                                        {
+                                                            messageContent = await ProcessDrugInfoAsync2(PtID, xmlDoc, timing);
+                                                        }
                                                         handledXmlForRsb = true;
 
                                                         //LLM自動問い合わせ
@@ -3915,7 +3932,10 @@ namespace OQSDrug
                                                         // 待機中・実行中の同一患者をまとめてキューへ登録
                                                         try
                                                         {
-                                                            QueueAutoLLM(PtID / 10);
+                                                            using (timing.Measure("LLMキュー登録", true))
+                                                            {
+                                                                QueueAutoLLM(PtID / 10);
+                                                            }
                                                         }
                                                         catch (Exception ex)
                                                         {
@@ -3925,16 +3945,24 @@ namespace OQSDrug
                                                     }
                                                     else if (resFileName.StartsWith("TKK", StringComparison.OrdinalIgnoreCase))
                                                     {
-                                                        messageContent = await ProcessTKKAsync(PtID, xmlDoc, connection);
+                                                        using (timing.Measure("健診取込全体", true))
+                                                        {
+                                                            messageContent = await ProcessTKKAsync(PtID, xmlDoc, connection, timing);
+                                                        }
                                                         handledXmlForRsb = true;
 
                                                         if (Properties.Settings.Default.KensinFileCategory > 0 && TKKdate.TryGetValue(PtID, out string lastTKKdate))
                                                         {
-                                                            string lastReceived = await getLastReceivedDate(connection, PtID, 101);
+                                                            string lastReceived;
+                                                            using (timing.Measure("健診PDF既受信日照会", true))
+                                                                lastReceived = await getLastReceivedDate(connection, PtID, 101);
                                                             if (lastTKKdate.CompareTo(lastReceived) > 0)
                                                             {
                                                                 AddLogAsync("新しい健診結果が見つかりましたのでPDFを要求します");
-                                                                MakeReq(101, dynaTable, PtID);
+                                                                using (timing.Measure("健診PDF要求呼出", true))
+                                                                {
+                                                                    MakeReq(101, dynaTable, PtID);
+                                                                }
                                                                 AllDataProcessed = false;
                                                             }
                                                         }
@@ -3963,7 +3991,10 @@ namespace OQSDrug
 
                                             if (!Properties.Settings.Default.KeepXml)
                                             {
-                                                File.Delete(file);
+                                                using (timing.Measure("XML削除", true))
+                                                {
+                                                    File.Delete(file);
+                                                }
                                             }
                                             break;
 
@@ -3982,7 +4013,10 @@ namespace OQSDrug
                                                 string targetFileName = $"{PtID / 10}~01~{rsbDate}~{RSBname[ReadCategory]}~RSB.pdf";
                                                 string rsbFilePath = Path.Combine(gazouFolder, targetFileName);
 
-                                                File.Move(file, rsbFilePath);
+                                                using (timing.Measure("PDF移動", true))
+                                                {
+                                                    File.Move(file, rsbFilePath);
+                                                }
                                                 resFilePath = rsbFilePath;
                                                 messageContent = "成功";
                                                 RSBreloadFlag = true;
@@ -3992,7 +4026,10 @@ namespace OQSDrug
                                                 string RSBcategory = (ReadCategory == 1) ? "薬歴data" : "健診data";
                                                 string mynumberFoler = Path.Combine(Properties.Settings.Default.RSBServerFolder, "myNumber");
 
-                                                await MoveFileToPatientFolder(mynumberFoler, (int)(PtID / 10), file, rsbDate, RSBcategory);
+                                                using (timing.Measure("PDF患者フォルダ移動", true))
+                                                {
+                                                    await MoveFileToPatientFolder(mynumberFoler, (int)(PtID / 10), file, rsbDate, RSBcategory);
+                                                }
                                             }
                                             break;
                                     }
@@ -4001,7 +4038,7 @@ namespace OQSDrug
                                     update.CommandText = CommonFunctions.ConvertSqlForOleDb(
                                         "UPDATE reqResults SET resFile = @resFile, resDate = @resDate, result = @result WHERE ID = @ID");
                                     CommonFunctions.AddDbParameter(update, "@resFile", resFilePath ?? "");
-                                   
+
                                     if(Properties.Settings.Default.DBtype == "pg")
                                     {
                                         var nowUns = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
@@ -4010,13 +4047,16 @@ namespace OQSDrug
                                     else
                                     {
                                         CommonFunctions.AddDbParameter(update, "@resDate", DateTime.Now);
-                                        
+
                                     }
                                     CommonFunctions.AddDbParameter(update, "@result", messageContent ?? "");
                                     CommonFunctions.AddDbParameter(update, "@ID", resultId);
 
                                     CommonFunctions.DataDbLock = true;
-                                    await ((DbCommand)update).ExecuteNonQueryAsync();
+                                    using (timing.Measure("要求結果更新", true))
+                                    {
+                                        await ((DbCommand)update).ExecuteNonQueryAsync();
+                                    }
                                     CommonFunctions.DataDbLock = false;
 
                                     isProcessed = true;
@@ -4045,10 +4085,12 @@ namespace OQSDrug
                             {
                                 if (Properties.Settings.Default.RSBXmlConvertToShiftJis)
                                 {
-                                    await ConvertRsbXmlReloadFilesToShiftJisAsync(rsbXmlReloadFiles);
+                                    using (scanTiming.Measure("RSBase文字コード変換", true))
+                                        await ConvertRsbXmlReloadFilesToShiftJisAsync(rsbXmlReloadFiles);
                                 }
 
-                                await ReloadRsbXmlAsync(Properties.Settings.Default.RSBXmlURL);
+                                using (scanTiming.Measure("RSBase HTTP再読込", true))
+                                    await ReloadRsbXmlAsync(Properties.Settings.Default.RSBXmlURL);
                             }
                         }
                     }
@@ -4062,6 +4104,10 @@ namespace OQSDrug
                 AddLogAsync($"ProcessResAsync処理中にエラーが発生しました: {ex.Message}");
                 CommonFunctions.DataDbLock = false;
                 return false;
+            }
+            finally
+            {
+                scanTiming.Dispose();
             }
         }
 
@@ -4317,7 +4363,7 @@ namespace OQSDrug
             catch (InvalidOperationException) { }
         }
 
-        private async Task<string> ProcessTKKAsync(long ptID, XmlDocument xmlDoc, IDbConnection dbConnection)
+        private async Task<string> ProcessTKKAsync(long ptID, XmlDocument xmlDoc, IDbConnection dbConnection, ResImportTiming timing)
         {
             AddLogAsync($"{ptID}の特定健診xmlを処理します");
 
@@ -4362,7 +4408,9 @@ namespace OQSDrug
                         CommonFunctions.AddDbParameter(checkCommand, "@PtIDmain", ptIDMain);
                         CommonFunctions.AddDbParameter(checkCommand, "@EffectiveTime", effectiveTime);
 
-                        int TKKcount = Convert.ToInt32(await ((DbCommand)checkCommand).ExecuteScalarAsync());
+                        int TKKcount;
+                        using (timing.Measure("健診既存照会"))
+                            TKKcount = Convert.ToInt32(await ((DbCommand)checkCommand).ExecuteScalarAsync());
                         if (TKKcount > 0) continue;
                     }
 
@@ -4397,7 +4445,10 @@ namespace OQSDrug
                             CommonFunctions.AddDbParameter(insertCommand, "@DataValueName", dataValueName);
 
                             CommonFunctions.DataDbLock = true;
-                            await ((DbCommand)insertCommand).ExecuteNonQueryAsync();
+                            using (timing.Measure("健診INSERT"))
+                            {
+                                await ((DbCommand)insertCommand).ExecuteNonQueryAsync();
+                            }
                             CommonFunctions.DataDbLock = false;
                         }
                         recordCount++;
@@ -4408,7 +4459,10 @@ namespace OQSDrug
                 if (recordCount > 0)
                 {
                     string message = $"{ptName}さんの特定健診{recordCount}件取得";
-                    ShowNotification($"{ptIDMain}", message);
+                    using (timing.Measure("健診通知UI待ち", true))
+                    {
+                        ShowNotification($"{ptIDMain}", message);
+                    }
                     AddLogAsync(message);
                 }
 
@@ -4422,8 +4476,10 @@ namespace OQSDrug
             }
         }
 
-             private async Task<string> ProcessDrugInfoAsync2(long ptID, XmlDocument xmlDoc)
+        private async Task<string> ProcessDrugInfoAsync2(long ptID, XmlDocument xmlDoc, ResImportTiming timing = null)
         {
+            var ownedTiming = timing == null ? new ResImportTiming("薬剤手動取込 DB=" + Properties.Settings.Default.DBtype, message => { _ = AddLogAsync(message); }) : null;
+            timing = timing ?? ownedTiming;
             // --- マッピング（元コード準拠） ---
             var elementMappings = new Dictionary<string, List<string>>
                 {
@@ -4462,7 +4518,10 @@ namespace OQSDrug
             {
                 using (IDbConnection db = CommonFunctions.GetDbConnection(false))
                 {
-                    await ((DbConnection)db).OpenAsync();
+                    using (timing.Measure("薬剤DB接続", true))
+                    {
+                        await ((DbConnection)db).OpenAsync();
+                    }
 
                     long ptIDMain = ptID / 10;
                     string receiveDate = DateTime.Now.ToString("yyyyMMdd");
@@ -4504,7 +4563,10 @@ namespace OQSDrug
                     // ===== DB種別分岐：PGはCOPYで極速、OleDb/その他はPrepared＋TX =====
                     bool isPg = db.GetType().FullName != null && db.GetType().FullName.IndexOf("Npgsql", StringComparison.OrdinalIgnoreCase) >= 0;
 
-                    using (IDbTransaction tx = db.BeginTransaction())
+                    IDbTransaction transaction;
+                    using (timing.Measure("トランザクション開始", true))
+                        transaction = db.BeginTransaction();
+                    using (IDbTransaction tx = transaction)
                     {
                         if (isPg)
                         {
@@ -4539,6 +4601,7 @@ namespace OQSDrug
                             dt.Columns.Add("Revised", typeof(bool));
 
                             // 既存チェック用 Prepared
+                            using (timing.Measure("薬剤・診療解析照合ループ", true))
                             using (IDbCommand checkCmd = db.CreateCommand())
                             using (IDbCommand updCmd = db.CreateCommand())
                             {
@@ -4588,6 +4651,7 @@ namespace OQSDrug
                                             bool doRead = true;
                                             List<int> idsToRev = new List<int>();
 
+                                            using (timing.Measure("薬剤既存照会"))
                                             using (DbDataReader rd = await ((DbCommand)checkCmd).ExecuteReaderAsync())
                                             {
                                                 while (await rd.ReadAsync())
@@ -4602,7 +4666,10 @@ namespace OQSDrug
                                             {
                                                 updCmd.Parameters.Clear();
                                                 CommonFunctions.AddDbParameter(updCmd, "@ID", idsToRev[ii]);
-                                                await ((DbCommand)updCmd).ExecuteNonQueryAsync();
+                                                using (timing.Measure("薬剤個別Revised更新"))
+                                                {
+                                                    await ((DbCommand)updCmd).ExecuteNonQueryAsync();
+                                                }
                                             }
 
                                             if (doRead)
@@ -4666,7 +4733,7 @@ namespace OQSDrug
                                                     MeTrMonth = meTrMonth,
                                                     DiDate = diDate
                                                 };
-                                                sinryoCount += await ProcessSinryoInfoAsync(db, tx, meTrInfsNode, ptData);
+                                                sinryoCount += await ProcessSinryoInfoAsync(db, tx, meTrInfsNode, ptData, timing);
                                             }
                                         }
                                     }
@@ -4685,6 +4752,7 @@ namespace OQSDrug
                                 ) FROM STDIN WITH (FORMAT csv, NULL '\N')";
                             // HEADER なし
 
+                            using (timing.Measure("薬剤COPY", true))
                             using (var writer = npg.BeginTextImport(copySql))
                             {
                                 var sb = new System.Text.StringBuilder(1024);
@@ -4748,12 +4816,19 @@ namespace OQSDrug
                             }
 
 
-                            revisedCount = await SetRevisedBySourceAsync(db, tx, ptIDMain);
-                            tx.Commit();
+                            using (timing.Measure("Revised一括整理", true))
+                            {
+                                revisedCount = await SetRevisedBySourceAsync(db, tx, ptIDMain);
+                            }
+                            using (timing.Measure("コミット", true))
+                            {
+                                tx.Commit();
+                            }
                         }
                         else
                         {
                             // --- OleDb / その他: Prepared + TX + パラメータ差し替え ---
+                            using (timing.Measure("薬剤・診療解析登録ループ", true))
                             using (IDbCommand insertCmd = db.CreateCommand())
                             using (IDbCommand checkCmd = db.CreateCommand())
                             using (IDbCommand updateCmd = db.CreateCommand())
@@ -4807,6 +4882,7 @@ namespace OQSDrug
                                             bool doRead = true;
                                             List<int> idsToRev = new List<int>();
 
+                                            using (timing.Measure("薬剤既存照会"))
                                             using (DbDataReader rd = await ((DbCommand)checkCmd).ExecuteReaderAsync())
                                             {
                                                 while (await rd.ReadAsync())
@@ -4821,7 +4897,10 @@ namespace OQSDrug
                                             {
                                                 updateCmd.Parameters.Clear();
                                                 CommonFunctions.AddDbParameter(updateCmd, "@ID", idsToRev[ii]);
-                                                await ((DbCommand)updateCmd).ExecuteNonQueryAsync();
+                                                using (timing.Measure("薬剤個別Revised更新"))
+                                                {
+                                                    await ((DbCommand)updateCmd).ExecuteNonQueryAsync();
+                                                }
                                             }
 
                                             if (doRead)
@@ -4863,7 +4942,10 @@ namespace OQSDrug
                                                     CommonFunctions.AddDbParameter(insertCmd, "@DrugN", GetNodeValue(drugInfNode, GetMatchingNodeName(drugInfNode, elementMappings, "DrugN")));
                                                     CommonFunctions.AddDbParameter(insertCmd, "@Revised", false);
 
-                                                    await ((DbCommand)insertCmd).ExecuteNonQueryAsync();
+                                                    using (timing.Measure("薬剤INSERT"))
+                                                    {
+                                                        await ((DbCommand)insertCmd).ExecuteNonQueryAsync();
+                                                    }
                                                     insertedCount++;
                                                 }
                                             }
@@ -4885,20 +4967,32 @@ namespace OQSDrug
                                                     MeTrMonth = meTrMonth,
                                                     DiDate = diDate
                                                 };
-                                                sinryoCount += await ProcessSinryoInfoAsync(db, tx, meTrInfsNode, ptData);
+                                                sinryoCount += await ProcessSinryoInfoAsync(db, tx, meTrInfsNode, ptData, timing);
                                             }
                                         }
                                     }
                                 }
-                                revisedCount = await SetRevisedBySourceAsync(db, tx, ptIDMain);
-                                tx.Commit();
+                                using (timing.Measure("Revised一括整理", true))
+                                {
+                                    revisedCount = await SetRevisedBySourceAsync(db, tx, ptIDMain);
+                                }
+                                using (timing.Measure("コミット", true))
+                                {
+                                    tx.Commit();
+                                }
                             }
                         }
                     }
 
 
-                    NotifyImportedPatient(ptIDMain, healthCheckup: false);
-                    if (insertedCount > 0) ShowNotification(ptIDMain.ToString(), ptName + "さんの薬歴" + insertedCount + "件取得");
+                    using (timing.Measure("薬剤画面更新予約"))
+                    {
+                        NotifyImportedPatient(ptIDMain, healthCheckup: false);
+                    }
+                    using (timing.Measure("薬剤通知UI待ち", true))
+                    {
+                        if (insertedCount > 0) ShowNotification(ptIDMain.ToString(), ptName + "さんの薬歴" + insertedCount + "件取得");
+                    }
                     return "成功：xml薬歴から" + insertedCount + "件,診療情報" + sinryoCount + "件,重複Revised"+ revisedCount +"件のレコードを読み込みました";
                 }
             }
@@ -4906,12 +5000,16 @@ namespace OQSDrug
             {
                 return "エラー：" + ex.Message;
             }
+            finally
+            {
+                ownedTiming?.Dispose();
+            }
         }
 
         // 既存の補助：GetNodeValue / GetMatchingNodeName / NzConvert / GetMedicalInstitutionCode / ProcessSinryoInfoAsync などはそのまま利用
 
 
-        private async Task<int> ProcessSinryoInfoAsync(IDbConnection conn, IDbTransaction tx, XmlNode meTrInfsNode, dynamic ptData)
+        private async Task<int> ProcessSinryoInfoAsync(IDbConnection conn, IDbTransaction tx, XmlNode meTrInfsNode, dynamic ptData, ResImportTiming timing)
         {
             int count = 0;
 
@@ -4942,7 +5040,9 @@ namespace OQSDrug
                     CommonFunctions.AddDbParameter(checkCommand, "@PtIDmain", ptData.Idmain);
                     CommonFunctions.AddDbParameter(checkCommand, "@DiDate", ptData.DiDate);
 
-                    int existed = Convert.ToInt32(await ((DbCommand)checkCommand).ExecuteScalarAsync());
+                    int existed;
+                    using (timing.Measure("診療既存照会"))
+                        existed = Convert.ToInt32(await ((DbCommand)checkCommand).ExecuteScalarAsync());
                     if (existed > 0) return 0;
                 }
 
@@ -4976,7 +5076,10 @@ namespace OQSDrug
                         CommonFunctions.AddDbParameter(insertCommand, "@Unit", GetNodeValue(meTrInf, "Unit"));
                         CommonFunctions.AddDbParameter(insertCommand, "@ReceiveDate", receiveDate);
 
-                        await ((DbCommand)insertCommand).ExecuteNonQueryAsync();
+                        using (timing.Measure("診療INSERT"))
+                        {
+                            await ((DbCommand)insertCommand).ExecuteNonQueryAsync();
+                        }
                         count++;
                     }
                 }
