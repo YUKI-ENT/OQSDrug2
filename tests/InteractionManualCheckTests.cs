@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 // Compile the production polling code and models with in-memory COM/DB boundaries.
 namespace OQSDrug
 {
-    public partial class Form1
+    public partial class Form1 : Form
     {
         private int patientLinkRevision = 0;
         private long? lastComChartId = 123451;
         private object comPatientTimer = new object();
         private FormDI formDIInstance = null;
-        public bool IsDisposed => false;
-        public bool Disposing => false;
         internal async Task AutoPoll()
         {
             nextInteractionAttempt = DateTime.MinValue;
@@ -23,9 +22,8 @@ namespace OQSDrug
         internal bool HasResult => interactionResult != null;
         internal string Status => interactionStatus;
     }
-    internal class FormDI
+    internal class FormDI : Form
     {
-        internal bool IsDisposed => false;
         internal void UpdateInteractionCheck(bool enabled, int revision, long patient,
             ChartMedicationSnapshot snapshot, MedicationInteractionResult result, string status, bool busy, int months) { }
     }

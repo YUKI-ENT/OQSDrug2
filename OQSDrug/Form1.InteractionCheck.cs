@@ -154,11 +154,22 @@ namespace OQSDrug
                     : "手動チェック完了。処方確定後に自動チェックします。";
                 PublishInteraction();
                 if (ShouldShowInteractionPopup(snapshot, result))
-                    MessageBox.Show("相互作用チェックで要確認の組み合わせが "
+                {
+                    // 薬歴の所有ダイアログにして、最前面表示の薬歴に警告が隠れないようにする。
+                    Form popupOwner = this;
+                    if (formDIInstance != null && !formDIInstance.IsDisposed
+                        && !formDIInstance.Disposing && formDIInstance.Visible)
+                        popupOwner = formDIInstance;
+                    if (popupOwner.WindowState == FormWindowState.Minimized)
+                        popupOwner.WindowState = FormWindowState.Normal;
+                    popupOwner.BringToFront();
+                    popupOwner.Activate();
+                    MessageBox.Show(popupOwner, "相互作用チェックで要確認の組み合わせが "
                         + (result.Koro.Count + result.Text.Count) + " 件見つかりました。\r\n"
                         + "患者ID：" + (snapshot.ChartId / 10) + "\r\n"
                         + "薬歴の「相互作用チェック」タブで詳細を確認してください。",
                         "相互作用チェック：要確認", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
             catch (Exception ex)
             {
