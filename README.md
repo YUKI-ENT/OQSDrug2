@@ -41,7 +41,23 @@
  - 事前に設定した「眼圧 OR 緑内障」や「QT OR Torsade」等のキーワードを自動で検索し、ヒットした項目だけ表示します。
    <img width="957" height="974" alt="スクリーンショット 2026-08-28 104718" src="https://github.com/user-attachments/assets/46dac9a0-26fb-4b94-872e-6df702d1143b" />
 
+ <<相互作用自動チェック機能（COM連携時のみ）>>
+ - ダイナミクスと**COM連携**してる場合、ダイナミクスで処方を入力して `外来加算` ボタンを押したタイミングで他院の処方薬剤と相互作用チェックを行い、問題があるときはポップアップメッセージを表示します。
+ - 相互作用チェックは、
+     1. ダイナ入力薬の併用禁忌、併用注意薬にマイナ薬歴薬剤名、一般名が含まれるか
+     2. マイナ薬歴薬剤の併用禁忌、併用注意薬にダイナ処方薬名、一般名が含まれるか
+     3. 厚労省の禁忌データに一致するか
 
+   をチェックします。
+
+   ただし、**「マクロライド系抗菌薬」とか「CYP3A阻害薬」等の薬剤グループのチェックにはヒットしないので、該当無しでも安全性を保証するものではないことをご了承ください。**
+   
+   <img width="362" height="154" alt="スクリーンショット 2026-09-26 182755" src="https://github.com/user-attachments/assets/8f1ee914-b828-403a-8898-ed7645611509" />
+
+   <img width="708" height="532" alt="スクリーンショット 2026-09-26 182929" src="https://github.com/user-attachments/assets/5adb1169-38ff-4865-95f3-c314682e37dd" />
+  
+
+        
 ---
 
 ## 動作条件
@@ -49,14 +65,20 @@
   - ある程度は従来のAccess mdb形式(OQSDrug_data.mdb)でも動作しますが、**薬剤併用情報やAI機能はPostgreSQL使用時しか動作しない**ようにしてあります。
   - PostgreSQLのバージョンは**15以上**が推奨です。RSBaseのPostgreSQLサーバーにデータを置くこともできるかもしれませんが、バージョンが古いPostgreSQLですとJSONB形式の保存や検索ができない可能性があるので、できれば別サーバーで新しいバージョンのものを入れてください。
       
-- **Ollama (Local LLMランタイム)**
-  - Ollamaが利用できる環境では、**病名病態等の推論機能**が利用できます
+- **Ollama、LMStudio等 LLMサーバー**
+  - OllamaやLMStudio等LocalLLMやOpenAI互換APIが利用できる環境では、**病名病態等の推論機能**が利用できます
   - 病名の推論では、`gemma3:12b`、`gpt-oss:20b` あたりが安定した出力でした。これらのモデルを動かすには、16GB以上のVRAMを積んだNvidia製GPUが必要です。当方では、**CPU Intel Corei9-9900、メモリ32GB、GeForce RTX5080 16GB/ Ubuntu24.04の環境**で安定動作を確認しました。
-  - Windows、Macでも動作するようですので、[ダウンロードサイト](https://ollama.com/download/windows) からインストールしてください。
-  - OllamaもLAN内のPCからアクセスできるよう設定が必要です。
+  - OllamaはWindows、Macでも動作するようですので、[ダウンロードサイト](https://ollama.com/download/windows) からインストールしてください。
+  - OllamaやLMStudioもLAN内のPCからアクセスできるよう設定が必要です。
     
 - **ダイナミクス**  
-  ダイナミクスが本ソフトの必須環境です。v1の時と同じく、**薬剤・健診情報取得は、ダイナミクスクライアントが動作していないPCで行う**のが望ましいです。どうしてもダイナミクスクライアントが動いているPCで取得を行うときは、`設定②`の`ダイナミクスの場所`に**datadyna.mdbではなく、クライアントダイナミクス**を指定してください。
+  ダイナミクスが本ソフトの必須環境です。
+
+  - ダイナクライアントとCOM連携する方法
+  - 従来の取込専用PCを用意してdatadyna.mdb とリンクして使用する方法
+
+  があります。 詳しくは [設置方法](https://github.com/YUKI-ENT/OQSDrug2/blob/main/README.md#%E8%A8%AD%E7%BD%AE%E6%96%B9%E6%B3%95) を参照してください。 
+  
 - **RSBase**  
   RSBaseがあればRSBaseの薬剤情報詳細も表示できます。またRSBase側で、xmlの薬歴や健診歴を表示できます（設定要）。
 
@@ -76,15 +98,40 @@
 
 ## 設置方法
 
-1. [Version1のとき](https://github.com/YUKI-ENT/OQSDrug?tab=readme-ov-file#%E9%81%8B%E7%94%A8%E6%96%B9%E6%B3%95)と同じく、**取り込みを行うOQSDrugは、**
+設置方法は大きくわけて2パターンあります。以前はパターン2の方法を推奨していましたが、Ver2.26.9.26 以降では、パターン1のCOM連携方式を推奨します。
+
+パターン1のCOM連携では、ダイナミクスで入力した薬剤とマイナ薬歴の他院薬剤との相互作用チェックを自動で行うことが可能ですが、ダイナクライアントが開いているときしか、取込を行うことができません。
+
+|               | 1. ダイナクライアントとCOM連携      | 2. 従来の取込専用PC設置     |
+|---------------|---------------------|-----------------------|
+| 取込を行うOQSDrug | ダイナクライアントを開いているPC   |  取込専用PC   |
+| PostgreSQLの設置場所 | どこでも可だが診察室PC推奨 | どこでも可 |
+| 相互作用チェック | ⭕️               |    ❌️                 |
+| 動作の安定性    |   ダイナが少し重くなる可能性あり   |  ⭕️       |
+
+
+1. [パターン1] **診察室等、ダイナクライアントを動作させているPCでOQSDrugをインストールし、COM連携する**
+
+   <img width="627" height="627" alt="OQSDrug_network" src="https://github.com/user-attachments/assets/bc5016c9-449e-4eed-aaf1-0136712487b0" />
+
+   診察室等ダイナクライアントが動いているPCにOQSDrugをインストールし、ダイナクライアントとCOM連携で資格情報を読み取ります。この場合、**ダイナクライアントの「患者マスター」を開いている場合のみ取込を行います。**
+
+   PostgreSQLはダイナLAN内のどこに配置してもOKですが、診察室PCを推奨します。
+
+  
+2. [パターン2]   [Version1のとき](https://github.com/YUKI-ENT/OQSDrug?tab=readme-ov-file#%E9%81%8B%E7%94%A8%E6%96%B9%E6%B3%95)と同じく、**取り込みを行うOQSDrugは、**
      - **ダイナミクスが動いていないPCに設置して、ダイナサーバーのdatadynaにリンク**
-     - **ダイナミクスが動いているPCの場合は、そのPCのクライアントダイナにリンク**
-   
+ 
    して使用してください。
-   推奨構成はこんな感じです。PostgreSQLサーバーはダイナLANのどこにおいても結構です。
+   PostgreSQLサーバーはダイナLANのどこにおいても結構です。
    <img width="512" height="512" alt="Gemini_Generated_Image25" src="https://github.com/user-attachments/assets/1d0e5119-5cf7-4326-8211-567215ac210e" />
 
-2.**PostgreSQLのインストール**
+
+
+
+## インストール方法
+
+1.**PostgreSQLのインストール**
 
   [PostgreSQLダウンロードサイト](https://www.postgresql.jp/download) からサーバーOSにあったものをダウンロードしてインストールしてください。
   - PostgresSQLのデータ置き場はできればDドライブ等にしたほうが管理がしやすいです。
@@ -107,13 +154,13 @@
       ![スクリーンショット 2025-11-25 225912](https://github.com/user-attachments/assets/fa68f8fe-8cba-4deb-bbe4-76abfcfbb8df)
 
 
-3. **OQSDrugのインストール**
+2. **OQSDrugのインストール**
 
     [Release一覧](https://github.com/YUKI-ENT/OQSDrug2/releases)から**OQSDrug2_v2.xx.xx.xx.exe(インストーラになってます) をダウンロード**
    
     これを実行するとインストールが始まります。
    
-4. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
+3. <<**初回または薬剤情報バージョンアップ時のみ**>> 薬剤添付文書データ：`DrugSGMLdata_xxxxxxxx.backup` を[こちら](https://github.com/YUKI-ENT/SGML2SQL/releases)からダウンロードしてインポート作業を行ってください。
    
 ---
 
@@ -165,17 +212,23 @@ PostgreSQLの設定と相互作用、AI機能以外の基本機能は[Version1](
        ![PG16](https://github.com/user-attachments/assets/e44a9507-e1ad-429e-a3c7-ec4158029414)
 
   - **取込設定**
-  
-    <img width="617" height="553" alt="setting2" src="https://github.com/user-attachments/assets/e6d7de6f-814e-4053-b439-626492741dd5" />
- 
-    - 取込を行うPCでは、ダイナミクスの場所（ダイナミクスクライアントを動かしていないPCではダイナミクスのdatadyna.mdbを、ダイナクライアントクライアントが動いている場合は稼働中のダイナクライアントを指定）、OQSフォルダ（オンライン資格確認端末のoqsフォルダの共有名）を指定。
+
+    <img width="617" height="553" alt="スクリーンショット 2026-09-25 150348" src="https://github.com/user-attachments/assets/7079244d-ddc0-46bc-bc95-026685643af1" />
+
+    - **COM連携** の場合は、`ダイナミクスの場所` で `COM読み取り` を選択してください。
+    - **取込専用PCを用意する場合**は、datadyna.mdbを指定してください。
+    - OQSフォルダ（オンライン資格確認端末のoqsフォルダの共有名）を指定。
     - 薬剤情報の取込期間、取込間隔を指定できます。
     - Viewerとしてしか使用しない場合は、これらの設定は不要です。
     
   - **Viewer設定**
-  
-     <img width="617" height="553" alt="setting3" src="https://github.com/user-attachments/assets/02ed90cd-35a0-4570-8527-70234d36ebc5" />
+     <img width="617" height="553" alt="スクリーンショット 2026-09-25 150423" src="https://github.com/user-attachments/assets/3e683a9c-cedf-4fc4-b0e3-0c16969d1e4c" />
 
+      - `COM連携` の場合はカルテ番号は直接OQSDrugから読み取りますので、ダイナミクスから他社連携で出力する必要はありません。
+      - COM連携で薬剤相互作用チェックを行う場合は、`相互作用チェックを行う` をチェックしてください。
+      - `エラーメッセージ ポップアップ` をチェックすると、相互作用薬が見つかった場合メッセージを表示します。
+
+     
   - **BulkTool設定**
 
     <img width="617" height="553" alt="setting4" src="https://github.com/user-attachments/assets/aebd7808-d6c5-40d2-89cf-4b8025c2ac7d" />
