@@ -4113,26 +4113,90 @@ namespace OQSDrug
 
         private async Task ReloadRsbXmlAsync(string url)
         {
+            var elapsed = Stopwatch.StartNew();
             try
             {
+                url = (url ?? "").Trim();
                 if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
                     || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
                     throw new InvalidOperationException("URLはhttp://またはhttps://で指定してください。");
 
-                // Call the CGI directly without opening a browser or changing the active window.
+                await AddLogAsync("RSBase xml reload: HTTP GET開始 設定URL=" + url
+                    + " 送信URL=" + uri.AbsoluteUri).ConfigureAwait(false);
+                // Keep this request independent of the browser so it cannot interrupt clinical work.
                 using (var response = await rsbXmlReloadClient.GetAsync(uri).ConfigureAwait(false))
                 {
+                    string finalUrl = response.RequestMessage?.RequestUri?.AbsoluteUri ?? uri.AbsoluteUri;
+                    string contentType = response.Content?.Headers.ContentType?.ToString() ?? "(指定なし)";
+                    await AddLogAsync($"RSBase xml reload: HTTP応答={(int)response.StatusCode} {response.ReasonPhrase}"
+                        + $" 経過={elapsed.Elapsed.TotalMilliseconds:F0}ms 最終URL={finalUrl} Content-Type={contentType}").ConfigureAwait(false);
+                    // These headers can explain a browser-only follow-up. Do not execute it automatically.
+                    foreach (string header in new[] { "Location", "Refresh" })
+                    {
+                        if (response.Headers.TryGetValues(header, out var values))
+                            await AddLogAsync("RSBase xml reload: " + header + "=" + string.Join("; ", values), fileOnly: true).ConfigureAwait(false);
+                    }
+
+                    byte[] bytes = response.Content == null ? new byte[0]
+                        : await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                    string body = DecodeRsbXmlReloadResponse(bytes, response.Content?.Headers.ContentType?.CharSet, out string encodingName);
+                    const int maxLoggedChars = 16384;
+                    int loggedChars = Math.Min(body.Length, maxLoggedChars);
+                    await AddLogAsync($"RSBase xml reload: 応答本文={bytes.Length}bytes encoding={encodingName}"
+                        + $" ログ記録={loggedChars}/{body.Length}文字（本文はログファイルのみ）").ConfigureAwait(false);
+                    for (int offset = 0; offset < loggedChars; offset += 1000)
+                    {
+                        string part = body.Substring(offset, Math.Min(1000, loggedChars - offset));
+                        await AddLogAsync($"RSBase xml reload: 応答本文[{offset + 1}-{offset + part.Length}] {part}", fileOnly: true).ConfigureAwait(false);
+                    }
+                    if (body.Length > maxLoggedChars)
+                        await AddLogAsync("RSBase xml reload: 応答本文は先頭16384文字で省略しました。", fileOnly: true).ConfigureAwait(false);
+
                     response.EnsureSuccessStatusCode();
-                    await AddLogAsync("RSBase xml reload: HTTP呼び出しが完了しました。").ConfigureAwait(false);
+                    await AddLogAsync("RSBase xml reload: HTTP通信完了（RSBaseの取込成功を示すものではありません）。").ConfigureAwait(false);
                 }
             }
             catch (TaskCanceledException)
             {
-                await AddLogAsync("RSBase xml reload: HTTP呼び出しが30秒でタイムアウトしました。サーバー側の処理結果を確認してください。").ConfigureAwait(false);
+                await AddLogAsync($"RSBase xml reload: HTTP呼び出しが30秒でタイムアウトしました。経過={elapsed.Elapsed.TotalMilliseconds:F0}ms サーバー側の処理結果を確認してください。").ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                await AddLogAsync("RSBase xml reload: HTTP呼び出しに失敗しました: " + ex.Message).ConfigureAwait(false);
+                await AddLogAsync($"RSBase xml reload: HTTP呼び出しに失敗しました。経過={elapsed.Elapsed.TotalMilliseconds:F0}ms {ex.GetType().Name}: {ex.Message}").ConfigureAwait(false);
+            }
+        }
+
+        private static string DecodeRsbXmlReloadResponse(byte[] bytes, string charset, out string encodingName)
+        {
+            // Older CGI pages may declare Shift_JIS only in HTML, or omit the charset entirely.
+            if (string.IsNullOrWhiteSpace(charset))
+            {
+                string head = Encoding.ASCII.GetString(bytes, 0, Math.Min(bytes.Length, 4096));
+                var match = Regex.Match(head, @"charset\s*=\s*['""\s]*([a-zA-Z0-9_-]+)", RegexOptions.IgnoreCase);
+                if (match.Success) charset = match.Groups[1].Value;
+            }
+
+            Encoding encoding = null;
+            if (!string.IsNullOrWhiteSpace(charset))
+            {
+                try { encoding = Encoding.GetEncoding(charset.Trim().Trim('\'', '"')); }
+                catch (ArgumentException) { /* Fall back when the CGI declares an unknown charset. */ }
+            }
+            if (encoding == null)
+            {
+                try
+                {
+                    new UTF8Encoding(false, true).GetString(bytes);
+                    encoding = Encoding.UTF8;
+                }
+                catch (DecoderFallbackException) { encoding = Encoding.GetEncoding("Shift_JIS"); }
+            }
+            using (var stream = new MemoryStream(bytes))
+            using (var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true))
+            {
+                string body = reader.ReadToEnd();
+                encodingName = reader.CurrentEncoding.WebName;
+                return body;
             }
         }
 
