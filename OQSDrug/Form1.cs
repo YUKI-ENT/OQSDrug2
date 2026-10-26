@@ -16,7 +16,6 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -36,11 +35,6 @@ namespace OQSDrug
 {
     public partial class Form1 : Form
     {
-        private static readonly HttpClient rsbXmlReloadClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
-
         // Global
         public string DataReadMode = "Read", DynaReadMode = "Read";  //Share Deny None 
         
@@ -4122,11 +4116,11 @@ namespace OQSDrug
                     throw new InvalidOperationException("URLはhttp://またはhttps://で指定してください。");
 
                 await AddLogAsync("RSBase xml reload: HTTP GET開始 設定URL=" + url
-                    + " 送信URL=" + uri.AbsoluteUri).ConfigureAwait(false);
+                    + " 送信URL=" + url + "（WinHTTP・クエリの自動エンコード無効）").ConfigureAwait(false);
                 // Keep this request independent of the browser so it cannot interrupt clinical work.
-                using (var response = await rsbXmlReloadClient.GetAsync(uri).ConfigureAwait(false))
+                using (var response = await RsbXmlReloadHttp.GetAsync(url).ConfigureAwait(false))
                 {
-                    string finalUrl = response.RequestMessage?.RequestUri?.AbsoluteUri ?? uri.AbsoluteUri;
+                    string finalUrl = (string)response.RequestMessage.Properties[RsbXmlReloadHttp.FinalUrlProperty];
                     string contentType = response.Content?.Headers.ContentType?.ToString() ?? "(指定なし)";
                     await AddLogAsync($"RSBase xml reload: HTTP応答={(int)response.StatusCode} {response.ReasonPhrase}"
                         + $" 経過={elapsed.Elapsed.TotalMilliseconds:F0}ms 最終URL={finalUrl} Content-Type={contentType}").ConfigureAwait(false);
@@ -4156,7 +4150,7 @@ namespace OQSDrug
                     await AddLogAsync("RSBase xml reload: HTTP通信完了（RSBaseの取込成功を示すものではありません）。").ConfigureAwait(false);
                 }
             }
-            catch (TaskCanceledException)
+            catch (TimeoutException)
             {
                 await AddLogAsync($"RSBase xml reload: HTTP呼び出しが30秒でタイムアウトしました。経過={elapsed.Elapsed.TotalMilliseconds:F0}ms サーバー側の処理結果を確認してください。").ConfigureAwait(false);
             }
