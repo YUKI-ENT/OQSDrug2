@@ -3182,21 +3182,30 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             }
 
             yjCode = (yjCode ?? "").Trim().ToUpperInvariant();
-            // Fuzzy候補の存在をコード一致とみなさない。まず完全一致だけを確認する。
-            // 8桁一致も別銘柄になり得るため、DBの完全一致検索より後に扱う。
-            var exactCodeResults = SGMLDI
+            string yjPrefix = yjCode.Length >= 8 ? yjCode.Substring(0, 8) : "";
+            // 完全一致があっても終了せず、DBと一覧の8桁一致候補を統合する。
+            // 類似名のスコアとは分け、処方銘柄を先頭に先発品・後発品を列挙する。
+            var directResults = await SearchSgmlRawdataAsync(normalizedDrugName, normalizedIngreN, yjCode).ConfigureAwait(false);
+            var codeResults = directResults.Select(t => t.Item1).Concat(SGMLDI)
                 .Where(r => r != null && r.Length > 2 && !string.IsNullOrEmpty(yjCode)
-                    && string.Equals((r[2] ?? "").Trim(), yjCode, StringComparison.OrdinalIgnoreCase))
-                .Select(r => Tuple.Create(r, 1.0)).Take(20).ToList();
-            if (exactCodeResults.Count > 0)
+                    && (string.Equals((r[2] ?? "").Trim(), yjCode, StringComparison.OrdinalIgnoreCase)
+                        || (yjPrefix.Length == 8 && (r[2] ?? "").Trim().StartsWith(yjPrefix, StringComparison.OrdinalIgnoreCase))))
+                .GroupBy(r => (r[2] ?? "").Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderByDescending(r => string.Equals((r[2] ?? "").Trim(), yjCode, StringComparison.OrdinalIgnoreCase))
+                .ThenByDescending(r => r.Length > 3 && (r[3] ?? "").Contains("先発"))
+                .ThenBy(r => r[2], StringComparer.OrdinalIgnoreCase)
+                .Select(r => Tuple.Create(r,
+                    string.Equals((r[2] ?? "").Trim(), yjCode, StringComparison.OrdinalIgnoreCase) ? 2.0 : 1.9))
+                .ToList();
+            if (codeResults.Count > 0)
             {
-                return exactCodeResults;
+                return codeResults;
             }
 
-            var directResults = await SearchSgmlRawdataAsync(normalizedDrugName, normalizedIngreN, yjCode).ConfigureAwait(false);
             if (directResults.Count > 0)
             {
-                return directResults;
+                return directResults.Take(20).ToList();
             }
 
             double fallbackCutoff = string.IsNullOrWhiteSpace(yjCode) ? 0.35 : fuzzyCutoffThreshold;
@@ -3284,7 +3293,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 LEFT JOIN d1 ON d1.yj_code = s1.yj_code
                 LEFT JOIN m1 ON m1.yj_code = s1.yj_code
                 ORDER BY match_score DESC, s1.updated_at DESC NULLS LAST, s1.yj_code
-                LIMIT 20;";
+                LIMIT CASE WHEN @yj_prefix <> '' THEN NULL ELSE 20 END;";
 
             var results = new List<Tuple<string[], double>>();
 

@@ -50,7 +50,7 @@ internal static class PmdaSearchTests
 
         Reset(Wrong, Correct, misleading);
         results = SearchHost.SearchSgmlCandidatesAsync(Name, "", " 2142004f1010 ").GetAwaiter().GetResult();
-        Assert(results[0].Item1 == Correct && SearchHost.DatabaseCalls == 0, "Cached exact YJ should win, including code whitespace/case");
+        Assert(results[0].Item1 == Correct && SearchHost.DatabaseCalls == 1, "Cached exact YJ should win while still searching other brands");
 
         var samePrefix = (string[])Correct.Clone();
         // The ninth character differs: only the first eight characters match.
@@ -62,7 +62,7 @@ internal static class PmdaSearchTests
 
         Reset(samePrefix, Wrong);
         results = SearchHost.SearchSgmlCandidatesAsync(Name, "", Code).GetAwaiter().GetResult();
-        Assert(results[0].Item1 == samePrefix && results[0].Item2 == 0.9, "Eight-character prefix fallback must match even when ninth character differs");
+        Assert(results[0].Item1 == samePrefix && results[0].Item2 == 1.9, "Eight-character prefix fallback must match even when ninth character differs");
 
         Reset(Correct, Wrong);
         results = SearchHost.SearchSgmlCandidatesAsync(Name, "", "").GetAwaiter().GetResult();
@@ -71,6 +71,24 @@ internal static class PmdaSearchTests
         Reset(Wrong);
         results = SearchHost.SearchSgmlCandidatesAsync("", "", "").GetAwaiter().GetResult();
         Assert(results.Count == 0 && SearchHost.DatabaseCalls == 0, "Empty input must not search");
-        Console.WriteLine("PASS: 6 PMDA search regression scenarios.");
+        // Synthetic codes: verify brand enumeration without depending on a real DB.
+        var generic = new[] { "レボフロキサシン錠（テスト後発品）", "レボフロキサシン", "9999999F2000", "", "", "test" };
+        var originator = new[] { "クラビット錠（テスト先発品）", "レボフロキサシン", "9999999F1000", "先発", "", "test" };
+        var other = new[] { "別メーカー錠", "レボフロキサシン", "9999999F3000", "", "", "test" };
+        Reset(generic, other, Wrong);
+        SearchHost.DatabaseResults.Add(Tuple.Create(originator, 1.9));
+        SearchHost.DatabaseResults.Add(Tuple.Create(generic, 2.0));
+        results = SearchHost.SearchSgmlCandidatesAsync(generic[0], generic[1], generic[2]).GetAwaiter().GetResult();
+        Assert(results.Count == 3 && results[0].Item1 == generic && results[1].Item1 == originator
+            && results[2].Item1 == other, "Exact generic must retain originator and other generics, without duplicate YJs or unrelated names");
+
+        // All code-family candidates must survive the old 20-result cutoff.
+        Reset(generic, originator);
+        for (int i = 3000; i < 3030; i++)
+            SearchHost.SGMLDI.Add(new[] { "テスト後発品" + i, "", "9999999F" + i, "", "", "test" });
+        results = SearchHost.SearchSgmlCandidatesAsync(generic[0], generic[1], generic[2]).GetAwaiter().GetResult();
+        Assert(results.Count == 32 && results[0].Item1 == generic && results[1].Item1 == originator,
+            "Code-family enumeration must not drop brands beyond 20 results");
+        Console.WriteLine("PASS: 8 PMDA search regression scenarios.");
     }
 }
