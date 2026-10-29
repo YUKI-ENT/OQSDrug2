@@ -6767,7 +6767,7 @@ namespace OQSDrug
             }
         }
 
-        // sgml_rawdata ∩ drug_code_map を対象に SGMLDI を構築
+        // sgml_rawdata 全件を対象に SGMLDI を構築（薬価未対応でも検索可能）
         private async Task LoadSGMLDIAsync()
         {
             if (!await sgmlLoadSemaphore.WaitAsync(0))
@@ -6837,7 +6837,7 @@ namespace OQSDrug
                       d1.price,
                       s1.package_insert_no
                     FROM s1
-                    JOIN d1 ON d1.yj_code = s1.yj_code
+                    LEFT JOIN d1 ON d1.yj_code = s1.yj_code
                     LEFT JOIN m1 ON m1.yj_code = s1.yj_code;
                     ";
 
@@ -6884,7 +6884,7 @@ namespace OQSDrug
                                 });
                                 addCount++;
                             }
-                            await CommonFunctions.AddLogAsync($"SGML薬情インデックス {addCount}件を読み込みました（両表に存在するyj_codeのみ）。");
+                            await CommonFunctions.AddLogAsync($"SGML薬情インデックス {addCount}件を読み込みました（sgml_rawdataの全yj_code）。");
                         }
                     }
                 }

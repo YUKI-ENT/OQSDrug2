@@ -3066,8 +3066,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 ? NormalizeDrugSearchText(RemoveCampany(ingreN))
                 : processedDrugName;
 
-            string yjPrefix = (!string.IsNullOrEmpty(YJcode) && YJcode.Length >= 9)
-                    ? YJcode.Substring(0, 9)
+            string yjPrefix = (!string.IsNullOrEmpty(YJcode) && YJcode.Length >= 8)
+                    ? YJcode.Substring(0, 8)
                     : (YJcode ?? string.Empty);
 
             var exactMatchList = new List<Tuple<string[], double>>();
@@ -3092,8 +3092,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                         exactMatchList.Add(new Tuple<string[], double>(record, 1.0));
                         continue;
                     }
-                    // YJコード上位9桁一致
-                    if (column3.Length >= 9 && column3.Substring(0, 9) == yjPrefix)
+                    // YJコード上位8桁一致
+                    if (column3.Length >= 8 && column3.Substring(0, 8) == yjPrefix)
                     {
                         prefixMatchList.Add(new Tuple<string[], double>(record, 0.9));
                         continue;
@@ -3160,7 +3160,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 .OrderByDescending(r => r.Item2)
                 .ToList();
 
-            // 結果を統合（完全一致 → 9桁一致 → あいまい検索）
+            // 結果を統合（完全一致 → 8桁一致 → あいまい検索）
             var finalResults = exactMatchList.Concat(prefixMatchList).Concat(filteredFuzzyResults).Take(20).ToList();
 
 
@@ -3181,16 +3181,19 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 return new List<Tuple<string[], double>>();
             }
 
-            if (!string.IsNullOrWhiteSpace(yjCode))
+            yjCode = (yjCode ?? "").Trim().ToUpperInvariant();
+            // Fuzzy候補の存在をコード一致とみなさない。まず完全一致だけを確認する。
+            // 8桁一致も別銘柄になり得るため、DBの完全一致検索より後に扱う。
+            var exactCodeResults = SGMLDI
+                .Where(r => r != null && r.Length > 2 && !string.IsNullOrEmpty(yjCode)
+                    && string.Equals((r[2] ?? "").Trim(), yjCode, StringComparison.OrdinalIgnoreCase))
+                .Select(r => Tuple.Create(r, 1.0)).Take(20).ToList();
+            if (exactCodeResults.Count > 0)
             {
-                var indexedResults = await FuzzySearchAsync(normalizedDrugName, normalizedIngreN, yjCode, SGMLDI, fuzzyCutoffThreshold).ConfigureAwait(false);
-                if (indexedResults.Count > 0)
-                {
-                    return indexedResults;
-                }
+                return exactCodeResults;
             }
 
-            var directResults = await SearchSgmlRawdataAsync(normalizedDrugName, normalizedIngreN).ConfigureAwait(false);
+            var directResults = await SearchSgmlRawdataAsync(normalizedDrugName, normalizedIngreN, yjCode).ConfigureAwait(false);
             if (directResults.Count > 0)
             {
                 return directResults;
@@ -3200,7 +3203,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             return await FuzzySearchAsync(normalizedDrugName, normalizedIngreN, yjCode ?? "", SGMLDI, fallbackCutoff).ConfigureAwait(false);
         }
 
-        private static async Task<List<Tuple<string[], double>>> SearchSgmlRawdataAsync(string drugName, string ingreN)
+        private static async Task<List<Tuple<string[], double>>> SearchSgmlRawdataAsync(string drugName, string ingreN, string yjCode)
         {
             string primary = !string.IsNullOrWhiteSpace(drugName) ? drugName.Trim() : "";
             string secondary = !string.IsNullOrWhiteSpace(ingreN) ? ingreN.Trim() : "";
@@ -3221,7 +3224,9 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                     WHERE s.yj_code IS NOT NULL
                       AND s.yj_code <> ''
                       AND (
-                            COALESCE(s.brand_name_ja, '') ILIKE @contains
+                            (@yj_code <> '' AND s.yj_code = @yj_code)
+                         OR (@yj_prefix <> '' AND LEFT(s.yj_code, 8) = @yj_prefix)
+                         OR COALESCE(s.brand_name_ja, '') ILIKE @contains
                          OR COALESCE(s.generic_name_ja, '') ILIKE @contains
                          OR COALESCE(s.generic_name_ja, '') ILIKE @secondary_contains
                       )
@@ -3264,6 +3269,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                     d1.price,
                     s1.package_insert_no,
                     CASE
+                        WHEN @yj_code <> '' AND s1.yj_code = @yj_code THEN 2.00
+                        WHEN @yj_prefix <> '' AND LEFT(s1.yj_code, 8) = @yj_prefix THEN 1.90
                         WHEN COALESCE(s1.brand_name_ja, '') = @exact THEN 1.00
                         WHEN COALESCE(s1.generic_name_ja, '') = @exact THEN 0.98
                         WHEN COALESCE(s1.brand_name_ja, '') ILIKE @prefix THEN 0.95
@@ -3290,6 +3297,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = sql;
+                        AddDbParameter(cmd, "@yj_code", yjCode);
+                        AddDbParameter(cmd, "@yj_prefix", yjCode.Length >= 8 ? yjCode.Substring(0, 8) : "");
                         AddDbParameter(cmd, "@exact", exact);
                         AddDbParameter(cmd, "@prefix", prefix);
                         AddDbParameter(cmd, "@contains", contains);
