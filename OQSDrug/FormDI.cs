@@ -1138,34 +1138,7 @@ namespace OQSDrug
                 var topResults = await CommonFunctions.SearchSgmlCandidatesAsync(drugName, ingreN, yjCode, 0.2);
                 if (topResults != null && topResults.Count > 0)
                 {
-                    if (formSGML_DI == null || formSGML_DI.IsDisposed)
-                    { 
-                        formSGML_DI = new FormSGML_DI(this);
-
-                        // 前回の位置とサイズを復元
-                        if (Properties.Settings.Default.PMDABounds != Rectangle.Empty)
-                        {
-                            formSGML_DI.StartPosition = FormStartPosition.Manual;
-                            formSGML_DI.Bounds = Properties.Settings.Default.PMDABounds;
-
-                            // マージンと境界線を設定
-                            formSGML_DI.Padding = new Padding(0);
-                            formSGML_DI.Margin = new Padding(0);
-                            //form3Instance.FormBorderStyle = FormBorderStyle.None;
-                        }
-
-                        // TopMost状態を設定
-                        formSGML_DI.TopMost = this.TopMost;
-
-                        // Form3が閉じるときに位置、サイズ、TopMost状態を保存
-                        formSGML_DI.FormClosing += (s, args) =>
-                        {
-                            SaveViewerSettings(formSGML_DI, "PMDABounds");
-                        };
-
-                        formSGML_DI.Show(this); 
-                    }
-
+                    ShowPmdaDocumentForm();
                     formSGML_DI.SetDrugLists(topResults);
                 }
                 else
@@ -1176,6 +1149,41 @@ namespace OQSDrug
             catch (Exception ex)
             {
                 MessageBox.Show("薬情表示時にエラーが発生しました。" + ex.Message);
+            }
+        }
+
+        private void ShowPmdaDocumentForm()
+        {
+            if (formSGML_DI == null || formSGML_DI.IsDisposed)
+            {
+                formSGML_DI = new FormSGML_DI(this);
+
+                // 前回の位置とサイズを復元
+                if (Properties.Settings.Default.PMDABounds != Rectangle.Empty)
+                {
+                    formSGML_DI.StartPosition = FormStartPosition.Manual;
+                    formSGML_DI.Bounds = Properties.Settings.Default.PMDABounds;
+
+                    // マージンと境界線を設定
+                    formSGML_DI.Padding = new Padding(0);
+                    formSGML_DI.Margin = new Padding(0);
+                    //form3Instance.FormBorderStyle = FormBorderStyle.None;
+                }
+
+                // TopMost状態を設定
+                formSGML_DI.TopMost = this.TopMost;
+
+                // Form3が閉じるときに位置、サイズ、TopMost状態を保存
+                formSGML_DI.FormClosing += (s, args) =>
+                {
+                    SaveViewerSettings(formSGML_DI, "PMDABounds");
+                };
+
+                formSGML_DI.Show(this);
+            }
+            else
+            {
+                formSGML_DI.Activate();
             }
         }
 
@@ -1920,7 +1928,13 @@ namespace OQSDrug
 
         private void toolStripButtonSGMLDI_Click(object sender, EventArgs e)
         {
-            SearchSGMLMenuItem_Click(sender, EventArgs.Empty);
+            if (!_readySGML)
+            {
+                MessageBox.Show("添付文書データがロードされてないので起動できません。データインポート作業を行ってください");
+                return;
+            }
+
+            ShowPmdaDocumentForm();
         }
 
         private async void buttonCopySummary_Click(object sender, EventArgs e)
