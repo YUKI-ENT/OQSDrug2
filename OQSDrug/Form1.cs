@@ -1881,7 +1881,8 @@ namespace OQSDrug
 
         private void checkAccessProcess()
         {
-            if (Properties.Settings.Default.DynamicsUseCom) return;
+            if (Properties.Settings.Default.DynamicsUseCom
+                || !Properties.Settings.Default.StopOnAccessProcess) return;
             // "msaccess" という名前のプロセスがあるかをチェック
             Process[] processes = Process.GetProcessesByName("msaccess");
 

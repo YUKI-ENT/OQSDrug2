@@ -32,6 +32,14 @@ namespace OQSDrug.Properties {
             get { return ((bool)(this["DynamicsUseCom"])); }
             set { this["DynamicsUseCom"] = value; }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool StopOnAccessProcess {
+            get { return ((bool)(this["StopOnAccessProcess"])); }
+            set { this["StopOnAccessProcess"] = value; }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]

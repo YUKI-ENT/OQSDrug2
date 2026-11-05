@@ -27,6 +27,8 @@ namespace OQSDrug
         private System.Windows.Forms.CheckBox checkBoxInteractionErrorPopup;
         private Label labelInteractionCheck;
         private System.Windows.Forms.CheckBox checkBoxImportNotification;
+        private System.Windows.Forms.CheckBox checkBoxStopOnAccessProcess;
+        private Label labelAccessProcessWarning;
 
         public Form2(Form1 parentForm)
         {
@@ -38,6 +40,26 @@ namespace OQSDrug
                 Checked = Properties.Settings.Default.ImportNotificationEnabled
             };
             tabPageMain.Controls.Add(checkBoxImportNotification);
+            checkBoxStopOnAccessProcess = new System.Windows.Forms.CheckBox
+            {
+                Name = "checkBoxStopOnAccessProcess",
+                Text = "Access起動時はdatadyna.mdbの取込を停止する（推奨）",
+                AutoSize = true, Location = new Point(16, 368), TabIndex = 101,
+                Checked = Properties.Settings.Default.StopOnAccessProcess
+            };
+            toolTipSetting.SetToolTip(checkBoxStopOnAccessProcess,
+                "MDB読み取りでT_資格確認結果表示を使用するときに適用します。\r\n"
+                + "ON: Accessアプリの種類を問わず、起動を検知すると取得動作を停止します。\r\n"
+                + "OFF: 他のAccessアプリを起動しても停止しません。ダイナミクスの自動識別は行いません。");
+            labelAccessProcessWarning = new Label
+            {
+                Name = "labelAccessProcessWarning", AutoSize = false,
+                Location = new Point(32, 392), Size = new Size(535, 38),
+                Text = "解除する場合は、このPCでダイナミクスを起動しないでください。\r\n"
+                    + "datadyna.mdbへの同時アクセスによるデータ破損のリスクがあります。"
+            };
+            tabPageMain.Controls.Add(checkBoxStopOnAccessProcess);
+            tabPageMain.Controls.Add(labelAccessProcessWarning);
             checkBoxInteractionCheck = new System.Windows.Forms.CheckBox { Name = "checkBoxInteractionCheck", Text = "相互作用チェックを行う（COM連携の場合のみ）",
                 AutoSize = true, Location = new Point(20, 200), Checked = Properties.Settings.Default.InteractionCheckEnabled,
                 Visible = radioButtonDynamicsCom.Checked };
@@ -71,6 +93,7 @@ namespace OQSDrug
             textBoxDatadyna.Text = Properties.Settings.Default.Datadyna;
             radioButtonDynamicsCom.Checked = Properties.Settings.Default.DynamicsUseCom;
             radioButtonDynamicsMdb.Checked = !Properties.Settings.Default.DynamicsUseCom;
+            checkBoxStopOnAccessProcess.Checked = Properties.Settings.Default.StopOnAccessProcess;
             UpdateDynamicsSourceControls();
             textBoxOQSFolder.Text = Properties.Settings.Default.OQSFolder;
             
@@ -345,9 +368,11 @@ namespace OQSDrug
 
         private void SaveSettings()
         {
+            bool accessProcessGuardChanged = Properties.Settings.Default.StopOnAccessProcess != checkBoxStopOnAccessProcess.Checked;
             Properties.Settings.Default.OQSDrugData = textBoxOQSDrugData.Text;
             Properties.Settings.Default.Datadyna =textBoxDatadyna.Text;
             Properties.Settings.Default.DynamicsUseCom = radioButtonDynamicsCom.Checked;
+            Properties.Settings.Default.StopOnAccessProcess = checkBoxStopOnAccessProcess.Checked;
             Properties.Settings.Default.InteractionCheckEnabled = checkBoxInteractionCheck.Checked;
             Properties.Settings.Default.InteractionErrorPopupEnabled = checkBoxInteractionErrorPopup.Checked;
             Properties.Settings.Default.OQSFolder = textBoxOQSFolder.Text;
@@ -446,6 +471,10 @@ namespace OQSDrug
             SavePmdaDocumentSettings();
 
             Properties.Settings.Default.Save();
+            if (accessProcessGuardChanged)
+                _ = AddLogAsync(Properties.Settings.Default.StopOnAccessProcess
+                    ? "[設定] Access起動時のdatadyna.mdb取込停止を有効にしました。"
+                    : "[設定] Access起動時のdatadyna.mdb取込停止を解除しました。ダイナミクスの自動識別は行いません。");
 
 
         }
@@ -474,6 +503,8 @@ namespace OQSDrug
         private void UpdateDynamicsSourceControls()
         {
             bool useCom = radioButtonDynamicsCom.Checked;
+            if (checkBoxStopOnAccessProcess != null) checkBoxStopOnAccessProcess.Enabled = !useCom;
+            if (labelAccessProcessWarning != null) labelAccessProcessWarning.Enabled = !useCom;
             if (checkBoxInteractionCheck != null) checkBoxInteractionCheck.Visible = useCom;
             if (labelInteractionCheck != null) labelInteractionCheck.Visible = useCom;
             if (checkBoxInteractionErrorPopup != null) checkBoxInteractionErrorPopup.Visible = useCom;
