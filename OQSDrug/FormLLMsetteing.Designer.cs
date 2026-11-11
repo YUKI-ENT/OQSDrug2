@@ -54,6 +54,7 @@
             this.checkBoxExcludeMyOrg = new System.Windows.Forms.CheckBox();
             this.label4 = new System.Windows.Forms.Label();
             this.checkBoxAutofetch = new System.Windows.Forms.CheckBox();
+            this.checkBoxDisableThinking = new System.Windows.Forms.CheckBox();
             this.buttonSave = new System.Windows.Forms.Button();
             this.buttonDelete = new System.Windows.Forms.Button();
             this.buttonUp = new System.Windows.Forms.Button();
@@ -402,6 +403,16 @@
             this.checkBoxAutofetch.Text = "自動取得";
             this.checkBoxAutofetch.UseVisualStyleBackColor = true;
             // 
+            // checkBoxDisableThinking
+            //
+            this.checkBoxDisableThinking.AutoSize = true;
+            this.checkBoxDisableThinking.Location = new System.Drawing.Point(150, 64);
+            this.checkBoxDisableThinking.Name = "checkBoxDisableThinking";
+            this.checkBoxDisableThinking.Size = new System.Drawing.Size(110, 16);
+            this.checkBoxDisableThinking.TabIndex = 6;
+            this.checkBoxDisableThinking.Text = "thinkingを無効";
+            this.checkBoxDisableThinking.UseVisualStyleBackColor = true;
+            //
             // buttonSave
             // 
             this.buttonSave.Image = global::OQSDrug.Properties.Resources.Save;
@@ -470,6 +481,7 @@
             this.groupBox3.Controls.Add(this.label1);
             this.groupBox3.Controls.Add(this.groupBox2);
             this.groupBox3.Controls.Add(this.checkBoxAutofetch);
+            this.groupBox3.Controls.Add(this.checkBoxDisableThinking);
             this.groupBox3.Controls.Add(this.label3);
             this.groupBox3.Location = new System.Drawing.Point(375, 12);
             this.groupBox3.Name = "groupBox3";
@@ -558,6 +570,7 @@
         private System.Windows.Forms.TextBox textBoxTplTitle;
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.CheckBox checkBoxAutofetch;
+        private System.Windows.Forms.CheckBox checkBoxDisableThinking;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button buttonSave;
         private System.Windows.Forms.Button buttonUp;

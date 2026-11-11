@@ -1,4 +1,4 @@
-﻿using Microsoft.VisualBasic;
+using Microsoft.VisualBasic;
 using Microsoft.VisualBasic.Logging;
 using Npgsql;
 using NpgsqlTypes;
@@ -399,8 +399,10 @@ namespace OQSDrug
         {
             try
             {
+                await AddLogAsync($"[AutoFetch] キュー受付 ptId={ptId}（同一患者の待機・実行中依頼は統合）");
                 await autoLlmQueue.Enqueue(ptId, async patient =>
                 {
+                    await AddLogAsync($"[AutoFetch] キュー処理開始 ptId={patient}");
                     await CommonFunctions.AutoLLMAsync(
                         ptId: patient,
                         timeoutMsOverride: Properties.Settings.Default.LLMtimeout * 1000,
@@ -3921,23 +3923,34 @@ namespace OQSDrug
                                                         }
                                                         handledXmlForRsb = true;
 
-                                                        //LLM自動問い合わせ
-                                                    if (Properties.Settings.Default.DBtype == "pg" &&  messageContent.StartsWith("成功：") && Properties.Settings.Default.AIauto)
-                                                    {
-                                                        // 待機中・実行中の同一患者をまとめてキューへ登録
-                                                        try
+                                                        // 自動送信の入口条件を記録。テンプレートのauto_fetchとは別にAIautoも必要。
+                                                        bool importSucceeded = messageContent.StartsWith("成功：", StringComparison.Ordinal);
+                                                        bool pgEnabled = Properties.Settings.Default.DBtype == "pg";
+                                                        bool autoEnabled = Properties.Settings.Default.AIauto;
+                                                        await AddLogAsync($"[AutoFetch] 取込後判定 ptId={PtID / 10}, DBtype={Properties.Settings.Default.DBtype}, AIauto={autoEnabled}, importSucceeded={importSucceeded}");
+                                                        if (pgEnabled && importSucceeded && autoEnabled)
                                                         {
-                                                            using (timing.Measure("LLMキュー登録", true))
+                                                            // 待機中・実行中の同一患者をまとめてキューへ登録
+                                                            try
                                                             {
-                                                                QueueAutoLLM(PtID / 10);
+                                                                using (timing.Measure("LLMキュー登録", true))
+                                                                {
+                                                                    QueueAutoLLM(PtID / 10);
+                                                                }
+                                                            }
+                                                            catch (Exception ex)
+                                                            {
+                                                                AddLogAsync($"LLMスケジュールに失敗しました: {ex.Message}");
                                                             }
                                                         }
-                                                        catch (Exception ex)
+                                                        else
                                                         {
-                                                            AddLogAsync($"LLMスケジュールに失敗しました: {ex.Message}");
+                                                            string reason = !pgEnabled ? "PostgreSQL以外のため対象外"
+                                                                : !importSucceeded ? "薬歴XML取り込みが成功していない"
+                                                                : "取り込み側PCの設定「AI自動検索」が無効";
+                                                            await AddLogAsync($"[AutoFetch] 起動スキップ ptId={PtID / 10}: {reason}");
                                                         }
-                                                    }
-                                                    }
+                                                        }
                                                     else if (resFileName.StartsWith("TKK", StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         using (timing.Measure("健診取込全体", true))

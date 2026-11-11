@@ -1732,8 +1732,18 @@ namespace OQSDrug
                 string modelName = comboBoxModel.Text;
 
                 string tplName = comboBoxLLMtemplates.Text;
-                                
-                var rid = await CommonFunctions.RunLlmOnceAndPersistAsync(ptId, prompt, tplName, modelName);
+                long? templateId = GetSelectedTemplateId();
+                bool disableThinking = false;
+                if (templateId.HasValue)
+                {
+                    var template = await GetPromptTemplateByIdAsync(templateId.Value);
+                    if (template == null || template.Rows.Count == 0)
+                        throw new InvalidOperationException("テンプレートを取得できませんでした。");
+                    disableThinking = IsThinkingDisabled(template.Rows[0]);
+                }
+
+                var rid = await CommonFunctions.RunLlmOnceAndPersistAsync(ptId, prompt, tplName, modelName,
+                    disableThinking: disableThinking);
 
                 // 表示
                 // 直近結果をUIへ

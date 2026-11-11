@@ -226,6 +226,7 @@ namespace OQSDrug
                             : "{}";
 
                 var opts = SafeDeserializeDict(json);
+                checkBoxDisableThinking.Checked = GetOpt(opts, "disableThinking", false);
 
                 // 既定値（キーが無い/型が変でも安全にフォールバック）
                 numericUpDownMonth.Value = ClampToNUD(numericUpDownMonth, GetOpt(opts, "months", 6));
@@ -305,6 +306,7 @@ namespace OQSDrug
                 await SetModelsToComboBox(comboBoxModels,llmModelList,Properties.Settings.Default.LLMmodel);
 
                 checkBoxAutofetch.Checked = false;
+                checkBoxDisableThinking.Checked = false;
                 textBoxPrompt.Text = "";
                 //comboBoxPayloadType.SelectedIndex = -1;
                 //comboBoxPayloadType.Tag = 0; // 未設定
@@ -328,6 +330,7 @@ namespace OQSDrug
             var opt = new Dictionary<string, object>
             {
                 ["months"] = (int)numericUpDownMonth.Value,
+                ["disableThinking"] = checkBoxDisableThinking.Checked,
                 ["excludeMyOrg"] = checkBoxExcludeMyOrg.Checked,
                 ["chronicThreshold"] = numericUpDownChronicThresh.Value,  // 固定ならここで。コントロール化してもOK
                 ["acuteThreshold"] = numericUpDownAcuteThresh.Value,  // 固定ならここで

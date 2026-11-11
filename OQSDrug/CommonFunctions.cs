@@ -1581,6 +1581,7 @@ namespace OQSDrug
                 var med = new Dictionary<string, object>
                 {
                     ["drugn"] = s.DrugN ?? "",
+                    ["drugn_summary"] = DrugSummaryName.Format(s.DrugN),
                     ["latest"] = s.LatestDate,
                     ["chronic"] = s.ChronicScore,
                     ["acute"] = s.AcuteScore,
@@ -1635,6 +1636,8 @@ chronic/acuteは履歴に基づく参考スコアで、実際の使用確率で�
 直近30日以内という理由だけで臨時処方としないでください。単回記録で日数も不明な場合は慢性・短期とも不明です。
 estimated_endは通常内服の日数から推定した終了日で、実際の服薬は未確認です。typical_interval_daysは過去の処方間隔であり、投与日数や残薬の保証ではありません。
 rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け、推定と確認済み情報を区別してください。
+【薬剤名の出力（上記に薬剤名の加工指示があれば本補足を優先）】
+サマリーに出す薬剤名はdrugn_summaryをそのまま使用してください。これはdrugnから規格・剤形・メーカー表記を除いた表示用名称です。一般名への置換や追加の省略は不要です。薬剤の判断には元のdrugnを参照してください。
 --- JSON PAYLOAD START ---
 {payloadJson}
 --- JSON PAYLOAD END ---";
@@ -1643,6 +1646,14 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
         }
 
         // ========= ヘルパ =========
+
+        public static bool IsThinkingDisabled(DataRow template)
+        {
+            if (template == null || !template.Table.Columns.Contains("options_json") ||
+                template["options_json"] == DBNull.Value) return false;
+
+            return GetOpt(SafeDeserializeDict(template["options_json"].ToString()), "disableThinking", false);
+        }
 
         private static Dictionary<string, object> SafeDeserializeDict(string json)
         {
@@ -1861,7 +1872,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             string prompt,
             int timeoutMs = 120000,
             CancellationToken ct = default(CancellationToken),
-            Action<string> onStatus = null)   // ← 進捗やデバッグ文字列をUIに出すなら使う
+            Action<string> onStatus = null,
+            bool disableThinking = false)
         {
             if (string.IsNullOrWhiteSpace(serverUrl))
                 throw new ArgumentException("serverUrl が空です。例: http://localhost:11434/v1/chat/completions");
@@ -1890,8 +1902,11 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 },
                 { "stream", false }
             };
+            // Ollama の OpenAI 互換APIでは thinking/think ではなく reasoning_effort を使う。
+            if (disableThinking) payload["reasoning_effort"] = "none";
             var json = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(payload);
-            onStatus?.Invoke($"[CallLlmAsync] payload {json.Length} chars");
+            onStatus?.Invoke($"[CallLlmAsync] model={modelName}, requestChars={json.Length}, timeoutMs={timeoutMs}, reasoning_effort={(disableThinking ? "none" : "default")}");
+            var elapsed = Stopwatch.StartNew();
 
             try
             {
@@ -1900,6 +1915,9 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 using (var resp = await http.PostAsync(serverUrl, req, ct).ConfigureAwait(false))
                 {
                     string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    string responseInfo = $"HTTP={(int)resp.StatusCode}, elapsedMs={elapsed.ElapsedMilliseconds}, " +
+                        $"contentType={resp.Content.Headers.ContentType}, {DescribeLlmResponse(body)}";
+                    onStatus?.Invoke("[CallLlmAsync] response " + responseInfo);
 
                     // 非200系は詳細を投げる（本文は長いので先頭だけ）
                     if (!resp.IsSuccessStatusCode)
@@ -1922,21 +1940,22 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                     {
                         string res = ExtractChatCompletionText(body);
                         if (string.IsNullOrWhiteSpace(res))
-                            throw new InvalidOperationException("LLMの応答本文が空でした。" );
+                            throw new InvalidOperationException("JSONは受信しましたが、回答本文 choices[0].message.content が空でした。思考のみの応答や生成上限を確認してください。");
                         onStatus?.Invoke($"[CallLlmAsync] OK response {res.Length} chars");
                         return res.Trim();
                     }
                     catch (Exception jx)
                     {
-                        onStatus?.Invoke("[CallLlmAsync] WARN JSON parse failed: " + jx.Message);
-                        throw new InvalidOperationException("LLM応答をChat Completions形式として解析できませんでした。", jx);
+                        var msg = $"LLM応答エラー: {jx.Message} [{responseInfo}]";
+                        onStatus?.Invoke("[CallLlmAsync] ERROR " + msg);
+                        throw new InvalidOperationException(msg, jx);
                     }
                 }
             }
             catch (TaskCanceledException tex)
             {
                 ct.ThrowIfCancellationRequested();
-                var msg = $"LLM タイムアウト（{timeoutMs}ms）: {tex.Message}";
+                var msg = $"LLM タイムアウト（設定={timeoutMs}ms, 経過={elapsed.ElapsedMilliseconds}ms, model={modelName}）: {tex.Message}";
                 onStatus?.Invoke("[CallLlmAsync] " + msg);
                 throw new TimeoutException(msg, tex);
             }
@@ -1989,8 +2008,65 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             return http;
         }
 
+        // 回答や思考の実文を記録せず、空応答・形式不正・生成上限を区別する。
+        private static string DescribeLlmResponse(string body)
+        {
+            var info = new Dictionary<string, object> { ["responseChars"] = body?.Length ?? 0 };
+            var serializer = new JavaScriptSerializer();
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                info["jsonState"] = "empty_body";
+                return serializer.Serialize(info);
+            }
+            try
+            {
+                var root = serializer.DeserializeObject(body) as Dictionary<string, object>;
+                info["jsonState"] = root == null ? "not_object" : "object";
+                if (root != null)
+                {
+                    info["hasError"] = root.ContainsKey("error");
+                    info["nativeOllamaResponse"] = root.ContainsKey("message") && !root.ContainsKey("choices");
+                    var choices = root.TryGetValue("choices", out var c) ? c as object[] : null;
+                    info["choicesCount"] = choices == null ? (object)null : choices.Length;
+                    var choice = choices != null && choices.Length > 0 ? choices[0] as Dictionary<string, object> : null;
+                    if (choice != null)
+                    {
+                        info["finish_reason"] = choice.TryGetValue("finish_reason", out var finish) && finish is string reason
+                            ? TrimTo(reason, 80) : null;
+                        var message = choice.TryGetValue("message", out var m) ? m as Dictionary<string, object> : null;
+                        info["hasMessage"] = message != null;
+                        if (message != null)
+                        {
+                            var content = message.TryGetValue("content", out var value) ? value : null;
+                            info["contentType"] = content == null ? "null_or_missing" : content.GetType().Name;
+                            info["contentChars"] = content is string text ? text.Length : 0;
+                            info["contentParts"] = content is object[] parts ? parts.Length : 0;
+                            info["reasoningChars"] = message.TryGetValue("reasoning_content", out var reasoning) && reasoning is string thinking
+                                ? thinking.Length : 0;
+                            info["thinkingChars"] = message.TryGetValue("thinking", out var t) && t is string thought
+                                ? thought.Length : 0;
+                            info["hasToolCalls"] = message.ContainsKey("tool_calls");
+                        }
+                    }
+                    if (root.TryGetValue("usage", out var u) && u is Dictionary<string, object> usage)
+                    {
+                        foreach (string key in new[] { "prompt_tokens", "completion_tokens", "total_tokens" })
+                            if (usage.TryGetValue(key, out var count) && (count is int || count is long || count is decimal))
+                                info[key] = count;
+                    }
+                }
+            }
+            catch
+            {
+                info["jsonState"] = "invalid_json";
+            }
+            return serializer.Serialize(info);
+        }
+
         private static string ExtractChatCompletionText(string body)
         {
+            if (string.IsNullOrWhiteSpace(body))
+                throw new InvalidOperationException("HTTP応答ボディが空で、JSONを受信できませんでした。");
             var serializer = new JavaScriptSerializer();
             var root = serializer.DeserializeObject(body) as Dictionary<string, object>;
             if (root == null || !root.TryGetValue("choices", out var choicesObject) ||
@@ -2003,6 +2079,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 throw new InvalidOperationException("choices[0].message.content がありません。");
             }
 
+            if (contentObject == null) return "";
             if (contentObject is string text)
                 return text;
 
@@ -2018,8 +2095,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                     }
                 }
 
-                if (builder.Length > 0)
-                    return builder.ToString();
+                return builder.ToString();
             }
 
             throw new InvalidOperationException("応答本文が文字列ではありません。");
@@ -2027,7 +2103,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
 
 
         // ── 1回分の問い合わせ（DB更新まで一括） ──
-        public static async Task<long> RunLlmOnceAndPersistAsync(long ptId, string prompt, string tplName ,string modelName, int? timeoutMsOverride = null, bool autoRetry = false, CancellationToken ct = default)
+        public static async Task<long> RunLlmOnceAndPersistAsync(long ptId, string prompt, string tplName ,string modelName, int? timeoutMsOverride = null, bool autoRetry = false, CancellationToken ct = default, bool disableThinking = false)
         {
             // 設定からOpenAI互換APIのURLを組み立て
             var port = Properties.Settings.Default.LLMport;
@@ -2048,8 +2124,9 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                                 serverUrl, modelName, prompt,
                                 timeoutMs: tout,
                                 ct: ct,
-                                onStatus: autoRetry ? (Action<string>)(message => { _ = AddLogAsync($"[AutoFetch rid={rid}] {message}", fileOnly: true); }) : null,
-                                autoRetry: autoRetry
+                                onStatus: message => { _ = AddLogAsync($"[LLM rid={rid} mode={(autoRetry ? "auto" : "manual")}] {message}", fileOnly: true); },
+                                autoRetry: autoRetry,
+                                disableThinking: disableThinking
                                 );
 
                 // 3) 成功更新（長さ/トークンも記録）
@@ -2057,6 +2134,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             }
             catch (Exception ex)
             {
+                await AddLogAsync($"[LLM rid={rid}] failed {ex.GetType().Name}: {ex.Message}", fileOnly: true);
                 await UpdateAiResultErrorAsync(rid, ex.Message);
                 throw; // UI側でトースト/MessageBoxしたければ投げ直す
             }
@@ -2076,6 +2154,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             public Action<string> OnStatus;
             public TaskCompletionSource<string> Tcs;
             public bool AutoRetry;
+            public bool DisableThinking;
         }
 
         private static readonly ConcurrentQueue<LlmJob> _llmQueue = new ConcurrentQueue<LlmJob>();
@@ -2099,7 +2178,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             int timeoutMs = 120000,
             CancellationToken ct = default(CancellationToken),
             Action<string> onStatus = null,
-            bool autoRetry = false)
+            bool autoRetry = false,
+            bool disableThinking = false)
         {
             // 事前キャンセルは即キャンセル返し
             if (ct.IsCancellationRequested)
@@ -2115,6 +2195,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                 Ct = ct,
                 OnStatus = onStatus,
                 AutoRetry = autoRetry,
+                DisableThinking = disableThinking,
                 Tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously)
             };
 
@@ -2164,7 +2245,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                             status?.Invoke("dequeued → processing...");
                             // 既存の CallLlmAsync を利用
                             Func<Task<string>> send = () => CallLlmAsync(
-                                job.ServerUrl, job.ModelName, job.Prompt, job.TimeoutMs, job.Ct, status);
+                                job.ServerUrl, job.ModelName, job.Prompt, job.TimeoutMs, job.Ct, status, job.DisableThinking);
                             var res = job.AutoRetry
                                 ? await LlmRetryPolicy.ExecuteAsync(send, job.Ct, status).ConfigureAwait(false)
                                 : await send().ConfigureAwait(false);
@@ -2227,6 +2308,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                     }
                 }
 
+                await AddLogAsync($"[AutoFetch] 自動取得テンプレート数={dtTpl.Rows.Count} ptId={ptId}");
                 if (dtTpl.Rows.Count == 0)
                 {
                     await AddLogAsync("[AutoFetch] auto_fetch=TRUE のテンプレートが見つかりません。処理を中止します。");
@@ -2253,7 +2335,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                             if (existsRecent)
                             {
                                 skipped++;
-                                await AddLogAsync($"[AutoFetch] skip '{tplName}'（{minDaysBetween}日以内に既存あり）");
+                                await AddLogAsync($"[AutoFetch] skip ptId={ptId} tpl='{tplName}'（直近{minDaysBetween * 24}時間以内に同タイトルの本文あり成功結果。手動送信結果も対象）");
                                 continue;
                             }
                         }
@@ -2273,7 +2355,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
                         }
 
                         // 2-3) 実行（内部は直列キューで順次処理）
-                        long rid = await RunLlmOnceAndPersistAsync(ptId, prompt, tplName, modelName, timeoutMsOverride, autoRetry: true, ct: ct);
+                        long rid = await RunLlmOnceAndPersistAsync(ptId, prompt, tplName, modelName, timeoutMsOverride, autoRetry: true, ct: ct,
+                            disableThinking: IsThinkingDisabled(row));
                         lastRid = rid;
                         executed++;
 
