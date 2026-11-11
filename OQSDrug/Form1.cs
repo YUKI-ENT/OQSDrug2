@@ -4073,6 +4073,9 @@ namespace OQSDrug
 
                             if (!isProcessed)
                             {
+                                if (await ExpireMissingResponseAsync(connection, record, resFolder, resBaseFileName, DateTime.Now))
+                                    continue;
+
                                 AddLogAsync($"{resBaseFileName}が未着です");
                                 AllDataProcessed = false;
                             }
@@ -4117,6 +4120,49 @@ namespace OQSDrug
             {
                 scanTiming.Dispose();
             }
+        }
+
+        private async Task<bool> ExpireMissingResponseAsync(
+            IDbConnection connection, Dictionary<string, object> record,
+            string resFolder, string resBaseFileName, DateTime now)
+        {
+            // 同意期限は要求DBにないため、要求日時から24時間を未着待機の上限にする。
+            if (!record.TryGetValue("reqDate", out object value) || !(value is DateTime reqDate) ||
+                now - reqDate < TimeSpan.FromHours(24))
+                return false;
+
+            // 走査開始後に届いた応答は次の走査で取り込む。到着済みの古い応答も失効させない。
+            if (Directory.EnumerateFiles(resFolder).Any(file =>
+                string.Equals(Path.GetFileNameWithoutExtension(file), resBaseFileName, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            using (IDbCommand command = connection.CreateCommand())
+            {
+                // resFileの空文字で待機を終了し、結果は履歴に残す。
+                // 読込後に再要求・取込された行を上書きしない。
+                command.CommandText = CommonFunctions.ConvertSqlForOleDb(
+                    "UPDATE reqResults SET resFile = '', resDate = @resDate, result = @result " +
+                    "WHERE ID = @ID AND resFile IS NULL AND reqFile = @reqFile AND reqDate = @reqDate");
+                CommonFunctions.AddDbParameter(command, "@resDate", DateTime.SpecifyKind(now, DateTimeKind.Unspecified));
+                CommonFunctions.AddDbParameter(command, "@result", "未着タイムアウト（要求後24時間経過）");
+                CommonFunctions.AddDbParameter(command, "@ID", record["ID"]);
+                CommonFunctions.AddDbParameter(command, "@reqFile", record["reqFile"]);
+                CommonFunctions.AddDbParameter(command, "@reqDate", DateTime.SpecifyKind(reqDate, DateTimeKind.Unspecified));
+
+                CommonFunctions.DataDbLock = true;
+                try
+                {
+                    if (await ((DbCommand)command).ExecuteNonQueryAsync() == 0)
+                        return false;
+                }
+                finally
+                {
+                    CommonFunctions.DataDbLock = false;
+                }
+            }
+
+            _ = AddLogAsync($"{resBaseFileName}は要求後24時間経過しても未着のため、タイムアウトとして待機を終了しました（要求日時: {reqDate:yyyy-MM-dd HH:mm:ss}）");
+            return true;
         }
 
         private async Task ReloadRsbXmlAsync(string url)
