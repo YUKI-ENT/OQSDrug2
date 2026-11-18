@@ -1973,7 +1973,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             }
         }
 
-        public static string BuildLlmBaseUrl(string server, int port)
+        public static string BuildLlmBaseUrl(string server, int port, bool useHttps = false)
         {
             string value = (server ?? string.Empty).Trim().TrimEnd('/');
             if (string.IsNullOrWhiteSpace(value))
@@ -1982,7 +1982,8 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             if (!value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
                 !value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                value = $"http://{value}:{port}";
+                string scheme = useHttps ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
+                value = $"{scheme}://{value}:{port}";
             }
 
             if (value.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
@@ -2110,7 +2111,7 @@ rank_labelとcontinuity_noteを参照し、服薬中・中断の断定を避け�
             var tout = timeoutMsOverride ?? Properties.Settings.Default.LLMtimeout * 1000; // ms
             if (autoRetry) tout = Math.Max(tout, 300000); // サーバーの順番待ちを含め最低5分
 
-            string baseUrl = BuildLlmBaseUrl(Properties.Settings.Default.LLMserver, port);
+            string baseUrl = BuildLlmBaseUrl(Properties.Settings.Default.LLMserver, port, Properties.Settings.Default.LLMuseHttps);
             string serverUrl = $"{baseUrl}/chat/completions";
 
             

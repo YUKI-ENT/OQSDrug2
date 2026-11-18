@@ -72,6 +72,7 @@
             this.textBoxLLMtimeout = new System.Windows.Forms.TextBox();
             this.labelLLMtimeout = new System.Windows.Forms.Label();
             this.labelLLMmodel = new System.Windows.Forms.Label();
+            this.checkBoxLLMHttps = new System.Windows.Forms.CheckBox();
             this.labelLLMport = new System.Windows.Forms.Label();
             this.textBoxLLMport = new System.Windows.Forms.TextBox();
             this.textBoxLLMserver = new System.Windows.Forms.TextBox();
@@ -100,6 +101,7 @@
             this.tabPageCommon = new System.Windows.Forms.TabPage();
             this.label5 = new System.Windows.Forms.Label();
             this.tabPageMain = new System.Windows.Forms.TabPage();
+            this.label7 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
             this.labelYZspan = new System.Windows.Forms.Label();
             this.tabPageViewer = new System.Windows.Forms.TabPage();
@@ -152,7 +154,6 @@
             this.checkBoxBulkAutoSendToFaceEnabled = new System.Windows.Forms.CheckBox();
             this.comboBoxBulkStatusWindowMode = new System.Windows.Forms.ComboBox();
             this.labelBulkStatusWindowMode = new System.Windows.Forms.Label();
-            this.label7 = new System.Windows.Forms.Label();
             this.panelDynamicsSource.SuspendLayout();
             this.groupBoxDI.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -538,6 +539,7 @@
             this.groupBox1.Controls.Add(this.textBoxLLMtimeout);
             this.groupBox1.Controls.Add(this.labelLLMtimeout);
             this.groupBox1.Controls.Add(this.labelLLMmodel);
+            this.groupBox1.Controls.Add(this.checkBoxLLMHttps);
             this.groupBox1.Controls.Add(this.labelLLMport);
             this.groupBox1.Controls.Add(this.textBoxLLMport);
             this.groupBox1.Controls.Add(this.labelLLMserver);
@@ -619,6 +621,17 @@
             this.labelLLMmodel.TabIndex = 91;
             this.labelLLMmodel.Text = "モデル";
             // 
+            // checkBoxLLMHttps
+            // 
+            this.checkBoxLLMHttps.AutoSize = true;
+            this.checkBoxLLMHttps.Location = new System.Drawing.Point(389, 99);
+            this.checkBoxLLMHttps.Name = "checkBoxLLMHttps";
+            this.checkBoxLLMHttps.Size = new System.Drawing.Size(50, 16);
+            this.checkBoxLLMHttps.TabIndex = 90;
+            this.checkBoxLLMHttps.Text = "https";
+            this.checkBoxLLMHttps.UseVisualStyleBackColor = true;
+            this.checkBoxLLMHttps.Click += new System.EventHandler(this.checkBoxLLMHttps_Click);
+            // 
             // labelLLMport
             // 
             this.labelLLMport.AutoSize = true;
@@ -639,8 +652,9 @@
             // 
             this.textBoxLLMserver.Location = new System.Drawing.Point(237, 97);
             this.textBoxLLMserver.Name = "textBoxLLMserver";
-            this.textBoxLLMserver.Size = new System.Drawing.Size(211, 19);
+            this.textBoxLLMserver.Size = new System.Drawing.Size(146, 19);
             this.textBoxLLMserver.TabIndex = 86;
+            this.textBoxLLMserver.TextChanged += new System.EventHandler(this.textBoxLLMserver_TextChanged);
             // 
             // buttonPGupload
             // 
@@ -911,6 +925,16 @@
             this.tabPageMain.TabIndex = 0;
             this.tabPageMain.Text = "取込設定";
             this.tabPageMain.UseVisualStyleBackColor = true;
+            // 
+            // label7
+            // 
+            this.label7.Font = new System.Drawing.Font("MS UI Gothic", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.label7.Location = new System.Drawing.Point(158, 89);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(392, 41);
+            this.label7.TabIndex = 91;
+            this.label7.Text = "COM読み取りは、同じPCでダイナミクスクライアントを動作させ、\r\n患者マスターフォームを開いた状態のときにダイナミクス側から\r\nデータの受信を行う方式ですので、" +
+    "ダイナクライアントを開いておく必要があります。";
             // 
             // label6
             // 
@@ -1607,16 +1631,6 @@
             this.labelBulkStatusWindowMode.TabIndex = 12;
             this.labelBulkStatusWindowMode.Text = "自動実行時の表示方法";
             // 
-            // label7
-            // 
-            this.label7.Font = new System.Drawing.Font("MS UI Gothic", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.label7.Location = new System.Drawing.Point(158, 89);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(392, 41);
-            this.label7.TabIndex = 91;
-            this.label7.Text = "COM読み取りは、同じPCでダイナミクスクライアントを動作させ、\r\n患者マスターフォームを開いた状態のときにダイナミクス側から\r\nデータの受信を行う方式ですので、" +
-    "ダイナクライアントを開いておく必要があります。";
-            // 
             // Form2
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -1770,6 +1784,7 @@
         private System.Windows.Forms.TextBox textBoxLLMtimeout;
         private System.Windows.Forms.Label labelLLMtimeout;
         private System.Windows.Forms.Label labelLLMmodel;
+        private System.Windows.Forms.CheckBox checkBoxLLMHttps;
         private System.Windows.Forms.Label labelLLMport;
         private System.Windows.Forms.TextBox textBoxLLMport;
         private System.Windows.Forms.Label labelLLMserver;

@@ -603,6 +603,18 @@ namespace OQSDrug.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LLMuseHttps {
+            get {
+                return ((bool)(this["LLMuseHttps"]));
+            }
+            set {
+                this["LLMuseHttps"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("11434")]
         public int LLMport {
             get {

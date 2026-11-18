@@ -187,6 +187,7 @@ namespace OQSDrug
             textBoxPGuser.Text = Properties.Settings.Default.PGuser;
             textBoxPGpass.Text = decodePassword( Properties.Settings.Default.PGpass);
 
+            checkBoxLLMHttps.Checked = Properties.Settings.Default.LLMuseHttps;
             textBoxLLMserver.Text = Properties.Settings.Default.LLMserver;
             textBoxLLMport.Text = Properties.Settings.Default.LLMport.ToString();
             textBoxLLMtimeout.Text = Properties.Settings.Default.LLMtimeout.ToString();
@@ -309,6 +310,7 @@ namespace OQSDrug
                 textBoxPGpass.Enabled = false;
                 textBoxLLMserver.Enabled = false;
                 textBoxLLMport.Enabled = false;
+                checkBoxLLMHttps.Enabled = false;
                 //textBoxLLMmodel.Enabled = false ;
                 textBoxLLMtimeout.Enabled = false;
                 textBoxLLMapikey.Enabled = false;
@@ -341,6 +343,7 @@ namespace OQSDrug
                 textBoxPGpass.Enabled = true;
                 textBoxLLMserver.Enabled = true;
                 textBoxLLMport.Enabled = true;
+                checkBoxLLMHttps.Enabled = true;
                 //textBoxLLMmodel.Enabled = true;
                 textBoxLLMtimeout.Enabled = true;
                 textBoxLLMapikey.Enabled = true;
@@ -433,8 +436,9 @@ namespace OQSDrug
             }
 
             Properties.Settings.Default.AIauto = checkBoxAI.Checked;
+            Properties.Settings.Default.LLMuseHttps = checkBoxLLMHttps.Checked;
             Properties.Settings.Default.LLMserver = textBoxLLMserver.Text;
-            Properties.Settings.Default.LLMport = Convert.ToInt16(textBoxLLMport.Text);
+            Properties.Settings.Default.LLMport = Convert.ToInt32(textBoxLLMport.Text);
             Properties.Settings.Default.LLMtimeout = Convert.ToInt16(textBoxLLMtimeout.Text);
             string modelName = comboBoxLLMModels.Text?.Trim() ?? string.Empty;
             if (!string.Equals(modelName, "(モデル未設定)", StringComparison.Ordinal))
@@ -730,6 +734,7 @@ namespace OQSDrug
                 checkBoxAI.Enabled = false;
                 textBoxLLMserver.Enabled = false;
                 textBoxLLMport.Enabled = false;
+                checkBoxLLMHttps.Enabled = false;
                 buttonGetModels.Enabled = false;
                 comboBoxLLMModels.Enabled = false;
                 textBoxLLMtimeout.Enabled = false;
@@ -760,6 +765,7 @@ namespace OQSDrug
                 checkBoxAI.Enabled = true;
                 textBoxLLMserver.Enabled = true;
                 textBoxLLMport.Enabled = true;
+                checkBoxLLMHttps.Enabled = true;
                 buttonGetModels.Enabled = true;
                 comboBoxLLMModels.Enabled = true;
                 textBoxLLMtimeout.Enabled = true;
@@ -781,6 +787,26 @@ namespace OQSDrug
         private void radioButtonPG_CheckedChanged(object sender, EventArgs e)
         {
             SetDBtype();
+        }
+
+        private void textBoxLLMserver_TextChanged(object sender, EventArgs e)
+        {
+            string server = textBoxLLMserver.Text.TrimStart();
+            if (server.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                checkBoxLLMHttps.Checked = true;
+            else if (server.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                checkBoxLLMHttps.Checked = false;
+        }
+
+        private void checkBoxLLMHttps_Click(object sender, EventArgs e)
+        {
+            string server = textBoxLLMserver.Text.TrimStart();
+            string oldPrefix = checkBoxLLMHttps.Checked ? "http://" : "https://";
+            if (server.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                string newPrefix = checkBoxLLMHttps.Checked ? "https://" : "http://";
+                textBoxLLMserver.Text = newPrefix + server.Substring(oldPrefix.Length);
+            }
         }
 
         private void checkBoxAI_CheckedChanged(object sender, EventArgs e)
@@ -810,7 +836,8 @@ namespace OQSDrug
             // URL 組み立て
             string baseUrl = CommonFunctions.BuildLlmBaseUrl(
                 textBoxLLMserver.Text,
-                Convert.ToInt32(textBoxLLMport.Text));
+                Convert.ToInt32(textBoxLLMport.Text),
+                checkBoxLLMHttps.Checked);
 
             // UI保護
             buttonGetModels.Enabled = false;

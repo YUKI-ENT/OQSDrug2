@@ -1820,7 +1820,8 @@ namespace OQSDrug
                 {
                     string baseUrl = CommonFunctions.BuildLlmBaseUrl(
                         Properties.Settings.Default.LLMserver,
-                        Properties.Settings.Default.LLMport);
+                        Properties.Settings.Default.LLMport,
+                        Properties.Settings.Default.LLMuseHttps);
                     await CommonFunctions.GetLlmModelsAsync(baseUrl).ConfigureAwait(false);
                 }
             }, 6000, "GetLlmModelsAsync");
