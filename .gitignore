@@ -368,3 +368,5 @@ build/*.ps1
 installer.iss
 
 docs/OnsiBulkTool/
+/Output
+/tests/LlmResponseTests.cs
